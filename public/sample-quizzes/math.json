@@ -1,0 +1,122 @@
+{
+  "title": "Math Challenge",
+  "description": "Numbers don't lie. Neither will your rank.",
+  "accent": "#3b82f6",
+  "passScore": 60,
+  "settings": { "mode": "standard", "timeLimit": 30, "shuffle": false },
+  "sections": [
+    {
+      "name": "Quick Maths",
+      "questions": [
+        {
+          "type": "numeric",
+          "question": "What is 12 × 12?",
+          "answer": 144,
+          "tolerance": 0,
+          "difficulty": 1
+        },
+        {
+          "type": "multiple",
+          "question": "What is the value of π to two decimal places?",
+          "answers": [
+            { "text": "3.14", "correct": true },
+            { "text": "3.41" },
+            { "text": "3.12" },
+            { "text": "3.16" }
+          ],
+          "explanation": "π ≈ 3.14159…",
+          "difficulty": 1
+        },
+        {
+          "type": "numeric",
+          "question": "Solve: 7² − 3²",
+          "answer": 40,
+          "tolerance": 0,
+          "explanation": "49 − 9 = 40.",
+          "difficulty": 1,
+          "hint": "Square first, then subtract."
+        },
+        {
+          "type": "multiple",
+          "question": "What is the derivative of $x^2$?",
+          "answers": [
+            { "text": "2x", "correct": true },
+            { "text": "x" },
+            { "text": "x²/2" },
+            { "text": "2" }
+          ],
+          "explanation": "Power rule: d/dx xⁿ = nxⁿ⁻¹.",
+          "difficulty": 2
+        },
+        {
+          "type": "fill",
+          "question": "The longest side of a right triangle is called the ______.",
+          "correctText": "hypotenuse",
+          "explanation": "Hypotenuse — opposite the right angle.",
+          "difficulty": 1,
+          "hint": "It appears in the Pythagorean theorem."
+        },
+        {
+          "type": "multiple",
+          "question": "How many degrees are in the interior angles of a triangle?",
+          "answers": [
+            { "text": "180", "correct": true },
+            { "text": "360" },
+            { "text": "90" },
+            { "text": "270" }
+          ],
+          "explanation": "Always 180° in Euclidean geometry.",
+          "difficulty": 1
+        },
+        {
+          "type": "numeric",
+          "question": "What is 15% of 220?",
+          "answer": 33,
+          "tolerance": 0,
+          "explanation": "220 × 0.15 = 33.",
+          "difficulty": 2
+        },
+        {
+          "type": "order",
+          "question": "Order these numbers from smallest to largest:",
+          "answers": [
+            { "text": "0.5" },
+            { "text": "√2" },
+            { "text": "π" },
+            { "text": "4" }
+          ],
+          "explanation": "0.5 < √2 (≈1.41) < π (≈3.14) < 4.",
+          "difficulty": 2
+        },
+        {
+          "type": "numeric",
+          "question": "If a = 3 and b = 4, what is √(a² + b²)?",
+          "answer": 5,
+          "tolerance": 0,
+          "explanation": "3-4-5 triangle: √(9+16) = √25 = 5.",
+          "difficulty": 2,
+          "hint": "The classic Pythagorean triple."
+        },
+        {
+          "type": "multi",
+          "question": "Which of these are prime numbers? (Pick 2)",
+          "answers": [
+            { "text": "17", "correct": true },
+            { "text": "29", "correct": true },
+            { "text": "51" },
+            { "text": "91" }
+          ],
+          "explanation": "51 = 3×17 and 91 = 7×13. 17 and 29 are prime.",
+          "difficulty": 2
+        },
+        {
+          "type": "fill",
+          "question": "The formula for the area of a circle is π × r to the power of ______.",
+          "correctText": "2|two",
+          "explanation": "A = πr².",
+          "difficulty": 1
+        }
+      ]
+    }
+  ]
+}

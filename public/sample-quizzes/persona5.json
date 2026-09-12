@@ -1,0 +1,126 @@
+{
+  "title": "Persona 5 Trivia",
+  "description": "Steal your way through the Metaverse. A quiz for Phantom Thieves.",
+  "accent": "#e60012",
+  "author": "The Phantom Thieves of Trivia",
+  "passScore": 70,
+  "settings": { "mode": "standard", "timeLimit": 20, "shuffle": true, "shuffleAnswers": true },
+  "sections": [
+    {
+      "name": "The Metaverse",
+      "questions": [
+        {
+          "type": "multiple",
+          "question": "What is Joker's initial Persona?",
+          "answers": [
+            { "text": "Arsène", "correct": true },
+            { "text": "Izanagi" },
+            { "text": "Orpheus" },
+            { "text": "Carmen" }
+          ],
+          "explanation": "Arsène awakens during the Kamoshida arc — a gentleman thief to match Joker.",
+          "difficulty": 1,
+          "hint": "Named after a famous fictional French thief."
+        },
+        {
+          "type": "boolean",
+          "question": "Morgana is actually a cat.",
+          "answers": [
+            { "text": "True", "correct": true },
+            { "text": "False" }
+          ],
+          "explanation": "He insists he is NOT a cat. He is, in fact, a cat.",
+          "difficulty": 1
+        },
+        {
+          "type": "multi",
+          "question": "Which of these are actual Phantom Thieves? (Pick 2)",
+          "answers": [
+            { "text": "Ryuji Sakamoto", "correct": true },
+            { "text": "Ann Takamaki", "correct": true },
+            { "text": "Sojiro Sakura" },
+            { "text": "Sae Niijima" }
+          ],
+          "explanation": "Ryuji (Skull) and Ann (Panther) are founding members.",
+          "difficulty": 1,
+          "hint": "Two of the founding members."
+        },
+        {
+          "type": "fill",
+          "question": "The Velvet Room's twin attendants are named Caroline and ______.",
+          "correctText": "Justine",
+          "explanation": "Caroline and Justine — together they are Lavenza.",
+          "difficulty": 2,
+          "hint": "Starts with J."
+        },
+        {
+          "type": "order",
+          "question": "Put the Palaces in story order:",
+          "answers": [
+            { "text": "Castle" },
+            { "text": "Museum" },
+            { "text": "Bank" },
+            { "text": "Casino" }
+          ],
+          "explanation": "Kamoshida's Castle → Madarame's Museum → Kaneshiro's Bank → Niijima's Casino.",
+          "difficulty": 3,
+          "hint": "Think about which villains you fight first."
+        },
+        {
+          "type": "match",
+          "question": "Match the Phantom Thief to their codename:",
+          "pairs": [
+            { "left": "Ryuji", "right": "Skull" },
+            { "left": "Ann", "right": "Panther" },
+            { "left": "Yusuke", "right": "Fox" },
+            { "left": "Futaba", "right": "Oracle" }
+          ],
+          "explanation": "Skull, Panther, Fox, and Oracle (formerly Navi).",
+          "difficulty": 2
+        },
+        {
+          "type": "multiple",
+          "question": "What is the café where you live called?",
+          "answers": [
+            { "text": "Leblanc", "correct": true },
+            { "text": "Café Soliel" },
+            { "text": "Big Bang Burger" },
+            { "text": "Untouchable" }
+          ],
+          "explanation": "Café Leblanc, run by Sojiro Sakura in Yongen-Jaya.",
+          "difficulty": 1
+        },
+        {
+          "type": "fill",
+          "question": "Joker's teacher and maid is Ms. ______.",
+          "correctText": "Kawakami",
+          "explanation": "Sadayo Kawakami — the Temperance confidant.",
+          "difficulty": 2,
+          "hint": "She moonlights as Becky."
+        },
+        {
+          "type": "multiple",
+          "question": "Which arcana does Ryuji represent?",
+          "answers": [
+            { "text": "Chariot", "correct": true },
+            { "text": "Lovers" },
+            { "text": "Emperor" },
+            { "text": "Magician" }
+          ],
+          "explanation": "Ryuji is the Chariot confidant.",
+          "difficulty": 2
+        },
+        {
+          "type": "boolean",
+          "question": "Persona 5 Royal adds a playable character named Kasumi Yoshizawa.",
+          "answers": [
+            { "text": "True", "correct": true },
+            { "text": "False" }
+          ],
+          "explanation": "Kasumi joins in Royal, representing the Faith arcana.",
+          "difficulty": 1
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+/* ============ P5 QUIZ — DESIGN TOKENS ============ */
+:root {
+  /* palette — the calling card */
+  --red: #e60012;
+  --red-deep: #a3000d;
+  --red-hot: #ff2a2a;
+  --ink: #0c0c0e;
+  --ink-2: #141419;
+  --ink-3: #1d1d24;
+  --paper: #f6f4f0;
+  --paper-dim: #cfcac1;
+  --gold: #e8b93b;
+  --gold-hot: #ffd76a;
+  --smoke: #8a8a93;
+  --steel: #55555f;
+  --green: #2fc45a;
+  --blue: #3b82f6;
+  --p5-cyan: #0dd9ff;
+
+  /* type */
+  --font-display: "Archivo Black", "Arial Black", sans-serif;
+  --font-ui: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", monospace;
+  --font-p5: "Persona5Main", "Archivo Black", sans-serif;
+
+  /* scale */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+  --s-8: 64px;
+  --s-9: 96px;
+  --s-10: 128px;
+
+  /* motion */
+  --ease-snap: cubic-bezier(0.2, 0.9, 0.3, 1.15);
+  --ease-slam: cubic-bezier(0.7, 0, 0.2, 1);
+  --ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast: 160ms;
+  --dur-med: 320ms;
+  --dur-slow: 640ms;
+
+  /* signature shapes */
+  --clip-card: polygon(0 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%);
+  --clip-sticker: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+  --clip-tab: polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 14px) 100%, 0 100%);
+  --clip-slant: polygon(0 0, calc(100% - 22px) 0, 100% 22px, 100% 100%, 0 100%);
+
+  --shadow-cut: 6px 6px 0 rgba(0, 0, 0, 0.55);
+  --shadow-cut-sm: 3px 3px 0 rgba(0, 0, 0, 0.5);
+
+  --halftone: radial-gradient(circle at 1px 1px, rgba(246, 244, 240, 0.16) 1px, transparent 0);
+
+  --stripe-red: repeating-linear-gradient(
+    -45deg,
+    var(--red) 0 22px,
+    var(--red-deep) 22px 44px
+  );
+
+  --speed-gradient: linear-gradient(
+    90deg,
+    transparent,
+    var(--paper),
+    transparent
+  );
+}

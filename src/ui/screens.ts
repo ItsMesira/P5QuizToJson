@@ -1,0 +1,110 @@
+/* ============ P5 QUIZ — SCREEN ROUTER ============ */
+import type { Quiz, QuizResult } from "../core/types";
+import { loadSettings, storeSettings } from "../core/store";
+import { validateQuiz } from "../core/validator";
+import { audio } from "../core/audio";
+import { fx } from "../fx/particles";
+import { slashWipe } from "../fx/transitions";
+import { ransomizeAll } from "../fx/ransom";
+import { clear, toast } from "./dom";
+
+export const app = {
+  settings: loadSettings(),
+  currentQuiz: null as (Quiz & { savedId?: string; source?: string }) | null,
+  lastResult: null as QuizResult | null,
+  profile: null as string | null,
+};
+
+export function applyGlobalSettings() {
+  audio.applySettings(app.settings);
+  fx.setCrt(app.settings.crt);
+  fx.setParticles(app.settings.particles);
+  document.body.classList.toggle("music-off", !app.settings.music);
+  if (app.settings.fullscreen) {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.().catch(() => undefined);
+    }
+  } else if (document.fullscreenElement) {
+    document.exitFullscreen?.().catch(() => undefined);
+  }
+  storeSettings(app.settings);
+}
+
+export type Route =
+  | { name: "title" }
+  | { name: "load" }
+  | { name: "library" }
+  | { name: "quiz" }
+  | { name: "results" }
+  | { name: "settings" }
+  | { name: "profiles" }
+  | { name: "leaderboard" }
+  | { name: "prompts" };
+
+type MountFn = (root: HTMLElement) => () => void;
+
+const mounts: Record<Route["name"], MountFn> = {} as Record<Route["name"], MountFn>;
+
+export function registerScreen(name: Route["name"], fn: MountFn) {
+  mounts[name] = fn;
+}
+
+let cleanup: (() => void) | null = null;
+let current: Route = { name: "title" };
+const stage = document.getElementById("app")!;
+const veil = document.getElementById("veil")!;
+
+export async function go(route: Route, opts: { instant?: boolean } = {}) {
+  current = route;
+  location.hash = route.name;
+  document.body.dataset.screen = route.name === "title" ? "home" : route.name;
+  if (!opts.instant) await slashWipe(veil, "in");
+  cleanup?.();
+  clear(stage);
+  const mount = mounts[route.name];
+  if (mount) {
+    cleanup = mount(stage);
+  }
+  ransomizeAll([".screen-title"]);
+  if (!opts.instant) {
+    await slashWipe(veil, "out");
+  }
+}
+
+export function currentRoute(): Route {
+  return current;
+}
+
+export async function startQuiz(quiz: Quiz & { savedId?: string; source?: string }) {
+  // ALWAYS normalize through the validator — raw JSON (samples, old saves,
+  // resume) lacks derived fields like correctText that the engine needs.
+  const v = validateQuiz(quiz);
+  if (v.ok) {
+    app.currentQuiz = { ...v.quiz, savedId: quiz.savedId, source: quiz.source };
+  } else {
+    toast("Quiz has problems — reload the JSON", "error");
+    app.currentQuiz = quiz;
+  }
+  await go({ name: "quiz" });
+}
+
+export function hashToRoute(h: string): Route | null {
+  const map: Record<string, Route> = {
+    title: { name: "title" },
+    load: { name: "load" },
+    library: { name: "library" },
+    quiz: { name: "quiz" },
+    results: { name: "results" },
+    settings: { name: "settings" },
+    profiles: { name: "profiles" },
+    leaderboard: { name: "leaderboard" },
+    prompts: { name: "prompts" },
+  };
+  const key = h.replace(/^#\/?/, "") as keyof typeof map;
+  return map[key] ?? null;
+}
+
+window.addEventListener("hashchange", () => {
+  const r = hashToRoute(location.hash);
+  if (r && r.name !== current.name) void go(r);
+});

@@ -1,0 +1,140 @@
+{
+  "title": "General Knowledge",
+  "description": "A little bit of everything. Take your time.",
+  "accent": "#e8b93b",
+  "passScore": 60,
+  "settings": { "mode": "standard", "timeLimit": 18, "shuffle": true },
+  "sections": [
+    {
+      "name": "Mixed Bag",
+      "questions": [
+        {
+          "type": "multiple",
+          "question": "Which planet is known as the Red Planet?",
+          "answers": [
+            { "text": "Mars", "correct": true },
+            { "text": "Venus" },
+            { "text": "Jupiter" },
+            { "text": "Mercury" }
+          ],
+          "explanation": "Iron oxide dust gives Mars its reddish color.",
+          "difficulty": 1
+        },
+        {
+          "type": "fill",
+          "question": "The largest ocean on Earth is the ______ Ocean.",
+          "correctText": "Pacific",
+          "explanation": "The Pacific covers about 165 million km².",
+          "difficulty": 1,
+          "hint": "It borders California and Japan."
+        },
+        {
+          "type": "numeric",
+          "question": "How many continents are there (most common count)?",
+          "answer": 7,
+          "tolerance": 0,
+          "explanation": "Africa, Antarctica, Asia, Europe, North America, Oceania, South America.",
+          "difficulty": 1
+        },
+        {
+          "type": "multi",
+          "question": "Which of these are Nobel Prize categories? (Pick 3)",
+          "answers": [
+            { "text": "Peace", "correct": true },
+            { "text": "Physics", "correct": true },
+            { "text": "Literature", "correct": true },
+            { "text": "Mathematics" }
+          ],
+          "explanation": "There is no Nobel Prize in mathematics.",
+          "difficulty": 2,
+          "hint": "One of these famously does not exist."
+        },
+        {
+          "type": "boolean",
+          "question": "The Great Wall of China is visible from the Moon with the naked eye.",
+          "answers": [
+            { "text": "False", "correct": true },
+            { "text": "True" }
+          ],
+          "explanation": "It's far too narrow — this is a myth.",
+          "difficulty": 1
+        },
+        {
+          "type": "order",
+          "question": "Order these from smallest to largest:",
+          "answers": [
+            { "text": "Bacterium" },
+            { "text": "Grain of sand" },
+            { "text": "Apple" },
+            { "text": "Mount Everest" }
+          ],
+          "explanation": "Bacteria ≈ 1µm, sand ≈ 0.5mm, apple ≈ 8cm, Everest ≈ 8.8km.",
+          "difficulty": 2
+        },
+        {
+          "type": "multiple",
+          "question": "In which country did the tango originate?",
+          "answers": [
+            { "text": "Argentina", "correct": true },
+            { "text": "Spain" },
+            { "text": "Brazil" },
+            { "text": "Portugal" }
+          ],
+          "explanation": "Tango was born in Buenos Aires and Montevideo in the late 1800s.",
+          "difficulty": 2
+        },
+        {
+          "type": "fill",
+          "question": "Water boils at 100°C at sea level — what is that in Fahrenheit?",
+          "correctText": "212",
+          "explanation": "212°F. The conversion is °F = °C × 9/5 + 32.",
+          "difficulty": 2,
+          "hint": "Double 100, add 12."
+        },
+        {
+          "type": "match",
+          "question": "Match the capital to its country:",
+          "pairs": [
+            { "left": "Tokyo", "right": "Japan" },
+            { "left": "Ottawa", "right": "Canada" },
+            { "left": "Nairobi", "right": "Kenya" },
+            { "left": "Bangkok", "right": "Thailand" }
+          ],
+          "explanation": "All four pairings are capitals of their respective countries.",
+          "difficulty": 2
+        },
+        {
+          "type": "multiple",
+          "question": "What is the hardest natural substance on Earth?",
+          "answers": [
+            { "text": "Diamond", "correct": true },
+            { "text": "Quartz" },
+            { "text": "Titanium" },
+            { "text": "Obsidian" }
+          ],
+          "explanation": "Diamond scores a 10 on the Mohs hardness scale.",
+          "difficulty": 1
+        },
+        {
+          "type": "numeric",
+          "question": "How many bones are in the adult human body?",
+          "answer": 206,
+          "tolerance": 0.02,
+          "explanation": "Babies have about 300 that fuse down to 206.",
+          "difficulty": 2,
+          "hint": "Just over two hundred."
+        },
+        {
+          "type": "boolean",
+          "question": "Lightning never strikes the same place twice.",
+          "answers": [
+            { "text": "False", "correct": true },
+            { "text": "True" }
+          ],
+          "explanation": "Tall structures like the Empire State Building get struck many times a year.",
+          "difficulty": 1
+        }
+      ]
+    }
+  ]
+}

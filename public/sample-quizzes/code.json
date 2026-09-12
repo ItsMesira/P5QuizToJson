@@ -1,0 +1,134 @@
+{
+  "title": "Code Quiz",
+  "description": "Debug the Metaverse of programming.",
+  "accent": "#2fc45a",
+  "passScore": 60,
+  "settings": { "mode": "standard", "timeLimit": 25, "shuffle": true },
+  "sections": [
+    {
+      "name": "Syntax & Semantics",
+      "questions": [
+        {
+          "type": "multiple",
+          "question": "What does `const` declare in JavaScript?",
+          "answers": [
+            { "text": "A block-scoped variable that cannot be reassigned", "correct": true },
+            { "text": "A global variable" },
+            { "text": "A function" },
+            { "text": "A class field only" }
+          ],
+          "explanation": "const is block-scoped and cannot be reassigned (though objects can still mutate).",
+          "difficulty": 1
+        },
+        {
+          "type": "fill",
+          "question": "In Python, the function to get the length of a list is `______(list)`.",
+          "correctText": "len",
+          "explanation": "len() returns the number of items.",
+          "difficulty": 1
+        },
+        {
+          "type": "numeric",
+          "question": "What is the result of `2 ** 10` (2 to the power of 10)?",
+          "answer": 1024,
+          "tolerance": 0,
+          "explanation": "2^10 = 1024 — the number of bytes in a kibibyte.",
+          "difficulty": 1
+        },
+        {
+          "type": "multiple",
+          "question": "Which HTTP status code means 'Not Found'?",
+          "answers": [
+            { "text": "404", "correct": true },
+            { "text": "500" },
+            { "text": "301" },
+            { "text": "200" }
+          ],
+          "explanation": "404 Not Found; 500 is server error; 301 is redirect; 200 is OK.",
+          "difficulty": 1
+        },
+        {
+          "type": "match",
+          "question": "Match the language to its typical file extension:",
+          "pairs": [
+            { "left": "TypeScript", "right": ".ts" },
+            { "left": "Python", "right": ".py" },
+            { "left": "Rust", "right": ".rs" },
+            { "left": "Go", "right": ".go" }
+          ],
+          "explanation": "All four are their standard extensions.",
+          "difficulty": 1
+        },
+        {
+          "type": "multi",
+          "question": "Which of these are JavaScript runtimes? (Pick 2)",
+          "answers": [
+            { "text": "Node.js", "correct": true },
+            { "text": "Bun", "correct": true },
+            { "text": "Django" },
+            { "text": "Laravel" }
+          ],
+          "explanation": "Django and Laravel are Python/PHP web frameworks, not runtimes.",
+          "difficulty": 2
+        },
+        {
+          "type": "boolean",
+          "question": "In Git, `git pull` fetches and merges changes from a remote.",
+          "answers": [
+            { "text": "True", "correct": true },
+            { "text": "False" }
+          ],
+          "explanation": "git pull = git fetch + git merge.",
+          "difficulty": 1
+        },
+        {
+          "type": "fill",
+          "question": "The CSS property for text color is `______`.",
+          "correctText": "color",
+          "explanation": "Simply `color`.",
+          "difficulty": 1
+        },
+        {
+          "type": "multiple",
+          "question": "Which data structure works on the LIFO principle?",
+          "answers": [
+            { "text": "Stack", "correct": true },
+            { "text": "Queue" },
+            { "text": "Hash map" },
+            { "text": "Graph" }
+          ],
+          "explanation": "Last In, First Out — the stack.",
+          "difficulty": 1
+        },
+        {
+          "type": "order",
+          "question": "Order the Git workflow steps:",
+          "answers": [
+            { "text": "clone" },
+            { "text": "commit" },
+            { "text": "push" },
+            { "text": "deploy" }
+          ],
+          "explanation": "Clone the repo, commit changes, push, then deploy.",
+          "difficulty": 1,
+          "hint": "Start by getting the repo."
+        },
+        {
+          "type": "numeric",
+          "question": "How many bits are in one byte?",
+          "answer": 8,
+          "tolerance": 0,
+          "explanation": "8 bits = 1 byte.",
+          "difficulty": 1
+        },
+        {
+          "type": "fill",
+          "question": "In SQL, you retrieve rows with the `______` keyword.",
+          "correctText": "SELECT|select",
+          "explanation": "SELECT * FROM table;",
+          "difficulty": 1
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,277 @@
+/* ============ P5 QUIZ — BASE / AMBIENT / FX LAYERS ============ */
+@font-face {
+  font-family: "Persona5Main";
+  src: url("/fonts/Persona5main.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--font-ui);
+  font-size: 18px;
+  letter-spacing: 0.02em;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  overscroll-behavior: none;
+}
+
+#app {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  overflow: hidden;
+}
+
+/* fullscreen FX canvas — particles, slashes, rain */
+#fx-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+}
+
+/* transition veil — P5 stripe sweep */
+#veil {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  opacity: 0;
+  overflow: hidden;
+}
+#veil .veil-bg {
+  position: absolute;
+  inset: 0;
+  background: var(--ink);
+}
+#veil .veil-stripe {
+  position: absolute;
+  top: -8vh;
+  height: 116vh;
+  transform: skewX(-16deg);
+  will-change: transform;
+}
+#veil .veil-stripe.s0 {
+  left: 70vw;
+  width: 30vw;
+  background: #0d0d0d;
+}
+#veil .veil-stripe.s1 {
+  left: 78vw;
+  width: 16vw;
+  background: var(--red);
+}
+#veil .veil-stripe.s2 {
+  left: 88vw;
+  width: 12vw;
+  background: var(--paper);
+}
+#veil .veil-slash {
+  position: absolute;
+  top: -10vh;
+  left: 84vw;
+  width: 3px;
+  height: 120vh;
+  background: var(--p5-cyan);
+  box-shadow: 0 0 26px 8px rgba(13, 217, 255, 0.55);
+  transform: skewX(-16deg);
+}
+
+/* ambient background layer — P5 Best layers: stripes, halftone, stars, slash */
+#ambient {
+  position: fixed;
+  inset: -6vmax;
+  z-index: 0;
+  overflow: hidden;
+  background: var(--ink);
+  pointer-events: none;
+}
+#ambient .bg-layer {
+  position: absolute;
+  inset: 0;
+  will-change: transform;
+}
+#ambient #bg-stripes {
+  background: repeating-linear-gradient(
+    115deg,
+    var(--red) 0 46px,
+    var(--red-deep) 46px 52px,
+    var(--red) 52px 120px,
+    #c4000f 120px 126px
+  );
+  animation: stripe-drift-115 22s linear infinite;
+}
+@keyframes stripe-drift-115 {
+  from { background-position: 0 0; }
+  to { background-position: 520px 0; }
+}
+#ambient #bg-halftone {
+  background-image: radial-gradient(circle, rgba(0, 0, 0, 0.35) 1.6px, transparent 1.7px);
+  background-size: 14px 14px;
+  mix-blend-mode: multiply;
+  animation: halftone-drift 30s linear infinite;
+}
+@keyframes halftone-drift {
+  from { background-position: 0 0; }
+  to { background-position: -140px 140px; }
+}
+#ambient #bg-vignette {
+  background: radial-gradient(ellipse at 32% 40%, transparent 30%, rgba(0, 0, 0, 0.72) 100%);
+}
+#ambient .bg-star {
+  position: absolute;
+  opacity: 0.16;
+  animation: star-spin 60s linear infinite;
+  transform-origin: center;
+  fill: #000;
+}
+#ambient .bg-star.s2 {
+  animation-duration: 90s;
+  animation-direction: reverse;
+  opacity: 0.1;
+  fill: #fff;
+}
+#ambient .bg-star:first-of-type,
+#ambient .bg-star {
+  left: 6%;
+  top: 8%;
+  width: 26vmax;
+  height: 26vmax;
+}
+#ambient .bg-star.s2 {
+  left: auto;
+  right: 4%;
+  bottom: 6%;
+  top: auto;
+  width: 34vmax;
+  height: 34vmax;
+}
+@keyframes star-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* torn black silhouette slash over the right side (home shape ↔ retracted) */
+#ambient #bg-slash {
+  position: absolute;
+  inset: 0;
+  background: var(--ink);
+  clip-path: polygon(58% 0, 100% 0, 100% 100%, 40% 100%, 52% 62%, 45% 60%, 60% 24%, 51% 22%);
+  transition: clip-path 0.8s cubic-bezier(0.8, 0, 0.15, 1);
+  will-change: transform, clip-path;
+}
+body[data-screen]:not([data-screen="home"]) #ambient #bg-slash {
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 0 62%, 0 60%, 0 24%, 0 22%);
+}
+
+/* per-screen menu artwork slot (drop art/menu-home.jpg etc. in) */
+#ambient .menu-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  will-change: transform;
+  transition: opacity 0.55s ease;
+}
+body[data-screen="home"] #art-home {
+  opacity: 1;
+}
+body.has-art-home #ambient #bg-slash {
+  display: none;
+}
+body.has-art-home #ambient #bg-halftone {
+  opacity: 0.5;
+}
+body.has-art-home #ambient #bg-vignette {
+  background:
+    linear-gradient(100deg, rgba(0, 0, 0, 0.42) 0%, rgba(0, 0, 0, 0.12) 36%, transparent 58%),
+    radial-gradient(ellipse at 32% 40%, transparent 30%, rgba(0, 0, 0, 0.55) 100%);
+}
+
+/* toasts */
+#toasts {
+  position: fixed;
+  top: var(--s-4);
+  right: var(--s-4);
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  pointer-events: none;
+}
+.toast {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 17px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 10px 18px;
+  clip-path: var(--clip-sticker);
+  box-shadow: var(--shadow-cut);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.toast.error {
+  background: var(--red);
+  color: var(--paper);
+}
+.toast .toast-icon {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+/* reduced motion — gentle mode */
+@media (prefers-reduced-motion: reduce) {
+  #ambient #bg-stripes,
+  #ambient #bg-halftone,
+  #ambient .bg-star {
+    animation: none;
+  }
+}
+
+/* ============ CUSTOM ANIMATED SPRITE CURSOR (P5 Best port) ============ */
+@media (pointer: fine) {
+  body.cursor-on,
+  body.cursor-on * {
+    cursor: none !important;
+  }
+}
+#cursor {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 48px;
+  height: 48px;
+  z-index: 9999;
+  pointer-events: none;
+  display: none;
+  background-repeat: no-repeat;
+  background-position: 0 0;
+  background-image: url("/cursors/normal.png");
+  margin: -3px 0 0 -4px;
+}
+#cursor.link {
+  background-image: url("/cursors/link.png");
+  margin: -6px 0 0 -6px;
+}
