@@ -98,8 +98,12 @@ initCursor();
 initClassBadge();
 applyGlobalSettings();
 
-/* refresh the cloud session in the background (cookie-based, non-blocking) */
-void import("./core/api").then(({ cloud }) => cloud.me().catch(() => undefined));
+/* restore the cloud session (cookie-based) BEFORE routing so a refresh on
+   #dashboard/#entry lands on the right screen instead of bouncing to entry */
+const sessionReady = Promise.race([
+  import("./core/api").then(({ cloud }) => cloud.me().catch(() => undefined)),
+  new Promise((r) => setTimeout(r, 2500)),
+]);
 
 /* first gesture unlocks audio */
 const unlockAudio = () => {
@@ -158,4 +162,4 @@ async function handleParams() {
   await go({ name: "title" }, { instant: true });
 }
 
-void handleParams();
+void sessionReady.then(() => handleParams());

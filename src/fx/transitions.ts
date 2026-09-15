@@ -111,7 +111,24 @@ export function slashWipe(veil: HTMLElement, dir: "in" | "out" = "in"): Promise<
     const bg = veil.querySelector<HTMLElement>(".veil-bg");
     veil.style.opacity = "1";
     const delays = [0, 0.05, 0.1];
-    const tl = gsap.timeline({ onComplete: () => resolve() });
+    let done = false;
+    let failsafe = 0;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      window.clearTimeout(failsafe);
+      resolve();
+    };
+    const tl = gsap.timeline({ onComplete: finish });
+    // watchdog: backgrounded tabs pause rAF and can strand a wipe mid-flight,
+    // leaving the black veil up — force-clear instead of hanging forever
+    failsafe = window.setTimeout(() => {
+      if (done) return;
+      console.warn("[p5q] transition stalled — force-clearing veil");
+      tl.kill();
+      veil.style.opacity = "0";
+      finish();
+    }, 1700);
     if (dir === "in") {
       audio.sfx("slash");
       fx.slashes(3);

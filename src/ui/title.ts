@@ -98,7 +98,7 @@ registerScreen("title", (root) => {
     h("div", { id: "hud-bottom" }, [
       h("span", {}, [h("span", { class: "key" }, ["↑↓"]), "SELECT"]),
       h("span", {}, [h("span", { class: "key" }, ["ENTER"]), "CONFIRM"]),
-      h("span", {}, [h("span", { class: "key" }, ["1-5"]), "JUMP"]),
+      h("span", {}, [h("span", { class: "key" }, ["1-6"]), "JUMP"]),
       h("span", { id: "clock", style: "margin-left:auto;opacity:.8" }, ["--:--"]),
     ]),
     // BGM panel

@@ -61,17 +61,50 @@ export async function go(route: Route, opts: { instant?: boolean } = {}) {
   location.hash = route.name;
   document.body.dataset.screen = route.name === "title" ? "home" : route.name;
   if (!opts.instant) await slashWipe(veil, "in");
-  cleanup?.();
-  clear(stage);
-  const mount = mounts[route.name];
-  if (mount) {
-    cleanup = mount(stage);
+  try {
+    cleanup?.();
+  } catch (err) {
+    console.error("[p5q] screen cleanup failed:", err);
   }
-  ransomizeAll([".screen-title"]);
-  if (!opts.instant) {
-    await slashWipe(veil, "out");
+  cleanup = null;
+  clear(stage);
+  try {
+    const mount = mounts[route.name];
+    if (mount) {
+      cleanup = mount(stage);
+    }
+    ransomizeAll([".screen-title"]);
+  } catch (err) {
+    console.error(`[p5q] screen "${route.name}" failed to mount:`, err);
+    toast("Something broke on that screen — back to the menu", "error");
+    if (route.name !== "title") {
+      try {
+        clear(stage);
+        current = { name: "title" };
+        location.hash = "title";
+        document.body.dataset.screen = "home";
+        cleanup = mounts.title(stage);
+        ransomizeAll([".screen-title"]);
+      } catch (err2) {
+        console.error("[p5q] title fallback failed:", err2);
+      }
+    }
+  } finally {
+    if (!opts.instant) await slashWipe(veil, "out");
   }
 }
+
+/* failsafe: if the black veil is still up seconds after the tab wakes up,
+   force it away so a stalled transition can never strand a black screen */
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible") return;
+  window.setTimeout(() => {
+    if (Number(getComputedStyle(veil).opacity) > 0.98) {
+      console.warn("[p5q] veil stuck after tab return — force clearing");
+      veil.style.opacity = "0";
+    }
+  }, 2500);
+});
 
 export function currentRoute(): Route {
   return current;

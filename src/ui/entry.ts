@@ -81,6 +81,15 @@ registerScreen("entry", (root) => {
           : bigBtn("LOG IN", "🔑", () => { mode = "auth"; render(); }),
       ]);
       stage.append(buttons);
+      stage.append(
+        h("div", { class: "entry-actions" }, [
+          h("button", { class: "sticker-btn entry-back entry-back-menu" }, ["◀ BACK TO MENU"]),
+        ]),
+      );
+      stage.querySelector(".entry-back-menu")!.addEventListener("click", () => {
+        audio.sfx("click");
+        void go({ name: "title" });
+      });
       if (!RM()) gsap.fromTo(".entry-btn", { x: -60, opacity: 0 }, { x: 0, opacity: 1, stagger: 0.08, duration: 0.5, ease: "back.out(1.4)" });
       return;
     }
@@ -246,10 +255,19 @@ registerScreen("entry", (root) => {
 
   el.querySelector("#hud-top .hud-tag")!.addEventListener("click", back);
 
+  /* ESC: sub-stages step back to root, root escapes to the main menu */
+  const onKey = (e: KeyboardEvent) => {
+    if (e.key !== "Escape") return;
+    e.preventDefault();
+    if (mode !== "root") back();
+    else void go({ name: "title" });
+  };
+  window.addEventListener("keydown", onKey);
+
   root.appendChild(el);
   render();
   if (!RM()) {
     gsap.fromTo("#hud-top .hud-tag", { y: -30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, stagger: 0.08, ease: "power3.out" });
   }
-  return () => undefined;
+  return () => window.removeEventListener("keydown", onKey);
 });
