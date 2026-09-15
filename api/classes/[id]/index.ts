@@ -1,10 +1,10 @@
 /* GET /api/classes/[id] — class info + members (membership required) */
-import type { ApiRequest, ApiResponse } from "../../_lib/types";
-import { sql } from "../../_lib/db";
-import { ensureSchema } from "../../_lib/db";
-import { getUserByToken, parseCookies, membership } from "../../_lib/auth";
-import { classIdSchema, parse } from "../../_lib/validate";
-import { ok, unauthorized, forbidden, notFound, badRequest, serverError } from "../../_lib/http";
+import type { ApiRequest, ApiResponse } from "../../_lib/types.js";
+import { sql } from "../../_lib/db.js";
+import { ensureSchema } from "../../_lib/db.js";
+import { getUserByToken, parseCookies, membership } from "../../_lib/auth.js";
+import { classIdSchema, parse } from "../../_lib/validate.js";
+import { ok, unauthorized, forbidden, notFound, badRequest, serverError } from "../../_lib/http.js";
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (req.method !== "GET") return unauthorized(res);

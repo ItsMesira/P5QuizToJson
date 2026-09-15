@@ -1,9 +1,9 @@
 /* GET /api/classes/mine — every class the user belongs to */
-import type { ApiRequest, ApiResponse } from "../_lib/types";
-import { sql } from "../_lib/db";
-import { ensureSchema } from "../_lib/db";
-import { getUserByToken, parseCookies } from "../_lib/auth";
-import { ok, unauthorized, serverError } from "../_lib/http";
+import type { ApiRequest, ApiResponse } from "../_lib/types.js";
+import { sql } from "../_lib/db.js";
+import { ensureSchema } from "../_lib/db.js";
+import { getUserByToken, parseCookies } from "../_lib/auth.js";
+import { ok, unauthorized, serverError } from "../_lib/http.js";
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (req.method !== "GET") return unauthorized(res);

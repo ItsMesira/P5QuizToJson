@@ -1,10 +1,10 @@
 /* /api/classes/[id]/results — GET class leaderboard · POST submit result (members) */
-import type { ApiRequest, ApiResponse } from "../../_lib/types";
-import { sql } from "../../_lib/db";
-import { ensureSchema } from "../../_lib/db";
-import { getUserByToken, parseCookies, csrfValid, membership, newId } from "../../_lib/auth";
-import { classIdSchema, resultSchema, parse } from "../../_lib/validate";
-import { ok, unauthorized, forbidden, badRequest, fail, tooMany, readBody, clientIp, rateLimit, serverError } from "../../_lib/http";
+import type { ApiRequest, ApiResponse } from "../../_lib/types.js";
+import { sql } from "../../_lib/db.js";
+import { ensureSchema } from "../../_lib/db.js";
+import { getUserByToken, parseCookies, csrfValid, membership, newId } from "../../_lib/auth.js";
+import { classIdSchema, resultSchema, parse } from "../../_lib/validate.js";
+import { ok, unauthorized, forbidden, badRequest, fail, tooMany, readBody, clientIp, rateLimit, serverError } from "../../_lib/http.js";
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   try {

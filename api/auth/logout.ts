@@ -1,8 +1,8 @@
 /* POST /api/auth/logout — destroy session, clear cookies (CSRF-protected) */
-import type { ApiRequest, ApiResponse } from "../_lib/types";
-import { ensureSchema } from "../_lib/db";
-import { destroySession, clearCookieHeaders, parseCookies, csrfValid } from "../_lib/auth";
-import { ok, unauthorized, fail, serverError } from "../_lib/http";
+import type { ApiRequest, ApiResponse } from "../_lib/types.js";
+import { ensureSchema } from "../_lib/db.js";
+import { destroySession, clearCookieHeaders, parseCookies, csrfValid } from "../_lib/auth.js";
+import { ok, unauthorized, fail, serverError } from "../_lib/http.js";
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (req.method !== "POST") return fail(res, 405, "POST only");

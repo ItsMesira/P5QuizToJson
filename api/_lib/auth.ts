@@ -1,7 +1,7 @@
 /* ============ P5 QUIZ API — AUTH: argon2id, session tokens, cookies, CSRF ============ */
 import { hash, verify } from "@node-rs/argon2";
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
-import { sql } from "./db";
+import { sql } from "./db.js";
 
 const SESSION_DAYS = 30;
 const COOKIE = "p5q_session";

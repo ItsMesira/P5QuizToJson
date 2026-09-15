@@ -1,10 +1,10 @@
 /* POST /api/auth/register — create account (+ optionally auto-join a class) */
-import type { ApiRequest, ApiResponse } from "../_lib/types";
-import { sql } from "../_lib/db";
-import { ensureSchema } from "../_lib/db";
-import { hashPassword, createSession, cookieHeader, csrfCookieHeader, sessionInfo, newId } from "../_lib/auth";
-import { usernameSchema, passwordSchema, emailSchema, classCodeSchema, parse } from "../_lib/validate";
-import { badRequest, ok, fail, tooMany, readBody, clientIp, rateLimit, serverError } from "../_lib/http";
+import type { ApiRequest, ApiResponse } from "../_lib/types.js";
+import { sql } from "../_lib/db.js";
+import { ensureSchema } from "../_lib/db.js";
+import { hashPassword, createSession, cookieHeader, csrfCookieHeader, sessionInfo, newId } from "../_lib/auth.js";
+import { usernameSchema, passwordSchema, emailSchema, classCodeSchema, parse } from "../_lib/validate.js";
+import { badRequest, ok, fail, tooMany, readBody, clientIp, rateLimit, serverError } from "../_lib/http.js";
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (req.method !== "POST") return fail(res, 405, "POST only");

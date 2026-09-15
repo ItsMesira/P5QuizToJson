@@ -1,10 +1,10 @@
 /* /api/classes/[id]/quizzes — GET list · POST save (any member) · DELETE (teacher only) */
-import type { ApiRequest, ApiResponse } from "../../_lib/types";
-import { sql } from "../../_lib/db";
-import { ensureSchema } from "../../_lib/db";
-import { getUserByToken, parseCookies, csrfValid, membership, newId } from "../../_lib/auth";
-import { classIdSchema, quizTitleSchema, quizDataSchema, parse } from "../../_lib/validate";
-import { ok, unauthorized, forbidden, notFound, badRequest, fail, tooMany, readBody, clientIp, rateLimit, serverError } from "../../_lib/http";
+import type { ApiRequest, ApiResponse } from "../../_lib/types.js";
+import { sql } from "../../_lib/db.js";
+import { ensureSchema } from "../../_lib/db.js";
+import { getUserByToken, parseCookies, csrfValid, membership, newId } from "../../_lib/auth.js";
+import { classIdSchema, quizTitleSchema, quizDataSchema, parse } from "../../_lib/validate.js";
+import { ok, unauthorized, forbidden, notFound, badRequest, fail, tooMany, readBody, clientIp, rateLimit, serverError } from "../../_lib/http.js";
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   try {

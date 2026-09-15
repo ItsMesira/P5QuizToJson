@@ -1,10 +1,10 @@
 /* POST /api/classes/create — create a class (creator becomes teacher) */
-import type { ApiRequest, ApiResponse } from "../_lib/types";
-import { sql } from "../_lib/db";
-import { ensureSchema } from "../_lib/db";
-import { getUserByToken, parseCookies, csrfValid, newId, newClassCode } from "../_lib/auth";
-import { classNameSchema, parse } from "../_lib/validate";
-import { badRequest, ok, fail, tooMany, unauthorized, readBody, clientIp, rateLimit, serverError } from "../_lib/http";
+import type { ApiRequest, ApiResponse } from "../_lib/types.js";
+import { sql } from "../_lib/db.js";
+import { ensureSchema } from "../_lib/db.js";
+import { getUserByToken, parseCookies, csrfValid, newId, newClassCode } from "../_lib/auth.js";
+import { classNameSchema, parse } from "../_lib/validate.js";
+import { badRequest, ok, fail, tooMany, unauthorized, readBody, clientIp, rateLimit, serverError } from "../_lib/http.js";
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (req.method !== "POST") return fail(res, 405, "POST only");
