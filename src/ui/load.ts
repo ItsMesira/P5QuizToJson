@@ -10,6 +10,7 @@ import { saveQuiz, loadProgress, savedQuizzes } from "../core/store";
 import { cloud } from "../core/api";
 import { fetchRemoteQuiz } from "../core/share";
 import type { Quiz } from "../core/types";
+import { t } from "../core/i18n";
 
 registerScreen("load", (root) => {
   let progress: ReturnType<typeof loadProgress> = null;
@@ -50,7 +51,7 @@ registerScreen("load", (root) => {
       gsap.fromTo(row, { x: -30, opacity: 0 }, { x: 0, opacity: 1, duration: 0.25, delay: i * 0.06, ease: "back.out(1.6)" });
     });
     if (errors.length > 6) {
-      panel.appendChild(h("div", { class: "load-error-more" }, [`…and ${errors.length - 6} more`]));
+      panel.appendChild(h("div", { class: "load-error-more" }, [t("…and {n} more", { n: errors.length - 6 })]));
     }
   };
 
@@ -68,27 +69,27 @@ registerScreen("load", (root) => {
 
   const el = h("div", { class: "screen load-screen" }, [
     h("header", { class: "load-head" }, [
-      h("button", { class: "back-btn", "aria-label": "Back" }, ["◀"]),
-      h("h2", { class: "screen-title" }, ["LOAD A QUIZ"]),
+      h("button", { class: "back-btn", "aria-label": t("Back") }, ["◀"]),
+      h("h2", { class: "screen-title" }, [t("LOAD A QUIZ")]),
       h("div", { class: "head-spacer" }, []),
     ]),
     h("div", { class: "load-body" }, [
-      h("div", { class: "drop-zone", tabindex: "0", role: "button", "aria-label": "Drop quiz JSON or click to browse" }, [
+      h("div", { class: "drop-zone", tabindex: "0", role: "button", "aria-label": t("Drop quiz JSON or click to browse") }, [
         h("div", { class: "drop-inner" }, [
           h("div", { class: "drop-star" }, ["★"]),
-          h("p", { class: "drop-title" }, ["DROP YOUR QUIZ.JSON"]),
-          h("p", { class: "drop-sub" }, ["or click to browse · or press ⌘V to paste"]),
+          h("p", { class: "drop-title" }, [t("DROP YOUR QUIZ.JSON")]),
+          h("p", { class: "drop-sub" }, [t("or click to browse · or press ⌘V to paste")]),
         ]),
       ]),
       h("div", { class: "load-errors" }, []),
       h("div", { class: "load-actions" }, [
-        h("button", { class: "sticker-btn" }, ["📂 BROWSE"]),
-        h("button", { class: "sticker-btn" }, ["📋 PASTE JSON"]),
-        h("button", { class: "sticker-btn" }, ["🔗 FROM URL"]),
+        h("button", { class: "sticker-btn" }, [t("📂 BROWSE")]),
+        h("button", { class: "sticker-btn" }, [t("📋 PASTE JSON")]),
+        h("button", { class: "sticker-btn" }, [t("🔗 FROM URL")]),
       ]),
       h("div", { class: "load-samples" }, [
         h("h3", { class: "samples-title" }, [
-          h("span", {}, ["— SAMPLES —"]),
+          h("span", {}, [t("— SAMPLES —")]),
         ]),
         h("div", { class: "samples-grid" }, []),
       ]),
@@ -97,26 +98,26 @@ registerScreen("load", (root) => {
     h("div", { class: "load-paste hidden" }, [
       h("div", { class: "load-paste-card" }, [
         h("div", { class: "load-paste-head" }, [
-          h("h3", {}, ["PASTE JSON"]),
-          h("button", { class: "pm-close paste-cancel", "aria-label": "Close" }, ["✕"]),
+          h("h3", {}, [t("PASTE JSON")]),
+          h("button", { class: "pm-close paste-cancel", "aria-label": t("Close") }, ["✕"]),
         ]),
-        h("textarea", { class: "paste-area", placeholder: '{ "title": "My Quiz", "sections": [...] }', spellcheck: "false" }, []),
+        h("textarea", { class: "paste-area", placeholder: '{ "title": t("My Quiz"), "sections": [...] }', spellcheck: "false" }, []),
         h("div", { class: "paste-actions" }, [
-          h("button", { class: "sticker-btn accent" }, ["LOAD"]),
-          h("button", { class: "sticker-btn" }, ["CANCEL"]),
+          h("button", { class: "sticker-btn accent" }, [t("LOAD")]),
+          h("button", { class: "sticker-btn" }, [t("CANCEL")]),
         ]),
       ]),
     ]),
     h("div", { class: "load-url hidden" }, [
       h("div", { class: "load-paste-card" }, [
         h("div", { class: "load-paste-head" }, [
-          h("h3", {}, ["FETCH FROM URL"]),
-          h("button", { class: "pm-close url-cancel-x", "aria-label": "Close" }, ["✕"]),
+          h("h3", {}, [t("FETCH FROM URL")]),
+          h("button", { class: "pm-close url-cancel-x", "aria-label": t("Close") }, ["✕"]),
         ]),
         h("input", { class: "url-input", placeholder: "https://example.com/quiz.json", spellcheck: "false" }, []),
         h("div", { class: "paste-actions" }, [
-          h("button", { class: "sticker-btn accent url-go" }, ["FETCH"]),
-          h("button", { class: "sticker-btn url-cancel" }, ["CANCEL"]),
+          h("button", { class: "sticker-btn accent url-go" }, [t("FETCH")]),
+          h("button", { class: "sticker-btn url-cancel" }, [t("CANCEL")]),
         ]),
       ]),
     ]),
@@ -190,7 +191,7 @@ registerScreen("load", (root) => {
       } catch {
         audio.sfx("wrong");
         fx.shake(12);
-        showErrors(["Not valid JSON — check commas and quotes."]);
+        showErrors([t("Not valid JSON — check commas and quotes.")]);
       }
     });
   });
@@ -206,7 +207,7 @@ registerScreen("load", (root) => {
     } catch (e) {
       audio.sfx("wrong");
       fx.shake(12);
-      showErrors([`Could not fetch: ${e instanceof Error ? e.message : e}`]);
+      showErrors([t("Could not fetch: {msg}", { msg: e instanceof Error ? e.message : String(e) })]);
     }
   });
   urlBox.querySelector<HTMLInputElement>(".url-input")!.addEventListener("keydown", (e) => {
@@ -240,7 +241,7 @@ registerScreen("load", (root) => {
         h("span", { class: "sample-num" }, [String(i + 1).padStart(2, "0")]),
       ]),
       h("div", { class: "sample-card-title" }, [sampleTitles[i]]),
-      h("div", { class: "sample-card-sub" }, ["BUILT-IN"]),
+      h("div", { class: "sample-card-sub" }, [t("BUILT-IN")]),
     ]);
     card.addEventListener("mouseenter", () => audio.sfx("hover"));
     card.addEventListener("click", async () => {
@@ -259,7 +260,7 @@ registerScreen("load", (root) => {
     const saved = savedQuizzes().find((s) => s.quiz.title === progress!.quizId);
     if (saved) {
       const resume = h("button", { class: "resume-chip" }, [
-        h("span", {}, [`▶ RESUME “${saved.quiz.title}” (Q${progress!.index + 1})`]),
+        h("span", {}, [t("▶ RESUME “{title}” (Q{n})", { title: saved.quiz.title, n: progress!.index + 1 })]),
       ]);
       resume.addEventListener("click", () => {
         audio.sfx("paper");

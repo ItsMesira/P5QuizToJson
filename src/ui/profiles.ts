@@ -8,6 +8,7 @@ import { RM } from "../fx/transitions";
 import { profiles, currentProfile, createProfile, switchProfile, unlockedAchievements, highScores, topicStats } from "../core/store";
 import { PARTY } from "../core/art";
 import { cloud } from "../core/api";
+import { t } from "../core/i18n";
 
 registerScreen("profiles", (root) => {
   let portraitIdx = 0;
@@ -16,27 +17,27 @@ registerScreen("profiles", (root) => {
 
   const el = h("div", { class: "screen profiles-screen" }, [
     h("header", { class: "load-head" }, [
-      h("button", { class: "back-btn", "aria-label": "Back" }, ["◀"]),
-      h("h2", { class: "screen-title" }, ["THIEF STATS"]),
+      h("button", { class: "back-btn", "aria-label": t("Back") }, ["◀"]),
+      h("h2", { class: "screen-title" }, [t("THIEF STATS")]),
       h("div", { class: "head-spacer" }, []),
     ]),
     h("div", { class: "thief-body" }, [
       cloud.session
         ? h("div", { class: "cloud-me" }, [
-            h("span", { class: "cloud-me-tag" }, ["☁ CLASSROOM"]),
+            h("span", { class: "cloud-me-tag" }, [t("☁ CLASSROOM")]),
             h("span", {}, [`Signed in as ${cloud.session.user.username}${cloud.session.cls ? ` — ${cloud.session.cls.name}` : ""}`]),
-            h("button", { class: "lib-btn cloud-logout" }, ["✕ LOG OUT"]),
+            h("button", { class: "lib-btn cloud-logout" }, [t("✕ LOG OUT")]),
           ])
         : null,
       // --- character viewer ---
       h("div", { class: "thief-viewer" }, [
-        h("button", { class: "thief-arrow left", "aria-label": "Previous portrait" }, ["◀"]),
+        h("button", { class: "thief-arrow left", "aria-label": t("Previous portrait") }, ["◀"]),
         h("div", { class: "thief-stage" }, [
           h("img", { class: "thief-portrait", src: PARTY[0].src, alt: "" }),
           h("div", { class: "thief-name" }, [PARTY[0].name]),
-          h("div", { class: "thief-role" }, ["PHANTOM THIEF"]),
+          h("div", { class: "thief-role" }, [t("PHANTOM THIEF")]),
         ]),
-        h("button", { class: "thief-arrow right", "aria-label": "Next portrait" }, ["▶"]),
+        h("button", { class: "thief-arrow right", "aria-label": t("Next portrait") }, ["▶"]),
       ]),
       // --- stat rows ---
       h("div", { class: "thief-stats" }, [
@@ -48,16 +49,16 @@ registerScreen("profiles", (root) => {
       // --- profile list ---
       h("div", { class: "thief-roster" }, []),
       h("div", { class: "profile-new" }, [
-        h("input", { class: "fill-input profile-input", placeholder: "PHANTOM NAME…", maxlength: "18", spellcheck: "false" }),
-        h("button", { class: "sticker-btn accent profile-create" }, ["CREATE"]),
+        h("input", { class: "fill-input profile-input", placeholder: t("PHANTOM NAME…"), maxlength: "18", spellcheck: "false" }),
+        h("button", { class: "sticker-btn accent profile-create" }, [t("CREATE")]),
       ]),
       h("div", { class: "thief-hint" }, [
         h("span", { class: "p5-hint-key" }, ["←→"]),
-        h("span", {}, ["PORTRAIT"]),
+        h("span", {}, [t("PORTRAIT")]),
         h("span", { class: "p5-hint-key" }, ["↑↓"]),
-        h("span", {}, ["THIEF"]),
+        h("span", {}, [t("THIEF")]),
         h("span", { class: "p5-hint-key" }, ["↵"]),
-        h("span", {}, ["CONFIRM"]),
+        h("span", {}, [t("CONFIRM")]),
       ]),
     ]),
   ]);
@@ -112,7 +113,7 @@ registerScreen("profiles", (root) => {
   const renderRoster = () => {
     roster.textContent = "";
     if (!profiles().length) {
-      roster.appendChild(h("p", { class: "profile-empty" }, ["No phantoms yet. Create one to track XP."]));
+      roster.appendChild(h("p", { class: "profile-empty" }, [t("No phantoms yet. Create one to track XP.")]));
     }
     profiles().forEach((p, i) => {
       const art = PARTY[i % PARTY.length];
@@ -121,9 +122,9 @@ registerScreen("profiles", (root) => {
         h("img", { class: "roster-img", src: art.src, alt: "" }),
         h("div", { class: "roster-body" }, [
           h("div", { class: "roster-name" }, [p.name]),
-          h("div", { class: "roster-xp" }, [`${p.xp} XP`]),
+          h("div", { class: "roster-xp" }, [t("{xp} XP", { xp: p.xp })]),
         ]),
-        isActive ? h("div", { class: "profile-badge" }, ["ACTIVE"]) : null,
+        isActive ? h("div", { class: "profile-badge" }, [t("ACTIVE")]) : null,
       ]);
       row.addEventListener("mouseenter", () => audio.sfx("hover"));
       row.addEventListener("click", () => {
@@ -143,7 +144,7 @@ registerScreen("profiles", (root) => {
   el.querySelector(".profile-create")!.addEventListener("click", () => {
     const name = input.value.trim();
     if (!name) {
-      toast("Enter a name first", "error");
+      toast(t("Enter a name first"), "error");
       return;
     }
     audio.sfx("unlock");

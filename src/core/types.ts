@@ -133,6 +133,12 @@ export function rankFor(pct: number): RankInfo {
   return RANKS.find((r) => pct >= r.minPct) ?? RANKS[RANKS.length - 1];
 }
 
+export interface CustomTheme {
+  accent: string; // primary accent (--red family)
+  ink: string;    // background base
+  paper: string;  // text base
+}
+
 export interface Settings {
   fx: FxLevel;
   particles: boolean;
@@ -146,6 +152,9 @@ export interface Settings {
   autoAdvance: boolean;
   fullscreen: boolean;
   reducedMotion: boolean;
+  theme: string;  // theme id from src/core/theme.ts ("calling-card" | "noir" | ... | "custom")
+  customTheme: CustomTheme;
+  lang: string;   // locale code from src/i18n ("en" | "th" | ...), "" = auto-detect
 }
 
 export interface Profile {
@@ -176,6 +185,9 @@ export const DEFAULT_SETTINGS: Settings = {
   autoAdvance: false,
   fullscreen: false,
   reducedMotion: false,
+  theme: "calling-card",
+  customTheme: { accent: "#e60012", ink: "#0c0c0e", paper: "#f6f4f0" },
+  lang: "",
 };
 
 export const DEFAULT_QUIZ_SETTINGS: QuizSettings = {

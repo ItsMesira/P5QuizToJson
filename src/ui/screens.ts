@@ -7,6 +7,8 @@ import { fx } from "../fx/particles";
 import { slashWipe } from "../fx/transitions";
 import { ransomizeAll } from "../fx/ransom";
 import { clear, toast } from "./dom";
+import { applyTheme } from "../core/theme";
+import { t, applyLocale } from "../core/i18n";
 
 export const app = {
   settings: loadSettings(),
@@ -19,6 +21,8 @@ export function applyGlobalSettings() {
   audio.applySettings(app.settings);
   fx.setCrt(app.settings.crt);
   fx.setParticles(app.settings.particles);
+  applyTheme(app.settings);
+  applyLocale(app.settings);
   document.body.classList.toggle("music-off", !app.settings.music);
   if (app.settings.fullscreen) {
     if (!document.fullscreenElement) {
@@ -76,7 +80,7 @@ export async function go(route: Route, opts: { instant?: boolean } = {}) {
     ransomizeAll([".screen-title"]);
   } catch (err) {
     console.error(`[p5q] screen "${route.name}" failed to mount:`, err);
-    toast("Something broke on that screen — back to the menu", "error");
+    toast(t("Something broke on that screen — back to the menu"), "error");
     if (route.name !== "title") {
       try {
         clear(stage);
@@ -131,6 +135,7 @@ export function initClassBadge() {
   const badge = document.getElementById("class-badge");
   if (!badge || badge.getAttribute("data-wired")) return;
   badge.setAttribute("data-wired", "1");
+  badge.setAttribute("aria-label", t("Open classroom"));
   badge.addEventListener("click", () => {
     void go(cloud.session ? { name: "dashboard" } : { name: "entry" });
   });
@@ -145,7 +150,7 @@ export async function startQuiz(quiz: Quiz & { savedId?: string; source?: string
   if (v.ok) {
     app.currentQuiz = { ...v.quiz, savedId: quiz.savedId, source: quiz.source };
   } else {
-    toast("Quiz has problems — reload the JSON", "error");
+    toast(t("Quiz has problems — reload the JSON"), "error");
     app.currentQuiz = quiz;
   }
   await go({ name: "quiz" });

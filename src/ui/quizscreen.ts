@@ -3,6 +3,7 @@ import gsap from "gsap";
 import katex from "katex";
 import { registerScreen, go, app } from "./screens";
 import { h, clear, toast } from "./dom";
+import { t } from "../core/i18n";
 import { audio } from "../core/audio";
 import { fx } from "../fx/particles";
 import {
@@ -54,10 +55,10 @@ registerScreen("quiz", (root) => {
   const el = h("div", { class: "screen quiz-screen" }, [
     h("header", { class: "quiz-top" }, [
       h("div", { class: "hearts" }, []),
-      h("button", { class: "quit-btn", "aria-label": "Pause or quit" }, ["✕"]),
+      h("button", { class: "quit-btn", "aria-label": t("Pause or quit") }, ["✕"]),
       h("div", { class: "quiz-progress" }, []),
       h("div", { class: "quiz-stats" }, [
-        h("div", { class: "points-readout" }, [h("span", { class: "pts-num" }, ["0"]), h("span", { class: "pts-label" }, ["PTS"])]),
+        h("div", { class: "points-readout" }, [h("span", { class: "pts-num" }, ["0"]), h("span", { class: "pts-label" }, [t("PTS")])]),
         h("div", { class: "combo-readout hidden" }, []),
       ]),
       h("div", { class: "timer-wrap" }, [
@@ -79,23 +80,23 @@ registerScreen("quiz", (root) => {
       ]),
       h("div", { class: "rankup-toast hidden" }, [
         h("div", { class: "rankup-stars" }, ["★ ★ ★ ★ ★"]),
-        h("div", { class: "rankup-text" }, ["RANK UP"]),
+        h("div", { class: "rankup-text" }, [t("RANK UP")]),
       ]),
     ]),
     h("footer", { class: "quiz-bottom" }, [
-      h("button", { class: "lifeline", "data-lf": "fifty" }, [h("span", { class: "lf-icon" }, ["½"]), h("span", { class: "lf-label" }, ["50/50"])]),
-      h("button", { class: "lifeline", "data-lf": "skip" }, [h("span", { class: "lf-icon" }, ["⏭"]), h("span", { class: "lf-label" }, ["SKIP"])]),
-      h("button", { class: "lifeline", "data-lf": "hint" }, [h("span", { class: "lf-icon" }, ["💡"]), h("span", { class: "lf-label" }, ["HINT"])]),
-      h("button", { class: "lifeline", "data-lf": "flag" }, [h("span", { class: "lf-icon" }, ["⚑"]), h("span", { class: "lf-label" }, ["FLAG"])]),
-      h("button", { class: "next-btn hidden" }, ["NEXT ▸"]),
+      h("button", { class: "lifeline", "data-lf": "fifty" }, [h("span", { class: "lf-icon" }, ["½"]), h("span", { class: "lf-label" }, [t("50/50")])]),
+      h("button", { class: "lifeline", "data-lf": "skip" }, [h("span", { class: "lf-icon" }, ["⏭"]), h("span", { class: "lf-label" }, [t("SKIP")])]),
+      h("button", { class: "lifeline", "data-lf": "hint" }, [h("span", { class: "lf-icon" }, ["💡"]), h("span", { class: "lf-label" }, [t("HINT")])]),
+      h("button", { class: "lifeline", "data-lf": "flag" }, [h("span", { class: "lf-icon" }, ["⚑"]), h("span", { class: "lf-label" }, [t("FLAG")])]),
+      h("button", { class: "next-btn hidden" }, [t("NEXT ▸")]),
     ]),
     h("div", { class: "pause-overlay hidden" }, [
       h("div", { class: "pause-card" }, [
-        h("h3", {}, ["PAUSED"]),
-        h("button", { class: "sticker-btn accent resume-btn" }, ["RESUME"]),
-        h("button", { class: "sticker-btn quit2-btn" }, ["ABANDON HEIST"]),
+        h("h3", {}, [t("PAUSED")]),
+        h("button", { class: "sticker-btn accent resume-btn" }, [t("RESUME")]),
+        h("button", { class: "sticker-btn quit2-btn" }, [t("ABANDON HEIST")]),
         cloud.session
-          ? h("button", { class: "sticker-btn pause-logout" }, ["✕ LOG OUT"])
+          ? h("button", { class: "sticker-btn pause-logout" }, [t("✕ LOG OUT")])
           : null,
       ]),
     ]),
@@ -193,7 +194,7 @@ registerScreen("quiz", (root) => {
     clear(c);
     c.append(
       h("span", { class: "combo-fire" }, ["🔥"]),
-      h("span", {}, [`STREAK ${o.streak}`]),
+      h("span", {}, [t("STREAK {n}", { n: o.streak })]),
       o.multiplier > 1 ? h("span", { class: "combo-x" }, [`x${o.multiplier}`]) : "",
     );
   };
@@ -337,7 +338,7 @@ registerScreen("quiz", (root) => {
       box.appendChild(row);
       if (!RM()) gsap.fromTo(row, { x: 60, opacity: 0 }, { x: 0, opacity: 1, duration: 0.3, delay: 0.05 + i * 0.06, ease: "back.out(1.5)" });
     });
-    box.appendChild(h("button", { class: "sticker-btn accent confirm-btn" }, ["CONFIRM"]));
+    box.appendChild(h("button", { class: "sticker-btn accent confirm-btn" }, [t("CONFIRM")]));
     box.querySelector(".confirm-btn")!.addEventListener("click", () => {
       const picked = [...box.querySelectorAll<HTMLElement>(".multi-row.picked")].map((r) => r.getAttribute("data-ans")!);
       if (!picked.length) {
@@ -349,8 +350,8 @@ registerScreen("quiz", (root) => {
   };
 
   const renderFill = (box: HTMLElement, _ref: QuestionRef) => {
-    const input = h("input", { class: "fill-input", placeholder: "TYPE YOUR ANSWER", autocomplete: "off", spellcheck: "false" });
-    const go2 = h("button", { class: "sticker-btn accent confirm-btn" }, ["ANSWER"]);
+    const input = h("input", { class: "fill-input", placeholder: t("TYPE YOUR ANSWER"), autocomplete: "off", spellcheck: "false" });
+    const go2 = h("button", { class: "sticker-btn accent confirm-btn" }, [t("ANSWER")]);
     box.append(
       h("div", { class: "fill-row" }, [input, go2]),
     );
@@ -371,7 +372,7 @@ registerScreen("quiz", (root) => {
 
   const renderNumeric = (box: HTMLElement, _ref: QuestionRef) => {
     const input = h("input", { class: "fill-input num-input", placeholder: "0.00", inputmode: "decimal", autocomplete: "off", spellcheck: "false" });
-    const go2 = h("button", { class: "sticker-btn accent confirm-btn" }, ["ANSWER"]);
+    const go2 = h("button", { class: "sticker-btn accent confirm-btn" }, [t("ANSWER")]);
     box.append(h("div", { class: "fill-row" }, [input, go2]));
     const submit = () => {
       if (!input.value.trim()) {
@@ -436,7 +437,7 @@ registerScreen("quiz", (root) => {
       parent.insertBefore(b, a);
       parent.insertBefore(a, afterB);
     };
-    box.appendChild(h("button", { class: "sticker-btn accent confirm-btn" }, ["LOCK ORDER"]));
+    box.appendChild(h("button", { class: "sticker-btn accent confirm-btn" }, [t("LOCK ORDER")]));
     box.querySelector(".confirm-btn")!.addEventListener("click", () => {
       const order = [...box.querySelectorAll<HTMLElement>(".order-chip")].map((c) => c.getAttribute("data-ans")!);
       answerWith(order.join("\u0001"), box.querySelector(".confirm-btn") as HTMLElement);
@@ -505,7 +506,7 @@ registerScreen("quiz", (root) => {
       }
     };
 
-    const confirm = h("button", { class: "sticker-btn accent confirm-btn hidden" }, ["CONFIRM"]);
+    const confirm = h("button", { class: "sticker-btn accent confirm-btn hidden" }, [t("CONFIRM")]);
     confirm.addEventListener("click", () => {
       const pairs = (ref.q.pairs ?? []).map((p) => `${p.left}|||${matches.get(p.left)}`);
       answerWith(pairs.join("\u0001"), confirm);
@@ -542,13 +543,13 @@ registerScreen("quiz", (root) => {
   };
 
   const renderOpen = (box: HTMLElement, _ref: QuestionRef) => {
-    const area = h("textarea", { class: "open-area", placeholder: "Write your answer…", spellcheck: "true" });
+    const area = h("textarea", { class: "open-area", placeholder: t("Write your answer…"), spellcheck: "true" });
     box.append(
       h("div", { class: "open-wrap" }, [
         area,
         h("div", { class: "open-actions" }, [
-          h("button", { class: "sticker-btn accent" }, ["I GOT IT ✓"]),
-          h("button", { class: "sticker-btn" }, ["I MISSED ✕"]),
+          h("button", { class: "sticker-btn accent" }, [t("I GOT IT ✓")]),
+          h("button", { class: "sticker-btn" }, [t("I MISSED ✕")]),
         ]),
       ]),
     );
@@ -607,20 +608,20 @@ registerScreen("quiz", (root) => {
       fx.slashes(3);
       if (settings.fx !== "subtle") portraitPop(el, cx, cy);
       if (o.points > 0) fx.textPop(cx, cy - 20, `+${o.points}`);
-      if (o.speedBonus) fx.textPop(cx, cy - 52, "SPEED BONUS!", "#2fc45a");
-      screenStamp("CORRECT", o.correct);
+      if (o.speedBonus) fx.textPop(cx, cy - 52, t("SPEED BONUS!"), "#2fc45a");
+      screenStamp(t("CORRECT"), o.correct);
     } else if (o.partial) {
       audio.sfx("correct");
       if (settings.slowmo && settings.fx !== "subtle") await hitStop(80);
       fx.starBurst(cx, cy, { n: 8 });
-      fx.textPop(cx, cy - 20, `+${o.points} PARTIAL`, "#e8b93b");
-      screenStamp("PARTIAL", true);
+      fx.textPop(cx, cy - 20, t("+{n} PARTIAL", { n: o.points }), "#e8b93b");
+      screenStamp(t("PARTIAL"), true);
     } else {
       audio.sfx("wrong");
       if (settings.shake && settings.fx !== "subtle") fx.shake(14);
       fx.flash("#e60012", 0.18);
       fx.textPop(cx, cy - 20, o.points < 0 ? String(o.points) : "MISS", "#e60012");
-      screenStamp("MISS", o.correct);
+      screenStamp(t("MISS"), o.correct);
       if (runner.settings.mode !== "practice") {
         const ref = runner.current;
         addMiss(quiz.title, `${ref.q.question} → ${o.expected.join(", ") || "?"}`);
@@ -638,8 +639,8 @@ registerScreen("quiz", (root) => {
         const fb = h("div", { class: "fb-card partial" }, [
           fbPortrait(),
           h("div", { class: "fb-body" }, [
-            h("div", { class: "fb-head" }, [h("span", { class: "fb-partial-icon" }, ["◐"]), h("span", {}, ["PARTIAL CREDIT"])]),
-            h("div", { class: "fb-correct" }, [h("span", { class: "fb-label" }, ["CORRECT:"]), h("span", {}, [o.expected.join(" · ")])]),
+            h("div", { class: "fb-head" }, [h("span", { class: "fb-partial-icon" }, ["◐"]), h("span", {}, [t("PARTIAL CREDIT")])]),
+            h("div", { class: "fb-correct" }, [h("span", { class: "fb-label" }, [t("CORRECT:")]), h("span", {}, [o.expected.join(" · ")])]),
             o.explanation ? h("p", { class: "fb-expl" }, renderMarkdown(o.explanation)) : null,
           ]),
         ]);
@@ -649,8 +650,8 @@ registerScreen("quiz", (root) => {
         const fb = h("div", { class: "fb-card wrong" }, [
           fbPortrait(),
           h("div", { class: "fb-body" }, [
-            h("div", { class: "fb-head" }, [h("span", { class: "fb-x" }, ["✕"]), h("span", {}, ["MISSED"])]),
-            h("div", { class: "fb-correct" }, [h("span", { class: "fb-label" }, ["CORRECT:"]), h("span", {}, [o.expected.join(" · ")])]),
+            h("div", { class: "fb-head" }, [h("span", { class: "fb-x" }, ["✕"]), h("span", {}, [t("MISSED")])]),
+            h("div", { class: "fb-correct" }, [h("span", { class: "fb-label" }, [t("CORRECT:")]), h("span", {}, [o.expected.join(" · ")])]),
             o.explanation ? h("p", { class: "fb-expl" }, renderMarkdown(o.explanation)) : null,
           ]),
         ]);
@@ -660,7 +661,7 @@ registerScreen("quiz", (root) => {
         const fb = h("div", { class: "fb-card right" }, [
           fbPortrait(),
           h("div", { class: "fb-body" }, [
-            h("div", { class: "fb-head" }, [h("span", { class: "fb-check" }, ["✓"]), h("span", {}, ["CORRECT"])]),
+            h("div", { class: "fb-head" }, [h("span", { class: "fb-check" }, ["✓"]), h("span", {}, [t("CORRECT")])]),
             o.explanation ? h("p", { class: "fb-expl" }, renderMarkdown(o.explanation)) : null,
           ]),
         ]);
@@ -681,7 +682,7 @@ registerScreen("quiz", (root) => {
       rt.append(
         h("div", { class: "rankup-stars" }, ["★ ★ ★ ★ ★"]),
         pimg,
-        h("div", { class: "rankup-text" }, ["RANK UP"]),
+        h("div", { class: "rankup-text" }, [t("RANK UP")]),
       );
       fx.starRain(1.8);
       gsap.timeline()
@@ -777,16 +778,16 @@ registerScreen("quiz", (root) => {
         if (state.lock) return;
         const status = runner.fiftyStatus();
         if (status === "used") {
-          toast("50/50 already used", "error");
+          toast(t("50/50 already used"), "error");
           return;
         }
         if (status === "na") {
-          toast("50/50 can't help here — too few options", "error");
+          toast(t("50/50 can't help here — too few options"), "error");
           return;
         }
         const remove = runner.useFifty();
         if (!remove) {
-          toast("50/50 already used", "error");
+          toast(t("50/50 already used"), "error");
           return;
         }
         audio.sfx("whoosh");
@@ -803,7 +804,7 @@ registerScreen("quiz", (root) => {
       if (kind === "skip") {
         if (state.lock) return;
         if (!runner.useSkip()) {
-          toast("No skips left", "error");
+          toast(t("No skips left"), "error");
           return;
         }
         audio.sfx("whoosh");
@@ -817,7 +818,7 @@ registerScreen("quiz", (root) => {
       }
       if (kind === "hint") {
         if (!ref.q.hint) {
-          toast("No hint available for this question", "error");
+          toast(t("No hint available for this question"), "error");
           return;
         }
         audio.sfx("paper");
@@ -825,7 +826,7 @@ registerScreen("quiz", (root) => {
         const hintEl = h("div", { class: "fb-card hint" }, [
           fbPortrait(),
           h("div", { class: "fb-body" }, [
-            h("div", { class: "fb-head" }, [h("span", { class: "fb-hint-icon" }, ["💡"]), h("span", {}, ["HINT"])]),
+            h("div", { class: "fb-head" }, [h("span", { class: "fb-hint-icon" }, ["💡"]), h("span", {}, [t("HINT")])]),
             h("p", { class: "fb-expl" }, [ref.q.hint]),
           ]),
         ]);
@@ -841,7 +842,7 @@ registerScreen("quiz", (root) => {
           btn.classList.add("flagged");
           audio.sfx("stamp");
           fx.starBurst(btn.getBoundingClientRect().left + 20, btn.getBoundingClientRect().top + 10, { n: 5, gold: true });
-          toast("Flagged for review", "info");
+          toast(t("Flagged for review"), "info");
         } else {
           runner.flags = runner.flags.filter((f) => f !== i);
           btn.classList.remove("flagged");
@@ -969,7 +970,7 @@ registerScreen("quiz", (root) => {
     runner.earned = prog.earned ?? runner.answered.map(() => 0);
     runner.times = prog.times ?? runner.answered.map(() => 0);
     clearProgress();
-    toast("Resumed mid-heist", "info");
+    toast(t("Resumed mid-heist"), "info");
   }
 
   /* ---------- boot ---------- */

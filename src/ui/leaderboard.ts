@@ -7,6 +7,7 @@ import { RM } from "../fx/transitions";
 import { highScores } from "../core/store";
 import { cloud } from "../core/api";
 import { RANKS } from "../core/types";
+import { t } from "../core/i18n";
 
 registerScreen("leaderboard", (root) => {
   const scores = highScores().slice(0, 30);
@@ -14,23 +15,23 @@ registerScreen("leaderboard", (root) => {
 
   const el = h("div", { class: "screen leaderboard-screen" }, [
     h("header", { class: "load-head" }, [
-      h("button", { class: "back-btn", "aria-label": "Back" }, ["◀"]),
-      h("h2", { class: "screen-title" }, ["LEADERBOARD"]),
+      h("button", { class: "back-btn", "aria-label": t("Back") }, ["◀"]),
+      h("h2", { class: "screen-title" }, [t("LEADERBOARD")]),
       h("div", { class: "head-spacer" }, []),
     ]),
     h("div", { class: "leaderboard-body" }, [
       classSession
         ? h("section", { class: "class-board" }, [
-            h("h3", { class: "rs-title" }, [`— CLASS: ${classSession.name.toUpperCase()} —`]),
-            h("div", { class: "lb-list class-lb" }, [h("p", { class: "profile-empty" }, ["Loading class scores…"])]),
+            h("h3", { class: "rs-title" }, [t("— CLASS: {name} —", { name: classSession.name.toUpperCase() })]),
+            h("div", { class: "lb-list class-lb" }, [h("p", { class: "profile-empty" }, [t("Loading class scores…")])]),
           ])
         : null,
-      h("h3", { class: "rs-title" }, ["— THIS DEVICE —"]),
+      h("h3", { class: "rs-title" }, [t("— THIS DEVICE —")]),
       scores.length === 0
         ? h("div", { class: "lib-empty" }, [
             h("div", { class: "lib-empty-star" }, ["★"]),
-            h("p", {}, ["NO RECORDS YET."]),
-            h("p", { class: "lib-empty-sub" }, ["Finish a heist and your name goes on the board."]),
+            h("p", {}, [t("NO RECORDS YET.")]),
+            h("p", { class: "lib-empty-sub" }, [t("Finish a heist and your name goes on the board.")]),
           ])
         : h("div", { class: "lb-list" }, scores.map((s, i) => {
             const rank = RANKS.find((r) => r.key === s.rank);
@@ -57,7 +58,7 @@ registerScreen("leaderboard", (root) => {
       }
       box.textContent = "";
       if (!r.data.results.length) {
-        box.appendChild(h("p", { class: "profile-empty" }, ["No class scores yet."]));
+        box.appendChild(h("p", { class: "profile-empty" }, [t("No class scores yet.")]));
         return;
       }
       r.data.results.slice(0, 15).forEach((s, i) => {

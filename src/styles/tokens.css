@@ -18,8 +18,8 @@
   --p5-cyan: #0dd9ff;
 
   /* type */
-  --font-display: "Archivo Black", "Arial Black", sans-serif;
-  --font-ui: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --font-display: "Archivo Black", "Kanit", "Arial Black", sans-serif;
+  --font-ui: "Barlow Condensed", "Kanit", "Arial Narrow", sans-serif;
   --font-mono: "JetBrains Mono", "SF Mono", monospace;
   --font-p5: "Persona5Main", "Archivo Black", sans-serif;
 

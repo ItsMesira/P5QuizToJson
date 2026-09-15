@@ -8,6 +8,7 @@ import { RM } from "../fx/transitions";
 import { cloud, cloudError } from "../core/api";
 import { validateQuiz } from "../core/validator";
 import { saveQuiz } from "../core/store";
+import { t } from "../core/i18n";
 
 registerScreen("dashboard", (root) => {
   const session = cloud.session;
@@ -20,8 +21,8 @@ registerScreen("dashboard", (root) => {
 
   const el = h("div", { class: "screen dashboard-screen" }, [
     h("header", { class: "load-head" }, [
-      h("button", { class: "back-btn", "aria-label": "Back" }, ["◀"]),
-      h("h2", { class: "screen-title" }, ["CLASSROOM"]),
+      h("button", { class: "back-btn", "aria-label": t("Back") }, ["◀"]),
+      h("h2", { class: "screen-title" }, [t("CLASSROOM")]),
       h("div", { class: "head-spacer" }, []),
     ]),
     h("div", { class: "dash-body" }, [
@@ -29,38 +30,38 @@ registerScreen("dashboard", (root) => {
         ? h("div", { class: "dash-hero" }, [
             h("div", { class: "dash-classname" }, [cls.name]),
             h("div", { class: "dash-code" }, [
-              h("span", { class: "dash-code-label" }, ["JOIN CODE:"]),
+              h("span", { class: "dash-code-label" }, [t("JOIN CODE:")]),
               h("span", { class: "dash-code-value" }, [cls.code]),
-              h("button", { class: "lib-btn dash-copy" }, ["⧉ COPY"]),
+              h("button", { class: "lib-btn dash-copy" }, [t("⧉ COPY")]),
             ]),
             h("div", { class: "dash-role" }, [`${cls.role.toUpperCase()} · ${session.user.username}`]),
           ])
         : h("div", { class: "dash-empty" }, [
-            h("div", { class: "dash-empty-title" }, ["NO CLASSROOM YET"]),
-            h("p", { class: "dash-empty-sub" }, ["Join with a class code from your teacher, or start your own class."]),
+            h("div", { class: "dash-empty-title" }, [t("NO CLASSROOM YET")]),
+            h("p", { class: "dash-empty-sub" }, [t("Join with a class code from your teacher, or start your own class.")]),
           ]),
       cls
         ? h("div", { class: "dash-columns" }, [
             h("section", { class: "dash-col" }, [
-              h("h3", { class: "dash-head" }, ["— MEMBERS —"]),
-              h("div", { class: "dash-members" }, [h("p", { class: "profile-empty" }, ["Loading…"])]),
+              h("h3", { class: "dash-head" }, [t("— MEMBERS —")]),
+              h("div", { class: "dash-members" }, [h("p", { class: "profile-empty" }, [t("Loading…")])]),
             ]),
             h("section", { class: "dash-col" }, [
-              h("h3", { class: "dash-head" }, ["— CLASS QUIZ SHELF —"]),
-              h("div", { class: "dash-quizzes" }, [h("p", { class: "profile-empty" }, ["Loading…"])]),
-              h("button", { class: "sticker-btn accent dash-add" }, ["＋ ADD A QUIZ"]),
+              h("h3", { class: "dash-head" }, [t("— CLASS QUIZ SHELF —")]),
+              h("div", { class: "dash-quizzes" }, [h("p", { class: "profile-empty" }, [t("Loading…")])]),
+              h("button", { class: "sticker-btn accent dash-add" }, [t("＋ ADD A QUIZ")]),
             ]),
             h("section", { class: "dash-col" }, [
-              h("h3", { class: "dash-head" }, ["— CLASS LEADERBOARD —"]),
-              h("div", { class: "dash-board" }, [h("p", { class: "profile-empty" }, ["Loading…"])]),
+              h("h3", { class: "dash-head" }, [t("— CLASS LEADERBOARD —")]),
+              h("div", { class: "dash-board" }, [h("p", { class: "profile-empty" }, [t("Loading…")])]),
             ]),
           ])
         : null,
       h("div", { class: "dash-actions" }, [
         h("button", { class: "sticker-btn dash-home" }, ["⌂ TITLE"]),
-        h("button", { class: "sticker-btn dash-switch" }, [cls ? "⇄ SWITCH CLASS" : "⇄ JOIN / MAKE A CLASS"]),
-        h("button", { class: "sticker-btn accent dash-play" }, ["▶ PLAY SOLO"]),
-        h("button", { class: "sticker-btn dash-logout" }, ["✕ LOG OUT"]),
+        h("button", { class: "sticker-btn dash-switch" }, [cls ? t("⇄ SWITCH CLASS") : t("⇄ JOIN / MAKE A CLASS")]),
+        h("button", { class: "sticker-btn accent dash-play" }, [t("▶ PLAY SOLO")]),
+        h("button", { class: "sticker-btn dash-logout" }, [t("✕ LOG OUT")]),
       ]),
     ]),
   ]);
@@ -73,7 +74,7 @@ registerScreen("dashboard", (root) => {
     if (!cls) return;
     await navigator.clipboard.writeText(cls.code).catch(() => undefined);
     audio.sfx("stamp");
-    toast(`Code ${cls.code} copied`, "info");
+    toast(t("Code {code} copied", { code: cls.code }), "info");
   });
 
   /* ---- actions ---- */
@@ -83,7 +84,7 @@ registerScreen("dashboard", (root) => {
   el.querySelector(".dash-logout")!.addEventListener("click", async () => {
     await cloud.logout().catch(() => undefined);
     cloud.setSession(null);
-    toast("Logged out", "info");
+    toast(t("Logged out"), "info");
     void go({ name: "entry" });
   });
   el.querySelector(".dash-add")?.addEventListener("click", () => void go({ name: "load" }));
@@ -104,28 +105,28 @@ registerScreen("dashboard", (root) => {
           const row = h("div", { class: `dash-member ${m.role === "teacher" ? "teacher" : ""}` }, [
             h("span", { class: "dash-member-role" }, [m.role === "teacher" ? "★" : "🎓"]),
             h("span", {}, [m.username]),
-            m.role === "teacher" ? h("span", { class: "dash-member-tag" }, ["TEACHER"]) : null,
+            m.role === "teacher" ? h("span", { class: "dash-member-tag" }, [t("TEACHER")]) : null,
           ]);
           membersBox.appendChild(row);
           if (!RM()) gsap.fromTo(row, { x: -30, opacity: 0 }, { x: 0, opacity: 1, duration: 0.3, delay: i * 0.05, ease: "back.out(1.5)" });
         });
       } else {
         membersBox.textContent = "";
-        membersBox.appendChild(h("p", { class: "profile-empty" }, [info.data.error ? cloudError(info) : "Couldn't load members"]));
+        membersBox.appendChild(h("p", { class: "profile-empty" }, [info.data.error ? cloudError(info) : t("Couldn't load members")]));
       }
 
       const quizzes = await cloud.listQuizzes(c.id);
       if (quizzes.ok && quizzes.data.quizzes) {
         quizBox.textContent = "";
         if (!quizzes.data.quizzes.length) {
-          quizBox.appendChild(h("p", { class: "profile-empty" }, ["No quizzes yet — ADD one below."]));
+          quizBox.appendChild(h("p", { class: "profile-empty" }, [t("No quizzes yet — ADD one below.")]));
         }
         quizzes.data.quizzes.forEach((q, i) => {
           const row = h("div", { class: "dash-quiz" }, [
             h("div", { class: "dash-quiz-title" }, [q.title]),
-            h("div", { class: "dash-quiz-meta" }, [`by ${q.author}`]),
+            h("div", { class: "dash-quiz-meta" }, [t("by {author}", { author: q.author })]),
             h("div", { class: "dash-quiz-actions" }, [
-              h("button", { class: "lib-btn play dash-quiz-play", "data-qid": q.id }, ["▶ PLAY"]),
+              h("button", { class: "lib-btn play dash-quiz-play", "data-qid": q.id }, [t("▶ PLAY")]),
               c.role === "teacher"
                 ? h("button", { class: "lib-btn danger dash-quiz-del", "data-qid": q.id }, ["✕"])
                 : null,
@@ -144,7 +145,7 @@ registerScreen("dashboard", (root) => {
                 saveQuiz(v.quiz, `class:${c.name}`);
                 await startQuiz({ ...v.quiz, source: `class:${c.name}` });
               } else {
-                toast("That quiz is broken", "error");
+                toast(t("That quiz is broken"), "error");
               }
             } else {
               toast(cloudError(r), "error");
@@ -156,7 +157,7 @@ registerScreen("dashboard", (root) => {
             const r = await cloud.deleteQuiz(c.id, b.getAttribute("data-qid")!);
             if (r.ok) {
               audio.sfx("paper");
-              toast("Quiz removed from the class", "info");
+              toast(t("Quiz removed from the class"), "info");
               void loadData();
             } else {
               toast(cloudError(r), "error");
@@ -165,14 +166,14 @@ registerScreen("dashboard", (root) => {
         });
       } else {
         quizBox.textContent = "";
-        quizBox.appendChild(h("p", { class: "profile-empty" }, [quizzes.data.error ? cloudError(quizzes) : "Couldn't load quizzes"]));
+        quizBox.appendChild(h("p", { class: "profile-empty" }, [quizzes.data.error ? cloudError(quizzes) : t("Couldn't load quizzes")]));
       }
 
       const results = await cloud.classResults(c.id);
       if (results.ok && results.data.results) {
         boardBox.textContent = "";
         if (!results.data.results.length) {
-          boardBox.appendChild(h("p", { class: "profile-empty" }, ["No scores yet — play something!"]));
+          boardBox.appendChild(h("p", { class: "profile-empty" }, [t("No scores yet — play something!")]));
         }
         results.data.results.slice(0, 15).forEach((r, i) => {
           const row = h("div", { class: `dash-row ${i < 3 ? "podium" : ""}` }, [
@@ -187,13 +188,13 @@ registerScreen("dashboard", (root) => {
         });
       } else {
         boardBox.textContent = "";
-        boardBox.appendChild(h("p", { class: "profile-empty" }, [results.data.error ? cloudError(results) : "Couldn't load scores"]));
+        boardBox.appendChild(h("p", { class: "profile-empty" }, [results.data.error ? cloudError(results) : t("Couldn't load scores")]));
       }
     } catch (err) {
       console.error("[p5q] dashboard load failed:", err);
       for (const box of [membersBox, quizBox, boardBox]) {
         box.textContent = "";
-        box.appendChild(h("p", { class: "profile-empty" }, ["Couldn't load — check your connection and try again."]));
+        box.appendChild(h("p", { class: "profile-empty" }, [t("Couldn't load — check your connection and try again.")]));
       }
     }
   }

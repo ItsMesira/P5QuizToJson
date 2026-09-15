@@ -31,6 +31,28 @@ npm run preview    # serve dist/ locally
 
 ---
 
+## Themes & languages
+
+**Themes** (Settings → `— THEME —`): CALLING CARD (classic P5 crimson),
+NOIR, AZURE, CHALKBOARD, VAPOR — plus **CUSTOM**: pick your own accent /
+background / text colors with a live WCAG contrast readout (warns below
+4.5:1). Themes recolor the whole app — stripes, panels, ransom lettering,
+particles — and persist per device.
+
+**Languages** (Settings → `— LANGUAGE —`): **English, ไทย (Thai), Español,
+Français, Deutsch, 日本語** — the entire UI is translated (~390 strings per
+locale), including toasts, errors and validation messages. The first visit
+auto-detects your browser language; quiz *content* stays in whatever
+language the author wrote it in.
+
+Share links can pin both: `?lang=th`, `?theme=vapor`, e.g.
+`https://your-domain.com/?lang=th#title`.
+
+Thai notes: ransom lettering segments by grapheme cluster (tone marks never
+break apart) and the Kanit font is bundled as the Thai glyph fallback.
+
+---
+
 ## Classroom mode (accounts, classes, cloud sync)
 
 The title menu has a **CLASSROOM** entry. The flow is intentionally
@@ -302,12 +324,15 @@ api/                Vercel serverless functions (auth, classes, quizzes, results
 src/
   core/     types, validator, store (localStorage), share (gzip links),
             prompts (master-prompt engine + 14 presets), audio (synth + file BGM),
-            art (portrait registry), api (cloud client)
+            art (portrait registry), api (cloud client), theme (palettes + custom),
+            i18n (t() engine, locale detect, Intl helpers)
+  i18n/     th, es, fr, de, ja dictionaries (English keys, typed)
   engine/   quiz runner, scoring, achievements
-  fx/       particles (canvas), transitions/cut-ins, ransom lettering, sprite cursor
+  fx/       particles (canvas), transitions/cut-ins, ransom lettering (grapheme-safe),
+            sprite cursor
   ui/       title, entry, dashboard, load, library, quiz, results, prompts,
             settings, profiles, leaderboard, screens (router)
-  styles/   tokens, p5 (ambient/cursor), components, screens
+  styles/   tokens, themes (palette overrides), p5 (ambient/cursor), components, screens
 public/
   audio/    background.mp3, select.mp3
   art/      cut-in portraits, card art
@@ -317,6 +342,11 @@ public/
 ```
 
 ## Test suite (dev tools)
+
+Extra suites for the newer systems: `node themetest.mjs` (theme presets,
+custom colors, persistence), `node langtest.mjs` (all 6 locales: zero missing
+keys, Thai grapheme integrity, long-string layouts), `node uifixtest.mjs`
+(menu geometry, classroom flows, veil watchdog, double-submit lock).
 
 `npm i -D puppeteer-core` (Chrome must be installed), then with the dev server
 running on `:5183`:

@@ -1,11 +1,15 @@
 /* ============ P5 QUIZ — BOOT ============ */
 import "@fontsource/archivo-black";
+import "@fontsource/kanit/400.css";
+import "@fontsource/kanit/600.css";
+import "@fontsource/kanit/700.css";
 import "@fontsource/barlow-condensed/400.css";
 import "@fontsource/barlow-condensed/600.css";
 import "@fontsource/barlow-condensed/700.css";
 import "@fontsource/jetbrains-mono/400.css";
 import "katex/dist/katex.min.css";
 import "./styles/tokens.css";
+import "./styles/themes.css";
 import "./styles/p5.css";
 import "./styles/components.css";
 import "./styles/screens.css";
@@ -13,13 +17,15 @@ import "./styles/screens.css";
 import { fx } from "./fx/particles";
 import { initCursor } from "./fx/cursor";
 import { h } from "./ui/dom";
-import { go, hashToRoute, applyGlobalSettings, initClassBadge } from "./ui/screens";
+import { go, hashToRoute, applyGlobalSettings, initClassBadge, app } from "./ui/screens";
 import { audio } from "./core/audio";
 import { validateQuiz } from "./core/validator";
 import { saveQuiz } from "./core/store";
 import { decodeQuizLink, fetchRemoteQuiz, decodePayload } from "./core/share";
 import { toast } from "./ui/dom";
 import type { Quiz } from "./core/types";
+import { t, detectLocale } from "./core/i18n";
+import { isValidTheme } from "./core/theme";
 
 import "./ui/title";
 import "./ui/load";
@@ -117,6 +123,19 @@ window.addEventListener("keydown", unlockAudio);
 /* ---------- URL params: ?q= (share link), ?raw=, ?quiz= (url) ---------- */
 async function handleParams() {
   const params = new URLSearchParams(location.search);
+
+  /* ?lang=es / ?theme=vapor — share links can pin language + theme */
+  const langP = params.get("lang");
+  if (langP) {
+    app.settings.lang = detectLocale(langP);
+    applyGlobalSettings();
+  }
+  const themeP = params.get("theme");
+  if (themeP && isValidTheme(themeP)) {
+    app.settings.theme = themeP;
+    applyGlobalSettings();
+  }
+
   let quiz: Quiz | null = null;
   let source = "link";
 
@@ -128,7 +147,7 @@ async function handleParams() {
       quiz = await fetchRemoteQuiz(params.get("quiz")!);
       source = params.get("quiz")!;
     } catch {
-      toast("Could not fetch ?quiz= URL", "error");
+      toast(t("Could not fetch ?quiz= URL"), "error");
     }
   } else if (params.has("prompt")) {
     const payload = await decodePayload<{ fields?: Record<string, unknown>; tagline?: string }>(params.get("prompt")!);
@@ -145,13 +164,13 @@ async function handleParams() {
     const v = validateQuiz(quiz);
     if (v.ok) {
       saveQuiz(v.quiz, source);
-      toast(`“${v.quiz.title}” loaded from link`, "info");
+      toast(t("“{title}” loaded from link", { title: v.quiz.title }), "info");
       const { app } = await import("./ui/screens");
       app.currentQuiz = { ...v.quiz, source };
       await go({ name: "quiz" });
       return;
     }
-    toast("Quiz link was invalid JSON", "error");
+    toast(t("Quiz link was invalid JSON"), "error");
   }
 
   const hashRoute = hashToRoute(location.hash);

@@ -1,6 +1,7 @@
 /* ============ P5 QUIZ — VALIDATOR & NORMALIZER ============ */
 import type { Answer, MatchPair, Question, QuestionType, Quiz, QuizSettings, Section } from "./types";
 import { DEFAULT_QUIZ_SETTINGS } from "./types";
+import { t } from "./i18n";
 
 export interface FieldError {
   path: string;
@@ -66,7 +67,7 @@ function normalizeQuestion(raw: unknown, path: string): { q?: Question; errors: 
   const errors: FieldError[] = [];
   if (!isObj(raw)) return { errors: [{ path, message: "Question must be an object." }] };
   if (typeof raw.question !== "string" || !raw.question.trim()) {
-    errors.push({ path, message: "Missing \"question\" text." });
+    errors.push({ path, message: t("Missing \"question\" text.") });
   }
   const type = detectType(raw);
   const q: Question = {
@@ -84,7 +85,7 @@ function normalizeQuestion(raw: unknown, path: string): { q?: Question; errors: 
   if (type === "multiple" || type === "multi" || type === "boolean") {
     const rawAns = (raw.answers ?? raw.options ?? raw.choices ?? []) as unknown[];
     const answers = rawAns.map(normalizeAnswer).filter((a): a is Answer => a !== null);
-    if (answers.length < 2) errors.push({ path: `${path}.answers`, message: "Needs at least 2 answers." });
+    if (answers.length < 2) errors.push({ path: `${path}.answers`, message: t("Needs at least 2 answers.") });
     // infer correctness when AIs used answer_index / answer / correctAnswers instead of flags
     if (answers.length >= 2 && answers.filter((a) => a.correct).length === 0) {
       const idx = typeof raw.answer_index === "number" ? raw.answer_index : undefined;
@@ -104,26 +105,26 @@ function normalizeQuestion(raw: unknown, path: string): { q?: Question; errors: 
     }
     const corrects = answers.filter((a) => a.correct).length;
     if (type === "multi" && corrects < 2)
-      errors.push({ path: `${path}.answers`, message: "\"multi\" needs 2+ correct answers." });
+      errors.push({ path: `${path}.answers`, message: t("\"multi\" needs 2+ correct answers.") });
     if (type !== "multi" && corrects !== 1)
-      errors.push({ path: `${path}.answers`, message: `Needs exactly 1 correct answer (found ${corrects}).` });
+      errors.push({ path: `${path}.answers`, message: t("Needs exactly 1 correct answer (found {n}).", { n: corrects }) });
     q.answers = answers;
   } else if (type === "fill") {
     const ct = q.correctText ?? raw.correctText ?? raw.correct_text ?? answerField(raw);
     q.correctText = typeof ct === "number" ? String(ct) : typeof ct === "string" ? ct : "";
     if (!q.correctText)
-      errors.push({ path: `${path}.correctText`, message: "Fill-in needs \"correctText\" (or \"answer\")." });
+      errors.push({ path: `${path}.correctText`, message: t("Fill-in needs \"correctText\" (or \"answer\").") });
   } else if (type === "order") {
     const rawAns = (raw.answers ?? raw.options ?? raw.choices ?? []) as unknown[];
     const answers = rawAns.map(normalizeAnswer).filter((a): a is Answer => a !== null);
-    if (answers.length < 2) errors.push({ path: `${path}.answers`, message: "Order needs 2+ answers (listed in correct order)." });
+    if (answers.length < 2) errors.push({ path: `${path}.answers`, message: t("Order needs 2+ answers (listed in correct order).") });
     q.answers = answers;
   } else if (type === "match") {
     const pairs = (raw.pairs ?? []) as unknown[];
     const good = pairs
       .map(normalizePair)
       .filter((p): p is MatchPair => p !== null);
-    if (good.length < 2) errors.push({ path: `${path}.pairs`, message: "Match needs 2+ pairs." });
+    if (good.length < 2) errors.push({ path: `${path}.pairs`, message: t("Match needs 2+ pairs.") });
     q.pairs = good;
   } else if (type === "numeric") {
     const v = answerField(raw);
@@ -131,11 +132,11 @@ function normalizeQuestion(raw: unknown, path: string): { q?: Question; errors: 
     if (v && nums && nums.length) {
       q.correctText = nums[nums.length - 1];
     } else {
-      errors.push({ path: `${path}.answer`, message: "Numeric needs a numeric \"answer\"." });
+      errors.push({ path: `${path}.answer`, message: t("Numeric needs a numeric \"answer\".") });
     }
   } else if (type === "hotspot") {
     const hs = (raw.hotspots ?? []) as unknown[];
-    if (!hs.length) errors.push({ path: `${path}.hotspots`, message: "Hotspot needs at least one hotspot." });
+    if (!hs.length) errors.push({ path: `${path}.hotspots`, message: t("Hotspot needs at least one hotspot.") });
     q.hotspots = hs.filter(isObj).map((h) => ({
       x: Number(h.x) || 50,
       y: Number(h.y) || 50,
@@ -145,7 +146,7 @@ function normalizeQuestion(raw: unknown, path: string): { q?: Question; errors: 
     q.answers = q.hotspots.map((h) => ({ text: h.label ?? `(${h.x}, ${h.y})`, correct: true }));
   }
   if (errors.length === 0 && !q.question && type === "open") {
-    errors.push({ path, message: "Question needs text." });
+    errors.push({ path, message: t("Question needs text.") });
   }
   return { q, errors };
 }
@@ -160,7 +161,7 @@ export function validateQuiz(raw: unknown): Validation {
   const errors: FieldError[] = [];
   if (!isObj(raw)) return { ok: false, errors: [{ path: "$", message: "Root must be a JSON object." }] };
   if (typeof raw.title !== "string" || !raw.title.trim()) {
-    errors.push({ path: "$.title", message: "Missing \"title\"." });
+    errors.push({ path: "$.title", message: t("Missing \"title\".") });
   }
   let sectionsRaw: unknown[] = [];
   if (Array.isArray(raw.sections)) {
@@ -168,14 +169,14 @@ export function validateQuiz(raw: unknown): Validation {
   } else if (Array.isArray(raw.questions)) {
     sectionsRaw = [{ name: "Main", questions: raw.questions }];
   } else {
-    errors.push({ path: "$.sections", message: "Missing \"sections\" (or \"questions\") array." });
+    errors.push({ path: "$.sections", message: t("Missing \"sections\" (or \"questions\") array.") });
   }
 
   const sections: Section[] = [];
   sectionsRaw.forEach((s, i) => {
     const path = `$.sections[${i}]`;
     if (!isObj(s) || !Array.isArray(s.questions)) {
-      errors.push({ path, message: "Section must have a \"questions\" array." });
+      errors.push({ path, message: t("Section must have a \"questions\" array.") });
       return;
     }
     const qs: Question[] = [];
@@ -189,7 +190,7 @@ export function validateQuiz(raw: unknown): Validation {
 
   const total = sections.reduce((n, s) => n + s.questions.length, 0);
   if (total === 0 && !errors.some((e) => e.path.includes("sections"))) {
-    errors.push({ path: "$.sections", message: "The quiz has zero questions." });
+    errors.push({ path: "$.sections", message: t("The quiz has zero questions.") });
   }
 
   if (errors.length) return { ok: false, errors };

@@ -1,0 +1,85 @@
+/* ============ P5 QUIZ — THEME PALETTES ============ */
+/* Default (`calling-card`) lives in tokens.css. Every other theme only
+   overrides palette variables — fonts, motion and shapes stay shared. */
+
+/* ---------- NOIR ---------- */
+[data-theme="noir"] {
+  --red: #c9a227;
+  --red-deep: #8a6d12;
+  --red-hot: #e8c14c;
+  --ink: #0a0a0b;
+  --ink-2: #121214;
+  --ink-3: #1b1b1e;
+  --paper: #efece4;
+  --paper-dim: #c6c2b6;
+  --gold: #d9bd63;
+  --gold-hot: #ecd58f;
+  --smoke: #8f8d86;
+  --steel: #5b5953;
+  --green: #7fae6f;
+  --blue: #6f89ae;
+  --p5-cyan: #b9c4cc;
+  --halftone: radial-gradient(circle at 1px 1px, rgba(239, 236, 228, 0.15) 1px, transparent 0);
+}
+
+/* ---------- AZURE ---------- */
+[data-theme="azure"] {
+  --red: #2563eb;
+  --red-deep: #163e9c;
+  --red-hot: #5b8cff;
+  --ink: #070b16;
+  --ink-2: #0d1424;
+  --ink-3: #152036;
+  --paper: #eef3fc;
+  --paper-dim: #c3cee1;
+  --gold: #38bdf8;
+  --gold-hot: #7dd3fc;
+  --smoke: #8794ab;
+  --steel: #55617a;
+  --green: #34d399;
+  --blue: #60a5fa;
+  --p5-cyan: #22d3ee;
+  --halftone: radial-gradient(circle at 1px 1px, rgba(238, 243, 252, 0.15) 1px, transparent 0);
+}
+
+/* ---------- CHALKBOARD ---------- */
+[data-theme="chalkboard"] {
+  --red: #21a366;
+  --red-deep: #14663f;
+  --red-hot: #3fd08a;
+  --ink: #0a1510;
+  --ink-2: #102019;
+  --ink-3: #182e23;
+  --paper: #f1efe2;
+  --paper-dim: #c8c5b0;
+  --gold: #e8b93b;
+  --gold-hot: #ffd76a;
+  --smoke: #8b958f;
+  --steel: #57665e;
+  --green: #2fc45a;
+  --blue: #4f9dbe;
+  --p5-cyan: #38d9c0;
+  --halftone: radial-gradient(circle at 1px 1px, rgba(241, 239, 226, 0.15) 1px, transparent 0);
+}
+
+/* ---------- VAPOR ---------- */
+[data-theme="vapor"] {
+  --red: #c026d3;
+  --red-deep: #7e1a8a;
+  --red-hot: #e879f9;
+  --ink: #150a1e;
+  --ink-2: #1e0f2a;
+  --ink-3: #2a1740;
+  --paper: #f6eeff;
+  --paper-dim: #cdbfe0;
+  --gold: #ffd76a;
+  --gold-hot: #ffe9a8;
+  --smoke: #9887ab;
+  --steel: #67577c;
+  --green: #4ade80;
+  --blue: #818cf8;
+  --p5-cyan: #22d3ee;
+  --halftone: radial-gradient(circle at 1px 1px, rgba(246, 238, 255, 0.15) 1px, transparent 0);
+}
+
+/* custom themes inject inline vars from JS (src/core/theme.ts) */

@@ -10,6 +10,7 @@ import { addScore, addXp, addProfileXp, bestForQuiz, unlockAchievement, recordPl
 import { checkAchievements } from "../engine/achievements";
 import type { QuizResult } from "../core/types";
 import { RANKS } from "../core/types";
+import { t } from "../core/i18n";
 
 registerScreen("results", (root) => {
   const result = app.lastResult;
@@ -61,15 +62,15 @@ registerScreen("results", (root) => {
   const el = h("div", { class: "screen results-screen" }, [
     h("div", { class: "aot" }, [
       h("div", { class: "aot-slash" }, []),
-      h("h1", { class: "aot-title" }, ["ALL-OUT"]),
-      h("h1", { class: "aot-title-2" }, ["ATTACK"]),
+      h("h1", { class: "aot-title" }, [t("ALL-OUT")]),
+      h("h1", { class: "aot-title-2" }, [t("ATTACK")]),
     ]),
     h("div", { class: "results-body" }, [
       h("section", { class: "rank-card" }, [
         h("div", { class: "rank-card-inner corner-frame" }, [
           h("div", { class: "rank-letter", style: `color:${rank.color}` }, [result.rank]),
           h("div", { class: "rank-label" }, [rank.label]),
-          h("div", { class: "rank-sub" }, [result.pass ? "HEIST COMPLETE" : "HEIST FAILED"]),
+          h("div", { class: "rank-sub" }, [result.pass ? "HEIST COMPLETE" : t("HEIST FAILED")]),
           h("div", { class: "rank-stars" }, ["★".repeat(result.rank === "S" ? 5 : result.rank === "A" ? 4 : result.rank === "B" ? 3 : 2)]),
         ]),
       ]),
@@ -80,30 +81,30 @@ registerScreen("results", (root) => {
         statCard("BEST STREAK", `${result.bestStreak}`, "IN A ROW"),
       ]),
       h("section", { class: "radar-wrap" }, [
-        h("h3", { class: "rs-title" }, ["— THIEF STATS —"]),
+        h("h3", { class: "rs-title" }, [t("— THIEF STATS —")]),
         radarChart(result),
       ]),
       h("section", { class: "chart-wrap" }, [
-        h("h3", { class: "rs-title" }, ["— BY SECTION —"]),
+        h("h3", { class: "rs-title" }, [t("— BY SECTION —")]),
         sectionBars(result),
       ]),
       unlocked.length
         ? h("section", { class: "ach-wrap" }, [
-            h("h3", { class: "rs-title" }, ["— ACHIEVEMENTS —"]),
+            h("h3", { class: "rs-title" }, [t("— ACHIEVEMENTS —")]),
             h("div", { class: "ach-grid" }, unlocked.map((a) =>
               h("div", { class: "ach-card" }, [
                 h("span", { class: "ach-icon" }, [a.icon]),
-                h("div", {}, [h("div", { class: "ach-name" }, [a.name]), h("div", { class: "ach-desc" }, [a.desc])]),
+                h("div", {}, [h("div", { class: "ach-name" }, [t(a.name)]), h("div", { class: "ach-desc" }, [t(a.desc)])]),
               ]),
             )),
           ])
         : null,
       h("section", { class: "xp-bar" }, [
-        h("div", { class: "xp-label" }, [`+${gained} XP · TOTAL ${totalXp}`]),
+        h("div", { class: "xp-label" }, [t("+{gained} XP · TOTAL {total}", { gained, total: totalXp })]),
         h("div", { class: "xp-track" }, [h("div", { class: "xp-fill" }, [])]),
       ]),
       h("section", { class: "review-wrap" }, [
-        h("h3", { class: "rs-title" }, ["— REVIEW —"]),
+        h("h3", { class: "rs-title" }, [t("— REVIEW —")]),
         h("div", { class: "review-list" }, result.perQuestion.map((pq, i) => {
           const unanswered = pq.answer === undefined || pq.answer === null;
           const answerShown = pq.answer ? pq.answer.replace(/\u0001/g, " → ").replace(/\|\|\|/g, " ↔ ") : null;
@@ -112,23 +113,23 @@ registerScreen("results", (root) => {
             h("div", { class: "review-body" }, [
               h("div", { class: "review-q" }, [
                 `Q${i + 1} · ${pq.section} — ${pq.question}`,
-                pq.flagged ? h("span", { class: "review-flag", title: "Flagged for review" }, [" ⚑"]) : null,
+                pq.flagged ? h("span", { class: "review-flag", title: t("Flagged for review") }, [" ⚑"]) : null,
               ]),
-              !unanswered && answerShown ? h("div", { class: "review-a" }, [`You said: ${answerShown}`]) : null,
-              !unanswered && pq.correctAnswer && !pq.correct ? h("div", { class: "review-a" }, [`Answer: ${pq.correctAnswer}`]) : null,
-              unanswered ? h("div", { class: "review-a" }, ["Not answered"]) : null,
+              !unanswered && answerShown ? h("div", { class: "review-a" }, [t("You said: {answer}", { answer: answerShown })]) : null,
+              !unanswered && pq.correctAnswer && !pq.correct ? h("div", { class: "review-a" }, [t("Answer: {answer}", { answer: pq.correctAnswer })]) : null,
+              unanswered ? h("div", { class: "review-a" }, [t("Not answered")]) : null,
               pq.explanation ? h("div", { class: "review-e" }, [pq.explanation]) : null,
             ]),
           ]);
         })),
       ]),
       h("section", { class: "results-actions" }, [
-        h("button", { class: "sticker-btn accent" }, ["↻ RETRY"]),
-        h("button", { class: "sticker-btn reinforce-btn" }, ["🎯 REINFORCE WEAK AREAS"]),
-        h("button", { class: "sticker-btn" }, ["⤓ SHARE CARD"]),
-        h("button", { class: "sticker-btn" }, ["⧉ COPY RESULT"]),
-        h("button", { class: "sticker-btn" }, ["🏆 LEADERBOARD"]),
-        h("button", { class: "sticker-btn" }, ["⌂ HOME"]),
+        h("button", { class: "sticker-btn accent" }, [t("↻ RETRY")]),
+        h("button", { class: "sticker-btn reinforce-btn" }, [t("🎯 REINFORCE WEAK AREAS")]),
+        h("button", { class: "sticker-btn" }, [t("⤓ SHARE CARD")]),
+        h("button", { class: "sticker-btn" }, [t("⧉ COPY RESULT")]),
+        h("button", { class: "sticker-btn" }, [t("🏆 LEADERBOARD")]),
+        h("button", { class: "sticker-btn" }, [t("⌂ HOME")]),
       ]),
     ]),
   ]);
@@ -150,11 +151,11 @@ registerScreen("results", (root) => {
     const cy = 110;
     const R = 78;
     const axes = [
-      { label: "ACC", v: r.total ? r.correct / r.total : 0 },
-      { label: "SPEED", v: Math.max(0, 1 - r.timeMs / (r.total * 15000)) },
-      { label: "STREAK", v: Math.min(1, r.bestStreak / 10) },
-      { label: "POWER", v: r.maxPoints ? Math.max(0, r.points / r.maxPoints) : 0 },
-      { label: "RANK", v: 1 - RANKS.findIndex((x) => x.key === r.rank) / (RANKS.length - 1) },
+      { label: t("ACC"), v: r.total ? r.correct / r.total : 0 },
+      { label: t("SPEED"), v: Math.max(0, 1 - r.timeMs / (r.total * 15000)) },
+      { label: t("STREAK"), v: Math.min(1, r.bestStreak / 10) },
+      { label: t("POWER"), v: r.maxPoints ? Math.max(0, r.points / r.maxPoints) : 0 },
+      { label: t("RANK"), v: 1 - RANKS.findIndex((x) => x.key === r.rank) / (RANKS.length - 1) },
     ];
     // grid rings
     for (let ring = 1; ring <= 4; ring++) {
@@ -257,7 +258,7 @@ registerScreen("results", (root) => {
     audio.sfx("stamp");
     const text = resultText(result);
     await navigator.clipboard.writeText(text).catch(() => undefined);
-    toast("Result copied", "info");
+    toast(t("Result copied"), "info");
   });
   btns[4].addEventListener("click", () => {
     audio.sfx("select");
@@ -327,7 +328,7 @@ registerScreen("results", (root) => {
   }
 
   function resultText(r: QuizResult): string {
-    return `★ P5 QUIZ — ${r.quizTitle.toUpperCase()} ★\nRANK: ${r.rank} (${r.pass ? "HEIST COMPLETE" : "FAILED"})\n${r.points}/${r.maxPoints} pts · ${r.correct}/${r.total} correct · streak ${r.bestStreak}\n`;
+    return `★ P5 QUIZ — ${r.quizTitle.toUpperCase()} ★\nRANK: ${r.rank} (${r.pass ? "HEIST COMPLETE" : t("FAILED")})\n${r.points}/${r.maxPoints} pts · ${r.correct}/${r.total} correct · streak ${r.bestStreak}\n`;
   }
 
   root.appendChild(el);

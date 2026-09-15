@@ -114,7 +114,7 @@ body {
     var(--red) 0 46px,
     var(--red-deep) 46px 52px,
     var(--red) 52px 120px,
-    #c4000f 120px 126px
+    var(--red-deep) 120px 126px
   );
   animation: stripe-drift-115 22s linear infinite;
 }

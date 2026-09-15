@@ -50,11 +50,11 @@ const check = (n, ok, extra = "") => { console.log(`${ok ? "PASS" : "FAIL"} ${n}
 
   await page.evaluate(() => [...document.querySelectorAll(".entry-btn")].find((b) => b.textContent.includes("JOIN A CLASS"))?.click());
   await sleep(800);
-  const inJoin = await page.evaluate(() => !!document.querySelector(".entry-next") && !document.querySelector(".entry-back-menu"));
+  const inJoin = await page.evaluate(() => !!document.querySelector(".entry-next") && !!document.querySelector(".entry-sub"));
   check("JOIN sub-stage opened", inJoin);
   await page.keyboard.press("Escape");
   await sleep(800);
-  check("ESC steps sub-stage back to root", await page.evaluate(() => !!document.querySelector(".entry-back-menu")));
+  check("ESC steps sub-stage back to root", await page.evaluate(() => !!document.querySelector(".entry-rows")));
   await page.keyboard.press("Escape");
   await sleep(1900);
   const routed = await page.evaluate(() => document.querySelector(".screen")?.className ?? "NONE");
@@ -118,6 +118,81 @@ const check = (n, ok, extra = "") => { console.log(`${ok ? "PASS" : "FAIL"} ${n}
   await sleep(1900);
   const after = await page.evaluate(() => document.querySelector(".screen")?.className ?? "NONE");
   check("no-class dashboard back button works", after.includes("title-screen"), after);
+  await context.close();
+}
+
+/* ---------- 5. classroom revamp: hover, hotkeys, double-submit, inline errors ---------- */
+{
+  const page = await browser.newPage();
+  const errs = [];
+  page.on("pageerror", (e) => errs.push(String(e).slice(0, 200)));
+  await page.setViewport({ width: 1440, height: 900 });
+  await page.goto("http://localhost:5183/#entry", { waitUntil: "networkidle0" });
+  await sleep(2100);
+
+  const t0 = await page.evaluate(() => getComputedStyle(document.querySelector(".entry-row")).transform);
+  await page.hover(".entry-row");
+  await sleep(400);
+  const t1 = await page.evaluate(() => getComputedStyle(document.querySelector(".entry-row")).transform);
+  check("entry row hover transform applies after intro", t0 !== t1, `${t0} -> ${t1}`);
+
+  await page.keyboard.press("2");
+  await sleep(600);
+  check("hotkey 2 opens MAKE A CLASS", await page.evaluate(() => !!document.querySelector(".entry-next")));
+  await page.keyboard.press("Escape");
+  await sleep(600);
+  check("ESC returns to root rows", await page.evaluate(() => !!document.querySelector(".entry-rows")));
+
+  for (const [w, h] of [[1440, 900], [1280, 720], [390, 844]]) {
+    await page.setViewport({ width: w, height: h });
+    await page.reload({ waitUntil: "networkidle0" });
+    await sleep(1900);
+    const issues = await page.evaluate(() => {
+      const out = [];
+      const rect = (s) => { const e = document.querySelector(s); return e ? e.getBoundingClientRect() : null; };
+      const panel = rect(".entry-panel");
+      const rb = rect(".entry-rows");
+      if (rb && panel && rb.bottom > panel.bottom - 4) out.push("rows-overflow");
+      if (panel && (panel.bottom > innerHeight + 2 || panel.left < -2)) out.push("panel-offscreen");
+      if (document.documentElement.scrollWidth > innerWidth + 4) out.push("x-overflow");
+      return out;
+    });
+    check(`classroom layout clean @ ${w}x${h}`, issues.length === 0, issues.join(","));
+  }
+  check("classroom revamp: no JS errors", errs.length === 0, errs[0] ?? "");
+  await page.close();
+}
+
+/* ---------- 6. auth double-submit lock + inline error ---------- */
+{
+  const context = await browser.createBrowserContext();
+  const page = await context.newPage();
+  let loginCalls = 0;
+  await page.setRequestInterception(true);
+  page.on("request", (req) => {
+    if (req.url().includes("/api/auth/login")) {
+      loginCalls++;
+      setTimeout(() => req.respond({ status: 401, contentType: "application/json", body: JSON.stringify({ error: "bad credentials" }) }), 700);
+    } else if (req.url().includes("/api/")) {
+      req.respond({ status: 200, contentType: "application/json", body: JSON.stringify({}) });
+    } else req.continue();
+  });
+  await page.setViewport({ width: 1440, height: 900 });
+  await page.goto("http://localhost:5183/#entry", { waitUntil: "networkidle0" });
+  await sleep(2100);
+  await page.evaluate(() => [...document.querySelectorAll(".entry-row")].find((r) => r.textContent.includes("LOG IN"))?.click());
+  await sleep(700);
+  await page.evaluate(() => {
+    const inputs = document.querySelectorAll(".entry-form input");
+    inputs[0].value = "phantom_test";
+    inputs[2].value = "longpassword123";
+  });
+  await page.evaluate(() => { const btn = document.querySelector(".entry-login"); btn.click(); btn.click(); btn.click(); });
+  await sleep(1700);
+  check("triple-click sends exactly 1 login request", loginCalls === 1, String(loginCalls));
+  check("inline error shown on bad login", (await page.evaluate(() => document.querySelector(".entry-error")?.textContent ?? "")).length > 3);
+  await page.evaluate(() => { const i = document.querySelector(".entry-form input"); i.dispatchEvent(new Event("input", { bubbles: true })); });
+  check("typing clears the inline error", await page.evaluate(() => document.querySelector(".entry-error")?.classList.contains("hidden") ?? false));
   await context.close();
 }
 

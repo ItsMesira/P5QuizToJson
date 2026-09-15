@@ -12,13 +12,24 @@ export interface RansomOpts {
   className?: string; // extra classes for the wrapper
 }
 
+/* Split into grapheme clusters so combining marks (Thai vowels/tone marks,
+   emoji ZWJ sequences…) never break apart into separate ransom letters. */
+function segments(text: string): string[] {
+  try {
+    const seg = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+    return [...seg.segment(text)].map((s) => s.segment);
+  } catch {
+    return [...text];
+  }
+}
+
 /* Convert an element's text into individually styled ransom letters */
 export function ransomize(el: HTMLElement, text: string, opts: RansomOpts = {}) {
   el.classList.add("ransom");
   if (opts.size) el.style.fontSize = opts.size;
   if (opts.className) el.className += ` ${opts.className}`;
   el.textContent = "";
-  [...text].forEach((c, i) => {
+  segments(text).forEach((c, i) => {
     const span = document.createElement("span");
     span.className = "ch display";
     span.textContent = c;

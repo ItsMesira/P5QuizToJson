@@ -1,4 +1,4 @@
-/* ============ P5 QUIZ — ENTRY SCREEN (join class → login/register → classroom) ============ */
+/* ============ P5 QUIZ — CLASSROOM (entry): join → sign in → dashboard ============ */
 import gsap from "gsap";
 import { registerScreen, go } from "./screens";
 import { h, toast } from "./dom";
@@ -6,44 +6,158 @@ import { audio } from "../core/audio";
 import { fx } from "../fx/particles";
 import { RM } from "../fx/transitions";
 import { ransomize } from "../fx/ransom";
-import { cloud, cloudError } from "../core/api";
+import { cloud, cloudError, type ApiResult } from "../core/api";
+import { t } from "../core/i18n";
 
 type Mode = "root" | "join" | "make" | "auth" | "create";
+
+/** friendly, localized error line for a failed API call */
+function apiErrorText(r: ApiResult): string {
+  if (r.status === 0) return t("Classroom server offline — try again later.");
+  if (r.status === 404) return t("No class with that code.");
+  if (r.status === 401) return t("Wrong username or password.");
+  if (r.status === 429) return t("Too many attempts — wait a moment.");
+  return cloudError(r);
+}
 
 registerScreen("entry", (root) => {
   let mode: Mode = "root";
   let pendingClass: string | null = null; // code entered in the join step
   let pendingMake = false;
+  let busy = false;
+
+  const session = () => cloud.session;
 
   const el = h("div", { class: "screen entry-screen" }, [
     h("div", { id: "hud-top" }, [
-      h("div", { class: "hud-tag" }, ["CLASSROOM // P5 QUIZ"]),
-      h("div", { class: "hud-tag alt" }, ["★ STEAL TOGETHER"]),
+      h("div", { class: "hud-tag" }, [t("CLASSROOM // P5 QUIZ")]),
+      h("div", { class: "hud-tag alt" }, [t("★ STEAL TOGETHER")]),
     ]),
-    h("div", { class: "entry-stage" }),
+    h("div", { class: "entry-deco", "aria-hidden": "true" }, [
+      h("span", { class: "entry-deco-word" }, [t("CLASSROOM")]),
+      h("span", { class: "entry-deco-dots" }),
+    ]),
+    h("div", { class: "entry-wrap" }, [
+      h("aside", { class: "entry-hero" }, [
+        h("div", { id: "intro-eyebrow" }, [t("— TAKE YOUR SEAT —")]),
+        h("h2", { class: "entry-title" }, [h("span", { class: "entry-ransom" })]),
+        h("p", { class: "entry-lead" }, [t("Join a class first, then sign in. Or play solo.")]),
+        h("div", { class: "entry-chip" }, []),
+      ]),
+      h("section", { class: "entry-panel" }, [
+        h("div", { class: "entry-panel-head" }, [h("span", { class: "entry-panel-title" })]),
+        h("div", { class: "entry-stage" }),
+      ]),
+    ]),
   ]);
 
   const stage = el.querySelector<HTMLElement>(".entry-stage")!;
+  const panelTitle = el.querySelector<HTMLElement>(".entry-panel-title")!;
+  const chipBox = el.querySelector<HTMLElement>(".entry-chip")!;
 
-  const bigBtn = (label: string, icon: string, action: () => void, accent = false) => {
-    const btn = h("button", { class: `entry-btn ${accent ? "accent" : ""}` }, [
-      h("span", { class: "entry-icon" }, [icon]),
-      h("span", { class: "entry-label" }),
+  const setPanelTitle = (label: string) => {
+    panelTitle.textContent = "";
+    ransomize(panelTitle, label, { size: "clamp(15px,1.5vw,20px)" });
+  };
+
+  const updateChip = () => {
+    const s = session();
+    chipBox.textContent = "";
+    const dot = h("span", { class: `entry-chip-dot ${s ? "on" : ""}` });
+    chipBox.append(
+      dot,
+      s
+        ? t("Signed in as {name}", { name: s.user.username }) + (s.cls ? ` — ${s.cls.name}` : "")
+        : t("NOT SIGNED IN"),
+    );
+  };
+
+  /** inline error line under a form; returns show/hide helpers */
+  const errorBox = () => h("div", { class: "entry-error hidden" }, []);
+  const showError = (box: HTMLElement, msg: string) => {
+    box.textContent = msg;
+    box.classList.remove("hidden");
+    audio.sfx("wrong");
+    fx.shake(6);
+  };
+  const clearError = (box: HTMLElement) => {
+    box.classList.add("hidden");
+    box.textContent = "";
+  };
+
+  /* ---------- root: P5 menu rows ---------- */
+  const row = (key: string, icon: string, label: string, sub: string, action: () => void, accent = false) => {
+    const rowEl = h("button", { class: `entry-btn entry-row ${accent ? "accent" : ""}`, "data-key": key }, [
+      h("span", { class: "er-key" }, [key]),
+      h("span", { class: "er-icon" }, [icon]),
+      h("span", { class: "er-text" }, [
+        h("span", { class: "er-label" }),
+        h("span", { class: "er-sub" }, [sub]),
+      ]),
+      h("span", { class: "er-arrow" }, ["◀"]),
     ]);
-    ransomize(btn.querySelector<HTMLElement>(".entry-label")!, label, { size: "clamp(20px,2.6vw,32px)" });
-    btn.addEventListener("mouseenter", () => audio.sfx("hover"));
-    btn.addEventListener("click", () => {
+    ransomize(rowEl.querySelector<HTMLElement>(".er-label")!, label, { size: "clamp(19px,2.3vw,30px)" });
+    rowEl.addEventListener("mouseenter", () => audio.sfx("hover"));
+    rowEl.addEventListener("click", () => {
+      if (busy) return;
       audio.sfx("select");
       action();
     });
-    return btn;
+    return rowEl;
   };
 
-  const field = (label: string, type: string, ph: string) =>
+  let rootRows: HTMLElement[] = [];
+
+  const renderRoot = () => {
+    const s = session();
+    const rows = [
+      row("1", "🎓", t("JOIN A CLASS"), t("Use the code from your teacher"), () => { mode = "join"; render(); }, true),
+      row("2", "★", t("MAKE A CLASS"), t("Start your own classroom"), () => { mode = "make"; render(); }),
+      s
+        ? row("3", "🗂", t("OPEN CLASSROOM"), t("Back to your class page"), () => void go({ name: "dashboard" }))
+        : row("3", "🃏", t("PLAY AS GUEST"), t("Jump straight into the menu"), () => void go({ name: "title" })),
+      s
+        ? row("4", "✕", t("LOG OUT"), t("End this session"), async () => {
+            busy = true;
+            await cloud.logout().catch(() => undefined);
+            cloud.setSession(null);
+            busy = false;
+            toast(t("Logged out"), "info");
+            render();
+          })
+        : row("4", "🔑", t("LOG IN"), t("I already have an account"), () => { mode = "auth"; render(); }),
+    ];
+    rootRows = rows;
+    stage.append(h("div", { class: "entry-rows" }, rows));
+    if (!RM()) {
+      gsap.fromTo(
+        ".entry-row",
+        { x: -50, opacity: 0 },
+        { x: 0, opacity: 1, stagger: 0.07, duration: 0.45, ease: "back.out(1.4)", clearProps: "transform,opacity" },
+      );
+    }
+  };
+
+  /* ---------- shared bits ---------- */
+  const field = (label: string, type: string, ph: string, autocomplete = "off") =>
     h("div", { class: "field-col entry-field" }, [
       h("span", { class: "field-label" }, [label]),
-      h("input", { class: "fill-input", type, placeholder: ph, autocomplete: type === "password" ? "current-password" : "off", spellcheck: "false" }),
+      h("input", { class: "fill-input", type, placeholder: ph, autocomplete, spellcheck: "false" }),
     ]);
+
+  const actions = (...btns: HTMLElement[]) => h("div", { class: "entry-actions" }, btns);
+
+  const lockWhile = async (btns: HTMLElement[], fn: () => Promise<void>) => {
+    if (busy) return;
+    busy = true;
+    btns.forEach((b) => ((b as HTMLButtonElement).disabled = true));
+    try {
+      await fn();
+    } finally {
+      busy = false;
+      btns.forEach((b) => ((b as HTMLButtonElement).disabled = false));
+    }
+  };
 
   const back = () => {
     audio.sfx("click");
@@ -53,68 +167,31 @@ registerScreen("entry", (root) => {
 
   const render = () => {
     stage.textContent = "";
-    const session = cloud.session;
+    const s = session();
+    updateChip();
 
     if (mode === "root") {
-      stage.append(
-        h("h2", { class: "entry-title" }, [h("span", { class: "entry-ransom" })]),
-        h("p", { class: "entry-sub" }, [
-          session
-            ? `Signed in as ${session.user.username}${session.cls ? ` — class ${session.cls.name}` : ""}`
-            : "Join a class first, then sign in. Or play solo.",
-        ]),
-      );
-      const title = stage.querySelector<HTMLElement>(".entry-ransom")!;
-      ransomize(title, "CLASSROOM", { size: "clamp(40px,7vw,96px)" });
-      const buttons = h("div", { class: "entry-buttons" }, [
-        bigBtn("JOIN A CLASS", "🎓", () => { mode = "join"; render(); }, true),
-        bigBtn("MAKE A CLASS", "★", () => { mode = "make"; render(); }),
-        session
-          ? bigBtn("OPEN CLASSROOM", "🗂", () => void go({ name: "dashboard" }))
-          : bigBtn("PLAY AS GUEST", "🃏", () => void go({ name: "title" })),
-        session
-          ? bigBtn("LOG OUT", "✕", async () => {
-              await cloud.logout().catch(() => undefined);
-              toast("Logged out", "info");
-              render();
-            })
-          : bigBtn("LOG IN", "🔑", () => { mode = "auth"; render(); }),
-      ]);
-      stage.append(buttons);
-      stage.append(
-        h("div", { class: "entry-actions" }, [
-          h("button", { class: "sticker-btn entry-back entry-back-menu" }, ["◀ BACK TO MENU"]),
-        ]),
-      );
-      stage.querySelector(".entry-back-menu")!.addEventListener("click", () => {
-        audio.sfx("click");
-        void go({ name: "title" });
-      });
-      if (!RM()) gsap.fromTo(".entry-btn", { x: -60, opacity: 0 }, { x: 0, opacity: 1, stagger: 0.08, duration: 0.5, ease: "back.out(1.4)" });
+      setPanelTitle(t("SELECT"));
+      renderRoot();
       return;
     }
 
     if (mode === "join") {
-      stage.append(
-        h("h3", { class: "entry-mode-title" }, [h("span", { class: "entry-ransom" })]),
-        h("p", { class: "entry-sub" }, ["Enter the 6-character code your teacher shared."]),
-      );
-      ransomize(stage.querySelector<HTMLElement>(".entry-ransom")!, "JOIN A CLASS", { size: "clamp(26px,3.6vw,46px)" });
+      setPanelTitle(t("JOIN A CLASS"));
+      const err = errorBox();
       const input = h("input", { class: "fill-input entry-code", placeholder: "ABC123", maxlength: "8", spellcheck: "false", autocomplete: "off" });
+      const next = h("button", { class: "sticker-btn accent entry-next" }, [t("CONTINUE ▸")]);
+      const backBtn = h("button", { class: "sticker-btn entry-back" }, [t("◀ BACK")]);
       stage.append(
-        h("div", { class: "entry-field" }, [input]),
-        h("div", { class: "entry-actions" }, [
-          h("button", { class: "sticker-btn accent entry-next" }, ["CONTINUE ▸"]),
-          h("button", { class: "sticker-btn entry-back" }, ["◀ BACK"]),
-        ]),
+        h("p", { class: "entry-sub" }, [t("Enter the 4-8 character code your teacher shared.")]),
+        h("div", { class: "entry-form" }, [h("div", { class: "entry-field" }, [input]), err, actions(next, backBtn)]),
       );
       const code = input as HTMLInputElement;
       code.focus();
       const proceed = () => {
         const v = code.value.trim().toUpperCase();
         if (!/^[A-Z0-9]{4,8}$/.test(v)) {
-          toast("Code is 4-8 letters/numbers", "error");
-          fx.shake(6);
+          showError(err, t("Code is 4-8 letters/numbers."));
           return;
         }
         pendingClass = v;
@@ -122,152 +199,164 @@ registerScreen("entry", (root) => {
         mode = "auth";
         render();
       };
-      stage.querySelector(".entry-next")!.addEventListener("click", proceed);
-      stage.querySelector(".entry-back")!.addEventListener("click", back);
+      next.addEventListener("click", proceed);
+      backBtn.addEventListener("click", back);
+      code.addEventListener("input", () => clearError(err));
       code.addEventListener("keydown", (e) => { if (e.key === "Enter") proceed(); });
-      if (!RM()) gsap.fromTo(".entry-stage > *", { y: 30, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.06, duration: 0.35, ease: "back.out(1.5)" });
+      if (!RM()) gsap.fromTo(".entry-stage > *", { y: 24, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.05, duration: 0.3, ease: "back.out(1.5)", clearProps: "transform,opacity" });
       return;
     }
 
     if (mode === "make") {
+      setPanelTitle(t("MAKE A CLASS"));
+      const err = errorBox();
+      const input = h("input", { class: "fill-input", placeholder: t("Class name, e.g. 6A Physics"), maxlength: "60", spellcheck: "false" });
+      const next = h("button", { class: "sticker-btn accent entry-next" }, [t("CONTINUE ▸")]);
+      const backBtn = h("button", { class: "sticker-btn entry-back" }, [t("◀ BACK")]);
       stage.append(
-        h("h3", { class: "entry-mode-title" }, [h("span", { class: "entry-ransom" })]),
-        h("p", { class: "entry-sub" }, ["Create a class and share its code with your students."]),
-      );
-      ransomize(stage.querySelector<HTMLElement>(".entry-ransom")!, "MAKE A CLASS", { size: "clamp(26px,3.6vw,46px)" });
-      const input = h("input", { class: "fill-input entry-code", placeholder: "Class name, e.g. 6A Physics", maxlength: "60", spellcheck: "false" });
-      stage.append(
-        h("div", { class: "entry-field" }, [input]),
-        h("div", { class: "entry-actions" }, [
-          h("button", { class: "sticker-btn accent entry-next" }, ["CONTINUE ▸"]),
-          h("button", { class: "sticker-btn entry-back" }, ["◀ BACK"]),
-        ]),
+        h("p", { class: "entry-sub" }, [t("Create a class and share its code with your students.")]),
+        h("div", { class: "entry-form" }, [h("div", { class: "entry-field" }, [input]), err, actions(next, backBtn)]),
       );
       const name = input as HTMLInputElement;
       name.focus();
       const proceed = () => {
         const v = name.value.trim();
         if (v.length < 2) {
-          toast("Give the class a name (2+ characters)", "error");
-          fx.shake(6);
+          showError(err, t("Give the class a name (2+ characters)."));
           return;
         }
-        pendingClass = v; // reuse as "pending value"
+        pendingClass = v;
         pendingMake = true;
-        mode = cloud.session ? "create" : "auth";
+        mode = s ? "create" : "auth";
         render();
       };
-      stage.querySelector(".entry-next")!.addEventListener("click", proceed);
-      stage.querySelector(".entry-back")!.addEventListener("click", back);
+      next.addEventListener("click", proceed);
+      backBtn.addEventListener("click", back);
+      name.addEventListener("input", () => clearError(err));
       name.addEventListener("keydown", (e) => { if (e.key === "Enter") proceed(); });
-      if (!RM()) gsap.fromTo(".entry-stage > *", { y: 30, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.06, duration: 0.35, ease: "back.out(1.5)" });
+      if (!RM()) gsap.fromTo(".entry-stage > *", { y: 24, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.05, duration: 0.3, ease: "back.out(1.5)", clearProps: "transform,opacity" });
       return;
     }
 
     if (mode === "create") {
-      // logged in + make class
+      setPanelTitle(t("CONFIRM"));
+      const err = errorBox();
+      const create = h("button", { class: "sticker-btn accent entry-next" }, [t("CREATE CLASS ★")]);
+      const backBtn = h("button", { class: "sticker-btn entry-back" }, [t("◀ BACK")]);
       stage.append(
-        h("h3", { class: "entry-mode-title" }, [h("span", { class: "entry-ransom" })]),
-        h("p", { class: "entry-sub" }, [`Creating “${pendingClass}” as ${cloud.session?.user.username}…`]),
-        h("div", { class: "entry-actions" }, [
-          h("button", { class: "sticker-btn accent entry-next" }, ["CREATE CLASS ★"]),
-          h("button", { class: "sticker-btn entry-back" }, ["◀ BACK"]),
-        ]),
+        h("p", { class: "entry-sub" }, [t("Creating “{name}” as {user}…", { name: pendingClass ?? "", user: s?.user.username ?? "" })]),
+        h("div", { class: "entry-form" }, [err, actions(create, backBtn)]),
       );
-      ransomize(stage.querySelector<HTMLElement>(".entry-ransom")!, "CONFIRM", { size: "clamp(26px,3.6vw,46px)" });
-      stage.querySelector(".entry-next")!.addEventListener("click", async () => {
-        const r = await cloud.createClass(pendingClass!);
-        if (r.ok) {
-          toast(`Class “${pendingClass}” created`, "info");
-          fx.starBurst(window.innerWidth / 2, window.innerHeight / 2, { gold: true, n: 16 });
-          void go({ name: "dashboard" });
-        } else {
-          toast(cloudError(r), "error");
-          fx.shake(8);
-        }
-      });
-      stage.querySelector(".entry-back")!.addEventListener("click", back);
+      create.addEventListener("click", () =>
+        lockWhile([create, backBtn], async () => {
+          const r = await cloud.createClass(pendingClass ?? "");
+          if (r.ok) {
+            audio.sfx("correct");
+            fx.starBurst(window.innerWidth / 2, window.innerHeight / 2, { gold: true, n: 16 });
+            toast(t("Class “{name}” created", { name: pendingClass ?? "" }), "info");
+            void go({ name: "dashboard" });
+          } else {
+            showError(err, apiErrorText(r));
+          }
+        }),
+      );
+      backBtn.addEventListener("click", back);
+      if (!RM()) gsap.fromTo(".entry-stage > *", { y: 24, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.05, duration: 0.3, ease: "back.out(1.5)", clearProps: "transform,opacity" });
       return;
     }
 
-    // auth — join-first: credentials with the pending class code/name
+    /* ---------- auth (join-first) ---------- */
+    setPanelTitle(t("SIGN IN"));
+    const err = errorBox();
+    const userField = field(t("USERNAME"), "text", "phantom_name");
+    const passField = field(t("PASSWORD"), "password", t("8+ characters"), "current-password");
+    const emailField = field(t("EMAIL (OPTIONAL)"), "email", "you@school.com");
+    const signIn = h("button", { class: "sticker-btn accent entry-login" }, [t("SIGN IN")]);
+    const register = h("button", { class: "sticker-btn entry-register" }, [t("CREATE ACCOUNT")]);
+    const backBtn = h("button", { class: "sticker-btn entry-back" }, [t("◀ BACK")]);
     stage.append(
-      h("h3", { class: "entry-mode-title" }, [h("span", { class: "entry-ransom" })]),
       h("p", { class: "entry-sub" }, [
         pendingMake
-          ? "Sign in or create an account, then your class will be created."
-          : `Joining class ${pendingClass} — sign in or create an account.`,
+          ? t("Sign in or create an account, then your class will be created.")
+          : t("Joining class {code} — sign in or create an account.", { code: pendingClass ?? "" }),
       ]),
-    );
-    ransomize(stage.querySelector<HTMLElement>(".entry-ransom")!, "SIGN IN", { size: "clamp(26px,3.6vw,46px)" });
-    const userField = field("USERNAME", "text", "phantom_name");
-    const passField = field("PASSWORD", "password", "8+ characters");
-    const emailField = field("EMAIL (OPTIONAL)", "email", "you@school.com");
-    stage.append(
-      h("div", { class: "entry-form" }, [userField, emailField, passField]),
-      h("div", { class: "entry-actions" }, [
-        h("button", { class: "sticker-btn accent entry-login" }, ["SIGN IN"]),
-        h("button", { class: "sticker-btn entry-register" }, ["CREATE ACCOUNT"]),
-        h("button", { class: "sticker-btn entry-back" }, ["◀ BACK"]),
-      ]),
+      h("div", { class: "entry-form" }, [userField, emailField, passField, err, actions(signIn, register, backBtn)]),
     );
     const u = userField.querySelector<HTMLInputElement>("input")!;
     const e = emailField.querySelector<HTMLInputElement>("input")!;
     const p = passField.querySelector<HTMLInputElement>("input")!;
     u.focus();
-    const attempt = async (register: boolean) => {
-      const username = u.value.trim();
-      const password = p.value;
-      if (username.length < 3 || password.length < 8) {
-        toast("Username 3+ · password 8+ characters", "error");
-        fx.shake(6);
-        return;
-      }
-      const classCode = pendingMake ? undefined : (pendingClass ?? undefined);
-      const r = register
-        ? await cloud.register(username, password, e.value.trim(), classCode)
-        : await cloud.login(username, password, classCode);
-      if (r.ok) {
-        if (pendingMake && !classCode) {
-          const created = await cloud.createClass(pendingClass!);
-          if (created.ok) {
-            toast(`Class “${pendingClass}” created`, "info");
-          }
-        }
-        toast(`Welcome, ${cloud.session?.user.username}`, "info");
-        void go({ name: "dashboard" });
-        return;
-      }
-      toast(cloudError(r), "error");
-      fx.shake(8);
-      if (r.status === 404) {
-        toast("No class with that code", "error");
-        mode = "join";
-        render();
-      }
-    };
-    stage.querySelector(".entry-login")!.addEventListener("click", () => void attempt(false));
-    stage.querySelector(".entry-register")!.addEventListener("click", () => void attempt(true));
-    stage.querySelector(".entry-back")!.addEventListener("click", back);
-    p.addEventListener("keydown", (ev) => { if (ev.key === "Enter") void attempt(false); });
-    if (!RM()) gsap.fromTo(".entry-stage > *", { y: 30, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.06, duration: 0.35, ease: "back.out(1.5)" });
-  };
 
-  el.querySelector("#hud-top .hud-tag")!.addEventListener("click", back);
+    const attempt = (isRegister: boolean) =>
+      lockWhile([signIn, register, backBtn], async () => {
+        const username = u.value.trim();
+        const password = p.value;
+        if (username.length < 3 || password.length < 8) {
+          showError(err, t("Username 3+ · password 8+ characters."));
+          return;
+        }
+        const classCode = pendingMake ? undefined : (pendingClass ?? undefined);
+        const r = isRegister
+          ? await cloud.register(username, password, e.value.trim(), classCode)
+          : await cloud.login(username, password, classCode);
+        if (r.ok) {
+          if (pendingMake && !classCode) {
+            const created = await cloud.createClass(pendingClass ?? "");
+            if (created.ok) toast(t("Class “{name}” created", { name: pendingClass ?? "" }), "info");
+          }
+          audio.sfx("correct");
+          toast(t("Welcome, {name}", { name: cloud.session?.user.username ?? "" }), "info");
+          void go({ name: "dashboard" });
+          return;
+        }
+        showError(err, apiErrorText(r));
+        if (r.status === 404) {
+          mode = "join";
+          window.setTimeout(() => render(), 900);
+        }
+      });
+
+    signIn.addEventListener("click", () => void attempt(false));
+    register.addEventListener("click", () => void attempt(true));
+    backBtn.addEventListener("click", back);
+    [u, e, p].forEach((inp) => inp.addEventListener("input", () => clearError(err)));
+    p.addEventListener("keydown", (ev) => { if (ev.key === "Enter") void attempt(false); });
+    if (!RM()) gsap.fromTo(".entry-stage > *", { y: 24, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.05, duration: 0.3, ease: "back.out(1.5)", clearProps: "transform,opacity" });
+  };
 
   /* ESC: sub-stages step back to root, root escapes to the main menu */
   const onKey = (e: KeyboardEvent) => {
-    if (e.key !== "Escape") return;
-    e.preventDefault();
-    if (mode !== "root") back();
-    else void go({ name: "title" });
+    if (e.key === "Escape") {
+      e.preventDefault();
+      if (mode !== "root") back();
+      else void go({ name: "title" });
+      return;
+    }
+    if (mode === "root" && e.key >= "1" && e.key <= "4") {
+      rootRows[Number(e.key) - 1]?.click();
+    }
   };
   window.addEventListener("keydown", onKey);
 
+  ransomize(el.querySelector<HTMLElement>(".entry-ransom")!, t("CLASSROOM"), { size: "clamp(38px,5.2vw,76px)" });
+
   root.appendChild(el);
   render();
+
+  // root back-to-menu is rendered by the panel head for consistency
+  el.querySelector(".entry-panel-head")!.appendChild(
+    h("button", { class: "entry-back-menu sticker-btn" }, [t("◀ BACK TO MENU")]),
+  );
+  el.querySelector(".entry-back-menu")!.addEventListener("click", () => {
+    audio.sfx("click");
+    void go({ name: "title" });
+  });
+
   if (!RM()) {
-    gsap.fromTo("#hud-top .hud-tag", { y: -30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, stagger: 0.08, ease: "power3.out" });
+    gsap.fromTo("#hud-top .hud-tag", { y: -30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, stagger: 0.08, ease: "power3.out", clearProps: "transform,opacity" });
+    gsap.fromTo(".entry-hero > *", { x: -40, opacity: 0 }, { x: 0, opacity: 1, stagger: 0.06, duration: 0.4, ease: "power3.out", clearProps: "transform,opacity" });
+    gsap.fromTo(".entry-panel", { x: 40, opacity: 0 }, { x: 0, opacity: 1, duration: 0.45, delay: 0.15, ease: "back.out(1.3)", clearProps: "transform,opacity" });
   }
+
   return () => window.removeEventListener("keydown", onKey);
 });

@@ -10,12 +10,13 @@ import { encodeQuizLink, currentShareUrl } from "../core/share";
 import { totalQuestions, validateQuiz } from "../core/validator";
 import type { Quiz } from "../core/types";
 import { RANKS } from "../core/types";
+import { t } from "../core/i18n";
 
 registerScreen("library", (root) => {
   const el = h("div", { class: "screen library-screen" }, [
     h("header", { class: "load-head" }, [
-      h("button", { class: "back-btn", "aria-label": "Back" }, ["◀"]),
-      h("h2", { class: "screen-title" }, ["QUIZ LIBRARY"]),
+      h("button", { class: "back-btn", "aria-label": t("Back") }, ["◀"]),
+      h("h2", { class: "screen-title" }, [t("QUIZ LIBRARY")]),
       h("div", { class: "head-spacer" }, []),
     ]),
     h("div", { class: "library-body" }, [
@@ -33,9 +34,9 @@ registerScreen("library", (root) => {
     grid.append(
       h("div", { class: "lib-empty" }, [
         h("div", { class: "lib-empty-star" }, ["★"]),
-        h("p", {}, ["NOTHING HERE YET."]),
-        h("p", { class: "lib-empty-sub" }, ["Load a quiz.json — or play a built-in sample."]),
-        h("button", { class: "sticker-btn accent" }, ["GO LOAD ONE"]),
+        h("p", {}, [t("NOTHING HERE YET.")]),
+        h("p", { class: "lib-empty-sub" }, [t("Load a quiz.json — or play a built-in sample.")]),
+        h("button", { class: "sticker-btn accent" }, [t("GO LOAD ONE")]),
       ]),
     );
     const b = grid.querySelector<HTMLButtonElement>("button")!;
@@ -51,37 +52,37 @@ registerScreen("library", (root) => {
       h("div", { class: "lib-card-top" }, [
         h("div", { class: "lib-title" }, [saved.quiz.title]),
         h("div", { class: "lib-meta" }, [
-          h("span", {}, [`${totalQuestions(saved.quiz)} QUESTIONS`]),
+          h("span", {}, [t("{n} QUESTIONS", { n: totalQuestions(saved.quiz) })]),
           h("span", { class: "meta-sep" }, ["·"]),
           h("span", {}, [saved.source]),
         ]),
       ]),
       stats
         ? h("div", { class: "lib-progress" }, [
-            h("span", {}, [`${stats.plays} PLAY${stats.plays > 1 ? "S" : ""}`]),
+            h("span", {}, [t("{n} PLAY", { n: stats.plays }) + (stats.plays > 1 ? "S" : "")]),
             h("span", { class: "meta-sep" }, ["·"]),
-            h("span", {}, [`BEST ${stats.bestRank}`]),
+            h("span", {}, [t("BEST {rank}", { rank: stats.bestRank })]),
             stats.misses.length
-              ? h("span", { class: "lib-misses" }, [`· ${stats.misses.length} WEAK SPOTS`])
+              ? h("span", { class: "lib-misses" }, [t("· {n} WEAK SPOTS", { n: stats.misses.length })])
               : null,
           ])
         : null,
       goal
         ? h("div", { class: "lib-goal" }, [
-            h("span", { class: "lib-goal-target" }, [`GOAL: ${goal.targetRank} RANK`]),
-            h("span", {}, [` · ${stats?.plays ?? 0} SESSION${(stats?.plays ?? 0) === 1 ? "" : "S"} IN`]),
+            h("span", { class: "lib-goal-target" }, [t("GOAL: {rank} RANK", { rank: goal.targetRank })]),
+            h("span", {}, [t(" · {n} SESSION IN", { n: stats?.plays ?? 0 }) + ((stats?.plays ?? 0) === 1 ? "" : "S")]),
           ])
         : null,
       h("div", { class: "lib-card-bottom" }, [
         rank
-          ? h("div", { class: "lib-best", style: `color:${rank.color}` }, [`BEST ${rank.key}`])
-          : h("div", { class: "lib-best none" }, ["NO RECORD"]),
+          ? h("div", { class: "lib-best", style: `color:${rank.color}` }, [t("BEST {rank}", { rank: rank.key })])
+          : h("div", { class: "lib-best none" }, [t("NO RECORD")]),
         h("div", { class: "lib-actions" }, [
-          h("button", { class: "lib-btn play" }, ["▶ PLAY"]),
-          h("button", { class: "lib-btn inspect-btn" }, ["🔍 INSPECT"]),
-          h("button", { class: "lib-btn" }, ["⧉ LINK"]),
-          h("button", { class: "lib-btn" }, ["⤓ JSON"]),
-          h("button", { class: "lib-btn goal-btn" }, [goal ? "🎯 GOAL" : "SET GOAL"]),
+          h("button", { class: "lib-btn play" }, [t("▶ PLAY")]),
+          h("button", { class: "lib-btn inspect-btn" }, [t("🔍 INSPECT")]),
+          h("button", { class: "lib-btn" }, [t("⧉ LINK")]),
+          h("button", { class: "lib-btn" }, [t("⤓ JSON")]),
+          h("button", { class: "lib-btn goal-btn" }, [goal ? "🎯 GOAL" : t("SET GOAL")]),
           h("button", { class: "lib-btn danger" }, ["✕"]),
         ]),
       ]),
@@ -104,7 +105,7 @@ registerScreen("library", (root) => {
       audio.sfx("select");
       const enc = await encodeQuizLink(saved.quiz);
       await navigator.clipboard.writeText(currentShareUrl(enc)).catch(() => undefined);
-      toast("Share link copied", "info");
+      toast(t("Share link copied"), "info");
     });
     const json = card.querySelectorAll<HTMLElement>(".lib-btn")[3];
     json.addEventListener("click", () => {
@@ -124,7 +125,7 @@ registerScreen("library", (root) => {
         onComplete: () => {
           deleteQuiz(saved.id);
           card.remove();
-          toast("Quiz deleted", "info");
+          toast(t("Quiz deleted"), "info");
         },
       });
       fx.slashes(2);
@@ -152,7 +153,7 @@ registerScreen("library", (root) => {
   const goalModal = h("div", { class: "prompt-modal hidden goal-modal" }, [
     h("div", { class: "prompt-modal-card goal-card" }, [
       h("div", { class: "pm-head" }, [
-        h("h3", { class: "pm-title" }, ["SET GOAL"]),
+        h("h3", { class: "pm-title" }, [t("SET GOAL")]),
         h("button", { class: "pm-close" }, ["✕"]),
       ]),
       h("div", { class: "pm-body" }, [
@@ -162,8 +163,8 @@ registerScreen("library", (root) => {
           return b;
         })),
         h("div", { class: "pm-actions" }, [
-          h("button", { class: "sticker-btn accent goal-set-btn" }, ["🎯 SET GOAL"]),
-          h("button", { class: "sticker-btn goal-clear-btn" }, ["CLEAR"]),
+          h("button", { class: "sticker-btn accent goal-set-btn" }, [t("🎯 SET GOAL")]),
+          h("button", { class: "sticker-btn goal-clear-btn" }, [t("CLEAR")]),
         ]),
       ]),
     ]),
@@ -215,7 +216,7 @@ registerScreen("library", (root) => {
   const inspectModal = h("div", { class: "prompt-modal hidden inspect-modal" }, [
     h("div", { class: "prompt-modal-card goal-card" }, [
       h("div", { class: "pm-head" }, [
-        h("h3", { class: "pm-title" }, ["QUIZ INSPECT"]),
+        h("h3", { class: "pm-title" }, [t("QUIZ INSPECT")]),
         h("button", { class: "pm-close" }, ["✕"]),
       ]),
       h("div", { class: "pm-body inspect-body" }, []),
@@ -256,12 +257,12 @@ registerScreen("library", (root) => {
     const source = v.ok ? v.quiz : quiz;
     let n = 0;
     source.sections.forEach((s) => {
-      body.appendChild(h("h4", { class: "inspect-section" }, [`■ ${s.name.toUpperCase()}`]));
+      body.appendChild(h("h4", { class: "inspect-section" }, [t("■ {name}", { name: s.name.toUpperCase() })]));
       s.questions.forEach((q) => {
         n++;
         const row = h("div", { class: "inspect-row" }, [
           h("div", { class: "inspect-q" }, [`Q${n} · ${(q.type ?? "?").toUpperCase()} — ${q.question}`]),
-          h("div", { class: "inspect-a" }, [`EXPECTED: ${expectedOf(q as never)}`]),
+          h("div", { class: "inspect-a" }, [t("EXPECTED: {answer}", { answer: expectedOf(q as never) })]),
         ]);
         body.appendChild(row);
       });

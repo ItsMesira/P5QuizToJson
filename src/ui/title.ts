@@ -8,6 +8,7 @@ import { RM } from "../fx/transitions";
 import { ransomize } from "../fx/ransom";
 import { loadProgress } from "../core/store";
 import { cloud } from "../core/api";
+import { t } from "../core/i18n";
 
 interface MenuEntry {
   label: string;
@@ -66,14 +67,14 @@ registerScreen("title", (root) => {
       h("span", { class: "menu-ransom" }),
       h("span", { class: "cursor-mark" }, ["◀"]),
     ]);
-    ransomize(btn.querySelector<HTMLElement>(".menu-ransom")!, item.label, { size: item.size });
+    ransomize(btn.querySelector<HTMLElement>(".menu-ransom")!, t(item.label), { size: item.size });
     btn.addEventListener("mouseenter", () => activate(i, true));
     btn.addEventListener("click", () => navigate(i));
     btn.addEventListener("focus", () => activate(i, true));
     return btn;
   };
 
-  const menu = h("nav", { id: "menu", "aria-label": "Sections" }, ITEMS.map((item, i) => {
+  const menu = h("nav", { id: "menu", "aria-label": t("Sections") }, ITEMS.map((item, i) => {
     const el = menuItem(item, i);
     itemEls.push(el);
     return el;
@@ -82,30 +83,30 @@ registerScreen("title", (root) => {
   const el = h("div", { class: "screen title-screen" }, [
     // HUD top — two rotated tags
     h("div", { id: "hud-top" }, [
-      h("div", { class: "hud-tag" }, ["QUIZ // P5 QUIZ"]),
-      h("div", { class: "hud-tag alt" }, ["★ STEAL THE ANSWERS"]),
+      h("div", { class: "hud-tag" }, [t("QUIZ // P5 QUIZ")]),
+      h("div", { class: "hud-tag alt" }, [t("★ STEAL THE ANSWERS")]),
     ]),
-    h("div", { id: "intro-eyebrow" }, ["— THE PHANTOM THIEVES OF TRIVIA PRESENT —"]),
+    h("div", { id: "intro-eyebrow" }, [t("— THE PHANTOM THIEVES OF TRIVIA PRESENT —")]),
     h("h1", { id: "big-name" }, [
       h("span", { class: "name-ransom" }),
       h("span", { class: "name-ransom" }),
     ]),
     h("p", { id: "tagline" }, [
-      "Load any quiz.json, or let an AI write one for you. ",
-      h("strong", {}, ["Steal the answers. Take your time."]),
+      t("Load any quiz.json, or let an AI write one for you. "),
+      h("strong", {}, [t("Steal the answers. Take your time.")]),
     ]),
     menu,
     h("div", { id: "hud-bottom" }, [
-      h("span", {}, [h("span", { class: "key" }, ["↑↓"]), "SELECT"]),
-      h("span", {}, [h("span", { class: "key" }, ["ENTER"]), "CONFIRM"]),
-      h("span", {}, [h("span", { class: "key" }, ["1-6"]), "JUMP"]),
+      h("span", {}, [h("span", { class: "key" }, ["↑↓"]), t("SELECT")]),
+      h("span", {}, [h("span", { class: "key" }, ["ENTER"]), t("CONFIRM")]),
+      h("span", {}, [h("span", { class: "key" }, ["1-6"]), t("JUMP")]),
       h("span", { id: "clock", style: "margin-left:auto;opacity:.8" }, ["--:--"]),
     ]),
     // BGM panel
     h("div", { class: "bgm-panel" }, [
-      h("button", { class: `bgm-toggle ${app.settings.music ? "on" : ""}`, "aria-label": "Toggle music" }, ["♫ MUSIC"]),
+      h("button", { class: `bgm-toggle ${app.settings.music ? "on" : ""}`, "aria-label": t("Toggle music") }, [t("♫ MUSIC")]),
       h("div", { class: "bgm-slider-wrap" }, [
-        h("input", { class: "vol-slider bgm-slider", type: "range", min: "0", max: "100", value: String(Math.round(app.settings.volume * 100)), "aria-label": "Music volume" }),
+        h("input", { class: "vol-slider bgm-slider", type: "range", min: "0", max: "100", value: String(Math.round(app.settings.volume * 100)), "aria-label": t("Music volume") }),
         h("span", { class: "bgm-pct" }, [`${Math.round(app.settings.volume * 100)}%`]),
       ]),
     ]),
@@ -128,7 +129,7 @@ registerScreen("title", (root) => {
   if (progress && progress.index > 0) {
     const resume = h("button", { class: "resume-banner" }, [
       h("span", { class: "resume-icon" }, ["▶"]),
-      h("span", {}, ["RESUME LAST HEIST"]),
+      h("span", {}, [t("RESUME LAST HEIST")]),
     ]);
     resume.addEventListener("click", () => {
       audio.sfx("select");

@@ -2,6 +2,7 @@
 import gsap from "gsap";
 import { registerScreen, go, startQuiz } from "./screens";
 import { h, toast } from "./dom";
+import { t } from "../core/i18n";
 import { audio } from "../core/audio";
 import { fx } from "../fx/particles";
 import { RM } from "../fx/transitions";
@@ -39,7 +40,6 @@ const DIFFS: DifficultyMix[] = ["chill", "balanced", "brutal"];
 const TONES: Tone[] = ["fun", "serious", "dramatic"];
 const BLOOMS: Blooms[] = ["mix", "recall", "apply", "analyze"];
 const AUDIENCES: Audience[] = ["kids", "teens", "adults", "experts"];
-const DIFF_LABEL: Record<DifficultyMix, string> = { chill: "CHILL", balanced: "BALANCED", brutal: "BRUTAL" };
 
 registerScreen("prompts", (root) => {
   const fields: PromptFields = { ...defaultFields(), ...builderPrefill.fields };
@@ -52,14 +52,14 @@ registerScreen("prompts", (root) => {
 
   const el = h("div", { class: "screen prompts-screen" }, [
     h("header", { class: "load-head" }, [
-      h("button", { class: "back-btn", "aria-label": "Back" }, ["◀"]),
-      h("h2", { class: "screen-title" }, ["MASTER PROMPTS"]),
+      h("button", { class: "back-btn", "aria-label": t("Back") }, ["◀"]),
+      h("h2", { class: "screen-title" }, [t("MASTER PROMPTS")]),
       h("div", { class: "head-spacer" }, []),
     ]),
     h("nav", { class: "prompts-tabs" }, [
-      tabBtn("builder", "⚙ PROMPT BUILDER"),
-      tabBtn("presets", "★ PRESETS"),
-      tabBtn("history", "◷ HISTORY"),
+      tabBtn("builder", t("⚙ PROMPT BUILDER")),
+      tabBtn("presets", t("★ PRESETS")),
+      tabBtn("history", t("◷ HISTORY")),
     ]),
     h("div", { class: "prompts-builder" }, []),
     h("div", { class: "prompts-presets hidden" }, []),
@@ -97,10 +97,10 @@ registerScreen("prompts", (root) => {
     const rect = btn.getBoundingClientRect();
     fx.starBurst(rect.left + rect.width / 2, rect.top + rect.height / 2, { n: 8, gold: true });
     const orig = btn.textContent;
-    btn.textContent = "✓ COPIED";
+    btn.textContent = t("✓ COPIED");
     gsap.fromTo(btn, { scale: 1 }, { scale: 1.15, duration: 0.12, yoyo: true, repeat: 1, ease: "power2.out" });
     window.setTimeout(() => (btn.textContent = orig), 1400);
-    toast("Prompt copied — paste it into your AI", "info");
+    toast(t("Prompt copied — paste it into your AI"), "info");
   }
 
   /* ================= BUILDER ================= */
@@ -174,68 +174,68 @@ registerScreen("prompts", (root) => {
 
     /* ---- left column: form ---- */
     const form = h("div", { class: "builder-form" }, [
-      h("h3", { class: "builder-heading" }, ["— WHAT ARE YOU STUDYING —"]),
-      textField("TOPIC", () => fields.topic, (v) => (fields.topic = v), "e.g. French Revolution causes"),
+      h("h3", { class: "builder-heading" }, [t("— WHAT ARE YOU STUDYING —")]),
+      textField(t("TOPIC"), () => fields.topic, (v) => (fields.topic = v), t("e.g. French Revolution causes")),
       h("div", { class: "field-row-2" }, [
-        textField("LANGUAGE", () => fields.language, (v) => (fields.language = v), "English"),
-        textField("QUIZ TITLE", () => fields.title, (v) => (fields.title = v), "auto — optional"),
+        textField(t("LANGUAGE"), () => fields.language, (v) => (fields.language = v), t("English")),
+        textField(t("QUIZ TITLE"), () => fields.title, (v) => (fields.title = v), t("auto — optional")),
       ]),
       h("div", { class: "field-col" }, [
-        h("span", { class: "field-label" }, ["AUDIENCE"]),
-        seg(AUDIENCES as Audience[], fields.audience, { kids: "KIDS", teens: "TEENS", adults: "ADULTS", experts: "EXPERTS" }, (v) => (fields.audience = v)),
+        h("span", { class: "field-label" }, [t("AUDIENCE")]),
+        seg(AUDIENCES as Audience[], fields.audience, { kids: t("KIDS"), teens: t("TEENS"), adults: t("ADULTS"), experts: t("EXPERTS") }, (v) => (fields.audience = v)),
       ]),
       h("div", { class: "field-col" }, [
-        h("span", { class: "field-label" }, ["TONES"]),
-        seg(TONES as Tone[], fields.tone, { fun: "FUN", serious: "SERIOUS", dramatic: "DRAMATIC" }, (v) => (fields.tone = v)),
+        h("span", { class: "field-label" }, [t("TONES")]),
+        seg(TONES as Tone[], fields.tone, { fun: t("FUN"), serious: t("SERIOUS"), dramatic: t("DRAMATIC") }, (v) => (fields.tone = v)),
       ]),
       h("div", { class: "field-col" }, [
-        h("span", { class: "field-label" }, ["THINKING LEVEL"]),
-        seg(BLOOMS as Blooms[], fields.blooms, { mix: "MIX", recall: "RECALL", apply: "APPLY", analyze: "ANALYZE" }, (v) => (fields.blooms = v)),
+        h("span", { class: "field-label" }, [t("THINKING LEVEL")]),
+        seg(BLOOMS as Blooms[], fields.blooms, { mix: t("MIX"), recall: t("RECALL"), apply: t("APPLY"), analyze: t("ANALYZE") }, (v) => (fields.blooms = v)),
       ]),
-      slider("QUESTIONS", 5, 50, () => fields.count, (v) => (fields.count = v)),
-      slider("SECTIONS", 1, 6, () => fields.sections, (v) => (fields.sections = v)),
+      slider(t("QUESTIONS"), 5, 50, () => fields.count, (v) => (fields.count = v)),
+      slider(t("SECTIONS"), 1, 6, () => fields.sections, (v) => (fields.sections = v)),
       h("div", { class: "field-col" }, [
-        h("span", { class: "field-label" }, ["DIFFICULTY"]),
-        seg(DIFFS as DifficultyMix[], fields.difficulty, DIFF_LABEL, (v) => (fields.difficulty = v)),
-      ]),
-      h("div", { class: "field-col" }, [
-        h("span", { class: "field-label" }, ["GAME MODE"]),
-        seg(MODES as QuizMode[], fields.mode, { standard: "STANDARD", practice: "PRACTICE", survival: "SURVIVAL", rapid: "RAPID", endless: "ENDLESS" }, (v) => (fields.mode = v)),
+        h("span", { class: "field-label" }, [t("DIFFICULTY")]),
+        seg(DIFFS as DifficultyMix[], fields.difficulty, { chill: t("CHILL"), balanced: t("BALANCED"), brutal: t("BRUTAL") }, (v) => (fields.difficulty = v)),
       ]),
       h("div", { class: "field-col" }, [
-        h("span", { class: "field-label" }, ["QUESTION TYPES"]),
-        h("div", { class: "type-grid" }, ALL_TYPES.map((t) => {
-          const b = h("button", { class: `type-chip ${fields.types.includes(t.id) ? "on" : ""}` }, [t.label]);
+        h("span", { class: "field-label" }, [t("GAME MODE")]),
+        seg(MODES as QuizMode[], fields.mode, { standard: t("STANDARD"), practice: t("PRACTICE"), survival: t("SURVIVAL"), rapid: t("RAPID"), endless: t("ENDLESS") }, (v) => (fields.mode = v)),
+      ]),
+      h("div", { class: "field-col" }, [
+        h("span", { class: "field-label" }, [t("QUESTION TYPES")]),
+        h("div", { class: "type-grid" }, ALL_TYPES.map((ty) => {
+          const b = h("button", { class: `type-chip ${fields.types.includes(ty.id) ? "on" : ""}` }, [t(ty.label)]);
           b.addEventListener("click", () => {
-            audio.sfx(fields.types.includes(t.id) ? "click" : "stamp");
-            if (fields.types.includes(t.id)) fields.types = fields.types.filter((x) => x !== t.id);
-            else fields.types = [...fields.types, t.id];
+            audio.sfx(fields.types.includes(ty.id) ? "click" : "stamp");
+            if (fields.types.includes(ty.id)) fields.types = fields.types.filter((x) => x !== ty.id);
+            else fields.types = [...fields.types, ty.id];
             if (!fields.types.length) fields.types = ["multiple"];
-            b.classList.toggle("on", fields.types.includes(t.id));
+            b.classList.toggle("on", fields.types.includes(ty.id));
             segRefs.refresh();
           });
           return b;
         })),
       ]),
       h("div", { class: "field-row-2" }, [
-        textField("TARGET LANGUAGE", () => fields.targetLang ?? "", (v) => (fields.targetLang = v || undefined), "optional"),
-        textField("NATIVE LANGUAGE", () => fields.nativeLang ?? "", (v) => (fields.nativeLang = v || undefined), "optional"),
+        textField(t("TARGET LANGUAGE"), () => fields.targetLang ?? "", (v) => (fields.targetLang = v || undefined), t("optional")),
+        textField(t("NATIVE LANGUAGE"), () => fields.nativeLang ?? "", (v) => (fields.nativeLang = v || undefined), t("optional")),
       ]),
       h("div", { class: "field-col" }, [
-        h("span", { class: "field-label" }, ["EXTRA NOTES"]),
-        h("textarea", { class: "open-area builder-notes", placeholder: "Avoid questions about X… only cover 2010–2020…" }, [fields.notes]),
+        h("span", { class: "field-label" }, [t("EXTRA NOTES")]),
+        h("textarea", { class: "open-area builder-notes", placeholder: t("Avoid questions about X… only cover 2010–2020…") }, [fields.notes]),
       ]),
       h("div", { class: "builder-toggles" }, [
-        toggle("EXPLANATIONS", "AI writes a why for every answer", () => fields.explanations, (v) => (fields.explanations = v)),
-        toggle("HINTS", "Every question gets a clue", () => fields.hints, (v) => (fields.hints = v)),
-        toggle("NEGATIVE MARKING", "Wrong answers cost points", () => fields.negativeMarking, (v) => (fields.negativeMarking = v)),
-        toggle("TEACHER ANSWER KEY", "AI also outputs a plain answer list", () => fields.answerKey, (v) => (fields.answerKey = v)),
-        toggle("EMBED EXAMPLE", "Show the AI a sample question to mimic", () => fields.exampleEmbed, (v) => (fields.exampleEmbed = v)),
-        toggle("SPACED SESSIONS", "Generate Session 1→N difficulty tiers", () => fields.spaced, (v) => (fields.spaced = v)),
+        toggle(t("EXPLANATIONS"), t("AI writes a why for every answer"), () => fields.explanations, (v) => (fields.explanations = v)),
+        toggle(t("HINTS"), t("Every question gets a clue"), () => fields.hints, (v) => (fields.hints = v)),
+        toggle(t("NEGATIVE MARKING"), t("Wrong answers cost points"), () => fields.negativeMarking, (v) => (fields.negativeMarking = v)),
+        toggle(t("TEACHER ANSWER KEY"), t("AI also outputs a plain answer list"), () => fields.answerKey, (v) => (fields.answerKey = v)),
+        toggle(t("EMBED EXAMPLE"), t("Show the AI a sample question to mimic"), () => fields.exampleEmbed, (v) => (fields.exampleEmbed = v)),
+        toggle(t("SPACED SESSIONS"), t("Generate Session 1→N difficulty tiers"), () => fields.spaced, (v) => (fields.spaced = v)),
       ]),
       h("div", { class: "builder-dice-row" }, [
-        h("button", { class: "sticker-btn dice-btn" }, ["🎲 SURPRISE ME"]),
-        h("button", { class: "sticker-btn clear-btn" }, ["↺ RESET"]),
+        h("button", { class: "sticker-btn dice-btn" }, [t("🎲 SURPRISE ME")]),
+        h("button", { class: "sticker-btn clear-btn" }, [t("↺ RESET")]),
       ]),
     ]);
 
@@ -248,30 +248,30 @@ registerScreen("prompts", (root) => {
     const diffViz = h("div", { class: "diff-viz" }, []);
     const typeRadar = h("div", { class: "type-radar" }, []);
 
-    const copyBtn = h("button", { class: "sticker-btn accent big" }, ["⧉ COPY PROMPT"]);
-    const followBtn = h("button", { class: "sticker-btn" }, ["⧉ COPY FOLLOW-UP"]);
-    const txtBtn = h("button", { class: "sticker-btn" }, ["⤓ .TXT"]);
-    const savePresetBtn = h("button", { class: "sticker-btn" }, ["☆ SAVE AS PRESET"]);
+    const copyBtn = h("button", { class: "sticker-btn accent big" }, [t("⧉ COPY PROMPT")]);
+    const followBtn = h("button", { class: "sticker-btn" }, [t("⧉ COPY FOLLOW-UP")]);
+    const txtBtn = h("button", { class: "sticker-btn" }, [t("⤓ .TXT")]);
+    const savePresetBtn = h("button", { class: "sticker-btn" }, [t("☆ SAVE AS PRESET")]);
     const batchRow = h("div", { class: "batch-row" }, [
-      h("span", { class: "field-label" }, ["BATCH VARIANTS:"]),
-      h("button", { class: "lib-btn", "data-diff": "chill" }, ["CHILL"]),
-      h("button", { class: "lib-btn", "data-diff": "balanced" }, ["BALANCED"]),
-      h("button", { class: "lib-btn", "data-diff": "brutal" }, ["BRUTAL"]),
+      h("span", { class: "field-label" }, [t("BATCH VARIANTS:")]),
+      h("button", { class: "lib-btn", "data-diff": "chill" }, [t("CHILL")]),
+      h("button", { class: "lib-btn", "data-diff": "balanced" }, [t("BALANCED")]),
+      h("button", { class: "lib-btn", "data-diff": "brutal" }, [t("BRUTAL")]),
     ]);
 
     const pasteArea = h("div", { class: "builder-paste" }, [
-      h("h4", { class: "builder-heading" }, ["— PASTE THE AI'S OUTPUT HERE —"]),
+      h("h4", { class: "builder-heading" }, [t("— PASTE THE AI'S OUTPUT HERE —")]),
       h("textarea", { class: "paste-area", placeholder: '{ "title": "…", "sections": [ … ] }' }, []),
       h("div", { class: "builder-paste-errors hidden" }, []),
       h("div", { class: "paste-actions" }, [
-        h("button", { class: "sticker-btn accent validate-btn" }, ["✓ VALIDATE"]),
-        h("button", { class: "sticker-btn play-btn hidden" }, ["▶ PLAY NOW"]),
-        h("button", { class: "sticker-btn save-lib-btn hidden" }, ["⤓ SAVE TO LIBRARY"]),
+        h("button", { class: "sticker-btn accent validate-btn" }, [t("✓ VALIDATE")]),
+        h("button", { class: "sticker-btn play-btn hidden" }, [t("▶ PLAY NOW")]),
+        h("button", { class: "sticker-btn save-lib-btn hidden" }, [t("⤓ SAVE TO LIBRARY")]),
       ]),
     ]);
 
     const right = h("div", { class: "builder-right" }, [
-      h("h3", { class: "builder-heading" }, ["— LIVE PREVIEW —"]),
+      h("h3", { class: "builder-heading" }, [t("— LIVE PREVIEW —")]),
       warn,
       preview,
       h("div", { class: "builder-stats" }, [
@@ -279,11 +279,11 @@ registerScreen("prompts", (root) => {
       ]),
       h("div", { class: "builder-viz" }, [
         h("div", { class: "viz-col" }, [
-          h("span", { class: "field-label" }, ["DIFFICULTY MIX"]),
+          h("span", { class: "field-label" }, [t("DIFFICULTY MIX")]),
           diffViz,
         ]),
         h("div", { class: "viz-col" }, [
-          h("span", { class: "field-label" }, ["TYPE PLAN"]),
+          h("span", { class: "field-label" }, [t("TYPE PLAN")]),
           typeRadar,
         ]),
       ]),
@@ -358,7 +358,7 @@ registerScreen("prompts", (root) => {
       saveCustomPreset(p);
       audio.sfx("unlock");
       fx.starBurst(savePresetBtn.getBoundingClientRect().left + 30, savePresetBtn.getBoundingClientRect().top, { gold: true, n: 12 });
-      toast("Saved to presets", "info");
+      toast(t("Saved to presets"), "info");
     });
     batchRow.querySelectorAll<HTMLElement>(".lib-btn").forEach((b) => {
       b.addEventListener("mouseenter", () => audio.sfx("hover"));
@@ -450,7 +450,7 @@ registerScreen("prompts", (root) => {
       if (validatedQuiz?.ok) {
         saveQuiz(validatedQuiz.quiz, "ai output");
         audio.sfx("paper");
-        toast("Saved to library", "info");
+        toast(t("Saved to library"), "info");
       }
     });
 
@@ -480,7 +480,7 @@ registerScreen("prompts", (root) => {
     const favs = favoritePromptIds();
 
     const toolbar = h("div", { class: "presets-toolbar" }, [
-      h("input", { class: "fill-input presets-search", placeholder: "SEARCH PRESETS…", value: search }),
+      h("input", { class: "fill-input presets-search", placeholder: t("SEARCH PRESETS…"), value: search }),
       h("button", { class: `lib-btn ${favOnly ? "play" : ""} fav-btn` }, [favOnly ? "★ ONLY ON" : "★ FAVORITES"]),
       h("button", { class: `lib-btn ${mergeArmed ? "play" : ""} merge-toggle` }, [mergeArmed ? "MERGE MODE ON" : "⇄ MERGE MODE"]),
     ]);
@@ -532,16 +532,16 @@ registerScreen("prompts", (root) => {
         "data-search": `${p.title} ${p.tagline} ${p.tags.join(" ")}`.toLowerCase(),
       }, [
         h("div", { class: "prompt-card-star", style: isFav ? "color:var(--gold)" : "" }, ["★"]),
-        p.kind === "custom" ? h("div", { class: "preset-badge" }, ["CUSTOM"]) : null,
+        p.kind === "custom" ? h("div", { class: "preset-badge" }, [t("CUSTOM")]) : null,
         h("h3", { class: "prompt-card-title" }, [p.title]),
         h("p", { class: "prompt-card-tagline" }, [p.tagline]),
         h("div", { class: "prompt-card-tags" }, p.tags.slice(0, 4).map((t) => h("span", { class: "prompt-tag" }, [t]))),
         h("div", { class: "prompt-card-actions" }, [
-          h("button", { class: "lib-btn prompt-view" }, ["VIEW"]),
-          h("button", { class: "lib-btn play prompt-copy" }, ["⧉ COPY"]),
+          h("button", { class: "lib-btn prompt-view" }, [t("VIEW")]),
+          h("button", { class: "lib-btn play prompt-copy" }, [t("⧉ COPY")]),
           h("button", { class: `lib-btn ${isFav ? "play" : ""} prompt-star` }, ["★"]),
-          h("button", { class: "lib-btn prompt-follow" }, ["FOLLOW-UP"]),
-          h("button", { class: "lib-btn prompt-load" }, ["LOAD"]),
+          h("button", { class: "lib-btn prompt-follow" }, [t("FOLLOW-UP")]),
+          h("button", { class: "lib-btn prompt-load" }, [t("LOAD")]),
           p.kind === "custom" ? h("button", { class: "lib-btn danger prompt-del" }, ["✕"]) : null,
         ]),
       ]);
@@ -564,7 +564,7 @@ registerScreen("prompts", (root) => {
       card.querySelector(".prompt-follow")!.addEventListener("click", (e) => {
         e.stopPropagation();
         if (p.text) {
-          toast("The fixer has no follow-up", "error");
+          toast(t("The fixer has no follow-up"), "error");
           return;
         }
         void copyText(buildFollowUpPrompt(p.fields), card.querySelector(".prompt-follow") as HTMLElement, `${p.title} follow-up`);
@@ -601,10 +601,10 @@ registerScreen("prompts", (root) => {
     let mergeBanner: HTMLElement | null = null;
     if (mergeArmed) {
       mergeBanner = h("div", { class: "merge-banner" }, [
-        h("span", {}, [`${mergeTargets.length}/2 PRESETS PICKED — `]),
+        h("span", {}, [t("{n}/2 PRESETS PICKED — ", { n: mergeTargets.length })]),
         mergeTargets.length === 2
-          ? h("button", { class: "sticker-btn accent combine-btn" }, ["⇄ COMBINE INTO BUILDER"])
-          : h("span", {}, ["PICK TWO CARDS"]),
+          ? h("button", { class: "sticker-btn accent combine-btn" }, [t("⇄ COMBINE INTO BUILDER")])
+          : h("span", {}, [t("PICK TWO CARDS")]),
       ]);
       mergeBanner.querySelector(".combine-btn")?.addEventListener("click", () => {
         const all2 = [...BUILTIN_PRESETS, ...customPresets()];
@@ -629,8 +629,8 @@ registerScreen("prompts", (root) => {
     if (!filtered.length) {
       grid.appendChild(h("div", { class: "lib-empty" }, [
         h("div", { class: "lib-empty-star" }, ["★"]),
-        h("p", {}, ["NOTHING MATCHES."]),
-        h("p", { class: "lib-empty-sub" }, ["Try a different search, or clear the ★ filter."]),
+        h("p", {}, [t("NOTHING MATCHES.")]),
+        h("p", { class: "lib-empty-sub" }, [t("Try a different search, or clear the ★ filter.")]),
       ]));
     }
   }
@@ -643,8 +643,8 @@ registerScreen("prompts", (root) => {
     if (!list.length) {
       historyBox.appendChild(h("div", { class: "lib-empty" }, [
         h("div", { class: "lib-empty-star" }, ["◷"]),
-        h("p", {}, ["NO PROMPTS COPIED YET."]),
-        h("p", { class: "lib-empty-sub" }, ["Everything you copy lands here for later."]),
+        h("p", {}, [t("NO PROMPTS COPIED YET.")]),
+        h("p", { class: "lib-empty-sub" }, [t("Everything you copy lands here for later.")]),
       ]));
       return;
     }
@@ -652,13 +652,13 @@ registerScreen("prompts", (root) => {
       const card = h("article", { class: "history-card" }, [
         h("div", { class: "history-title" }, [entry.title]),
         h("div", { class: "history-meta" }, [
-          h("span", {}, [`${entry.text.length} CHARS`]),
+          h("span", {}, [t("{n} CHARS", { n: entry.text.length })]),
           h("span", { class: "meta-sep" }, ["·"]),
           h("span", {}, [new Date(entry.date).toLocaleString()]),
         ]),
         h("div", { class: "history-actions" }, [
-          h("button", { class: "lib-btn play h-copy" }, ["⧉ COPY"]),
-          h("button", { class: "lib-btn h-view" }, ["VIEW"]),
+          h("button", { class: "lib-btn play h-copy" }, [t("⧉ COPY")]),
+          h("button", { class: "lib-btn h-view" }, [t("VIEW")]),
           h("button", { class: "lib-btn danger h-del" }, ["✕"]),
         ]),
       ]);
@@ -684,8 +684,8 @@ registerScreen("prompts", (root) => {
       ]),
       h("div", { class: "pm-body" }, [h("pre", { class: "pm-text" }, [])]),
       h("div", { class: "pm-actions" }, [
-        h("button", { class: "sticker-btn accent pm-copy" }, ["⧉ COPY PROMPT"]),
-        h("button", { class: "sticker-btn pm-download" }, ["⤓ SAVE .TXT"]),
+        h("button", { class: "sticker-btn accent pm-copy" }, [t("⧉ COPY PROMPT")]),
+        h("button", { class: "sticker-btn pm-download" }, [t("⤓ SAVE .TXT")]),
       ]),
     ]),
   ]);
@@ -763,6 +763,6 @@ export function prefillBuilderFromMisses(quizTitle: string) {
   const misses = stats?.misses ?? [];
   builderPrefill.fields = buildMissPrompt(quizTitle, misses);
   builderPrefill.tagline = misses.length
-    ? `Retest prompt ready — ${misses.length} weak spot${misses.length > 1 ? "s" : ""} loaded`
-    : "No misses recorded — generated a fresh practice prompt";
+    ? t("Retest prompt ready — {n} weak spots loaded", { n: misses.length })
+    : t("No misses recorded — generated a fresh practice prompt");
 }
