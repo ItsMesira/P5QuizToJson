@@ -67,9 +67,21 @@ export function serverError(res: Parameters<typeof json>[0]) {
   return fail(res, 500, "Server error");
 }
 
-export async function readBody(req: { text(): Promise<string> }): Promise<unknown> {
+export async function readBody(req: unknown): Promise<unknown> {
   try {
-    return JSON.parse((await req.text()) || "{}");
+    const r = req as {
+      text?: () => Promise<string>;
+      body?: unknown;
+      [Symbol.asyncIterator]?: () => AsyncIterator<Buffer | string>;
+    };
+    /* fetch-style adapter (devapi) */
+    if (typeof r.text === "function") return JSON.parse((await r.text()) || "{}");
+    /* Vercel Node runtime pre-parses JSON bodies */
+    if (r.body !== undefined && r.body !== null) return r.body;
+    /* raw Node IncomingMessage */
+    let data = "";
+    for await (const c of r as AsyncIterable<Buffer | string>) data += String(c);
+    return JSON.parse(data || "{}");
   } catch {
     return null;
   }
