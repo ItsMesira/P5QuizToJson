@@ -7,6 +7,7 @@ import { fx } from "../fx/particles";
 import { RM } from "../fx/transitions";
 import { profiles, currentProfile, createProfile, switchProfile, unlockedAchievements, highScores, topicStats } from "../core/store";
 import { PARTY } from "../core/art";
+import { cloud } from "../core/api";
 
 registerScreen("profiles", (root) => {
   let portraitIdx = 0;
@@ -20,6 +21,13 @@ registerScreen("profiles", (root) => {
       h("div", { class: "head-spacer" }, []),
     ]),
     h("div", { class: "thief-body" }, [
+      cloud.session
+        ? h("div", { class: "cloud-me" }, [
+            h("span", { class: "cloud-me-tag" }, ["☁ CLASSROOM"]),
+            h("span", {}, [`Signed in as ${cloud.session.user.username}${cloud.session.cls ? ` — ${cloud.session.cls.name}` : ""}`]),
+            h("button", { class: "lib-btn cloud-logout" }, ["✕ LOG OUT"]),
+          ])
+        : null,
       // --- character viewer ---
       h("div", { class: "thief-viewer" }, [
         h("button", { class: "thief-arrow left", "aria-label": "Previous portrait" }, ["◀"]),
@@ -188,6 +196,14 @@ registerScreen("profiles", (root) => {
   /* ---------- boot ---------- */
   el.querySelector(".back-btn")!.addEventListener("click", () => void go({ name: "title" }));
   el.querySelector(".back-btn")!.addEventListener("mouseenter", () => audio.sfx("hover"));
+  const cloudLogout = el.querySelector<HTMLElement>(".cloud-logout");
+  if (cloudLogout) {
+    cloudLogout.addEventListener("click", async () => {
+      audio.sfx("click");
+      await cloud.logout().catch(() => undefined);
+      void go({ name: "entry" });
+    });
+  }
 
   root.appendChild(el);
 

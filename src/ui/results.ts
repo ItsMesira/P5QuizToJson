@@ -26,6 +26,20 @@ registerScreen("results", (root) => {
   addProfileXp(gained);
   const unlocked = checkAchievements(result).filter((a) => unlockAchievement(a.id));
 
+  /* classroom sync: post the score to the class leaderboard */
+  void import("../core/api").then(({ cloud }) => {
+    if (cloud.session?.cls) {
+      void cloud.submitResult(cloud.session.cls.id, {
+        quizTitle: result.quizTitle,
+        points: result.points,
+        maxPoints: result.maxPoints,
+        rank: result.rank,
+        correct: result.correct,
+        total: result.total,
+      });
+    }
+  });
+
   const pct = result.total ? Math.round((result.correct / result.total) * 100) : 0;
   const mins = Math.floor(result.timeMs / 60000);
   const secs = Math.round((result.timeMs % 60000) / 1000);

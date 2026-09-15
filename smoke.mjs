@@ -19,7 +19,7 @@ console.log("TITLE tag:", await page.$eval("#big-name", (e) => e.textContent.tri
 console.log("TITLE menu:", await page.$$eval(".menu-item", (els) => els.length));
 
 // 2. master prompts screen — builder default tab
-await page.evaluate(() => document.querySelectorAll(".menu-item")[2].click());
+await page.evaluate(() => document.querySelectorAll(".menu-item")[3].click());
 await sleep(1600);
 console.log("PROMPTS builder form:", await page.$eval(".builder-form", () => true).catch(() => false));
 console.log("PROMPTS builder preview:", await page.$eval(".builder-preview", (e) => e.textContent.length > 500));
@@ -183,7 +183,7 @@ console.log("RESULTS radar:", await page.$eval(".radar", () => true).catch(() =>
 // 4. library has the quiz
 await page.evaluate(() => document.querySelectorAll(".results-actions .sticker-btn")[5].click()); // HOME
 await sleep(1200);
-await page.evaluate(() => document.querySelectorAll(".menu-item")[1].click()); // LIBRARY
+await page.evaluate(() => document.querySelectorAll(".menu-item")[2].click()); // LIBRARY (index 2 after CLASSROOM)
 await sleep(1200);
 console.log("LIBRARY cards:", await page.$$eval(".lib-card", (els) => els.length));
 

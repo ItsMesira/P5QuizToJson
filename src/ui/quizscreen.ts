@@ -9,6 +9,7 @@ import {
   RM, slamText, hitStop, cutIn, portraitPop,
 } from "../fx/transitions";
 import { randomPortrait, randomDialogue } from "../core/art";
+import { cloud } from "../core/api";
 import { QuizRunner, type AnswerOutcome } from "../engine/quiz";
 import type { QuestionRef } from "../core/types";
 import { saveProgress, loadProgress, clearProgress, addMiss } from "../core/store";
@@ -93,6 +94,9 @@ registerScreen("quiz", (root) => {
         h("h3", {}, ["PAUSED"]),
         h("button", { class: "sticker-btn accent resume-btn" }, ["RESUME"]),
         h("button", { class: "sticker-btn quit2-btn" }, ["ABANDON HEIST"]),
+        cloud.session
+          ? h("button", { class: "sticker-btn pause-logout" }, ["✕ LOG OUT"])
+          : null,
       ]),
     ]),
   ]);
@@ -884,6 +888,16 @@ registerScreen("quiz", (root) => {
     clearProgress();
     void go({ name: "title" });
   });
+  const pauseLogout = pause.querySelector<HTMLElement>(".pause-logout");
+  if (pauseLogout) {
+    pauseLogout.addEventListener("click", async () => {
+      audio.sfx("click");
+      runner.destroy();
+      clearProgress();
+      await cloud.logout().catch(() => undefined);
+      void go({ name: "entry" });
+    });
+  }
   const escHandler = (e: KeyboardEvent) => {
     if (e.key === "Escape") {
       if (!pause.classList.contains("hidden")) closePause();

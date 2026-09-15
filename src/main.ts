@@ -13,7 +13,7 @@ import "./styles/screens.css";
 import { fx } from "./fx/particles";
 import { initCursor } from "./fx/cursor";
 import { h } from "./ui/dom";
-import { go, hashToRoute, applyGlobalSettings } from "./ui/screens";
+import { go, hashToRoute, applyGlobalSettings, initClassBadge } from "./ui/screens";
 import { audio } from "./core/audio";
 import { validateQuiz } from "./core/validator";
 import { saveQuiz } from "./core/store";
@@ -30,6 +30,8 @@ import "./ui/settings";
 import "./ui/profiles";
 import "./ui/leaderboard";
 import "./ui/prompts";
+import "./ui/entry";
+import "./ui/dashboard";
 
 /* ---------- ambient background (P5 Best layers) ---------- */
 function buildAmbient() {
@@ -93,7 +95,11 @@ buildVeil();
 fx.init(document.getElementById("fx-canvas") as HTMLCanvasElement);
 fx.app = document.getElementById("app");
 initCursor();
+initClassBadge();
 applyGlobalSettings();
+
+/* refresh the cloud session in the background (cookie-based, non-blocking) */
+void import("./core/api").then(({ cloud }) => cloud.me().catch(() => undefined));
 
 /* first gesture unlocks audio */
 const unlockAudio = () => {

@@ -7,6 +7,7 @@ import { fx } from "../fx/particles";
 import { cardSlam, RM } from "../fx/transitions";
 import { validateQuiz } from "../core/validator";
 import { saveQuiz, loadProgress, savedQuizzes } from "../core/store";
+import { cloud } from "../core/api";
 import { fetchRemoteQuiz } from "../core/share";
 import type { Quiz } from "../core/types";
 
@@ -25,6 +26,14 @@ registerScreen("load", (root) => {
     saveQuiz(v.quiz, source);
     audio.sfx("paper");
     toast(`“${v.quiz.title}” loaded`, "info");
+    // classroom sync: any member can add a quiz to their class shelf
+    if (cloud.session?.cls) {
+      cloud.saveQuiz(cloud.session.cls.id, v.quiz)
+        .then((r) => {
+          if (r.ok) toast(`Added to class “${cloud.session!.cls!.name}”`, "info");
+        })
+        .catch(() => undefined);
+    }
     return v.quiz;
   };
 

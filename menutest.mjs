@@ -34,7 +34,7 @@ const items = await page.$$eval(".menu-item", (els) => els.map((el) => ({
   tilt: getComputedStyle(el).transform,
   sel: el.classList.contains("sel"),
 })));
-check("5 menu items", items.length === 5);
+check("6 menu items", items.length === 6);
 check("every item has key+icon+underline+arrow", items.every((i) => i.key && i.icon && i.underline && i.arrow));
 check("initial selection set", items.some((i) => i.sel));
 check("items have per-item tilt", items.some((i) => i.tilt !== "none"));

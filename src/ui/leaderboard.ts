@@ -1,14 +1,17 @@
-/* ============ P5 QUIZ — LEADERBOARD ============ */
+/* ============ P5 QUIZ — LEADERBOARD (local + class) ============ */
 import gsap from "gsap";
 import { registerScreen, go } from "./screens";
 import { h } from "./dom";
 import { audio } from "../core/audio";
 import { RM } from "../fx/transitions";
 import { highScores } from "../core/store";
+import { cloud } from "../core/api";
 import { RANKS } from "../core/types";
 
 registerScreen("leaderboard", (root) => {
   const scores = highScores().slice(0, 30);
+  const classSession = cloud.session?.cls;
+
   const el = h("div", { class: "screen leaderboard-screen" }, [
     h("header", { class: "load-head" }, [
       h("button", { class: "back-btn", "aria-label": "Back" }, ["◀"]),
@@ -16,6 +19,13 @@ registerScreen("leaderboard", (root) => {
       h("div", { class: "head-spacer" }, []),
     ]),
     h("div", { class: "leaderboard-body" }, [
+      classSession
+        ? h("section", { class: "class-board" }, [
+            h("h3", { class: "rs-title" }, [`— CLASS: ${classSession.name.toUpperCase()} —`]),
+            h("div", { class: "lb-list class-lb" }, [h("p", { class: "profile-empty" }, ["Loading class scores…"])]),
+          ])
+        : null,
+      h("h3", { class: "rs-title" }, ["— THIS DEVICE —"]),
       scores.length === 0
         ? h("div", { class: "lib-empty" }, [
             h("div", { class: "lib-empty-star" }, ["★"]),
@@ -35,6 +45,34 @@ registerScreen("leaderboard", (root) => {
           })),
     ]),
   ]);
+
+  /* class leaderboard load */
+  if (classSession) {
+    const box = el.querySelector<HTMLElement>(".class-lb")!;
+    void cloud.classResults(classSession.id).then((r) => {
+      if (!r.ok || !r.data.results) {
+        box.textContent = "";
+        box.appendChild(h("p", { class: "profile-empty" }, [r.data.error ?? "Couldn't load class scores"]));
+        return;
+      }
+      box.textContent = "";
+      if (!r.data.results.length) {
+        box.appendChild(h("p", { class: "profile-empty" }, ["No class scores yet."]));
+        return;
+      }
+      r.data.results.slice(0, 15).forEach((s, i) => {
+        const row = h("div", { class: `lb-row ${i < 3 ? "podium" : ""}` }, [
+          h("span", { class: "lb-pos" }, [i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : String(i + 1).padStart(2, "0")]),
+          h("span", { class: "lb-rank" }, [s.rank]),
+          h("span", { class: "lb-quiz" }, [s.username]),
+          h("span", { class: "lb-stats" }, [s.quizTitle]),
+          h("span", { class: "lb-pts" }, [`${s.points}`]),
+        ]);
+        box.appendChild(row);
+        if (!RM()) gsap.fromTo(row, { x: 60, opacity: 0 }, { x: 0, opacity: 1, duration: 0.3, delay: i * 0.04, ease: "back.out(1.5)" });
+      });
+    });
+  }
 
   el.querySelector(".back-btn")!.addEventListener("click", () => void go({ name: "title" }));
   el.querySelector(".back-btn")!.addEventListener("mouseenter", () => audio.sfx("hover"));

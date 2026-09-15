@@ -15,8 +15,12 @@ streaks, lifelines, synthesized + authentic BGM, and confetti for the worthy.
 
 ```bash
 npm install
-npm run dev        # http://localhost:5183
+npm run dev        # http://localhost:5183  (guest mode — no backend needed)
 ```
+
+For the **classroom features** (accounts, classes, cloud sync) you need the
+database + deploy steps — see the
+[full setup guide](#-full-setup-guide-supabase--vercel--keep-alive) below.
 
 Production build (static files, hostable anywhere):
 
@@ -25,9 +29,183 @@ npm run build      # outputs dist/
 npm run preview    # serve dist/ locally
 ```
 
-No server is required — open the built `dist/index.html` from any static host
-(GitHub Pages, Netlify, `python -m http.server`, …). Everything (scores, quizzes,
-prompts, settings) is stored in your browser's `localStorage`.
+---
+
+## Classroom mode (accounts, classes, cloud sync)
+
+The title menu has a **CLASSROOM** entry. The flow is intentionally
+**join the class first, then sign in**:
+
+1. **JOIN A CLASS** → enter the 6-character code → then **sign in or create an
+   account** (username + password; email optional). The account is
+   automatically linked to that class.
+2. **MAKE A CLASS** → name it → sign in/register → you become the teacher and
+   get a shareable join code.
+3. **PLAY AS GUEST** keeps the original fully-offline mode — everything still
+   works from localStorage.
+
+While signed in:
+
+- A **class badge** (name + code) stays pinned to the top of the screen on
+  every page; click it to open the classroom.
+- The **class dashboard** shows members, the class quiz shelf, and the class
+  leaderboard.
+- **Any member** can add a quiz to the class shelf (drag/drop, paste, or the
+  prompt builder — it syncs automatically); the teacher can remove quizzes.
+- Every finished run **posts your score** to the class leaderboard
+  automatically; the leaderboard screen shows class scores above your
+  device-local ones.
+- **Log out** is available on the entry screen, the dashboard, the Thief Stats
+  page, and the in-quiz pause menu. Logging out destroys the server session
+  and returns to the entry screen; local guest data is untouched.
+
+### Backend & security
+
+Serverless functions live in `/api` (Vercel Node runtime) with
+`@vercel/postgres`:
+
+- **Passwords**: argon2id (memory 19 MiB, t=2) — never stored in plaintext.
+- **Sessions**: 256-bit random tokens in `HttpOnly` + `SameSite=Lax` cookies
+  (flagged `Secure` on Vercel/HTTPS), hashed with SHA-256 at rest, 30-day
+  expiry.
+- **CSRF**: double-submit token — every state-changing request must carry an
+  `x-csrf-token` header matching the CSRF cookie, compared with
+  `timingSafeEqual`.
+- **Validation**: zod on every request body/param; quiz payloads capped at
+  300 KB; result numbers bounded.
+- **Authorization**: every class route checks session + membership; teacher
+  role required for deletes.
+- **Rate limiting**: sliding-window per-IP on auth/quiz/result endpoints
+  (plus Vercel's WAF as the hard boundary).
+- **SQL**: parameterized queries only; UUIDv4 public ids (no enumerable ids).
+- **Secrets**: only via `DATABASE_URL` in `.env` (gitignored) or the Vercel
+  dashboard. No secrets are ever committed or logged.
+
+## Deploying to Vercel
+
+> Full step-by-step lives in the
+> [setup guide](#-full-setup-guide-supabase--vercel--keep-alive).
+> Short version:
+
+```bash
+npm i -g vercel
+vercel                    # first deploy (creates the project)
+vercel --prod             # production deploys
+```
+
+Then in the Vercel dashboard: **Settings → Environment Variables** →
+`DATABASE_URL` (Supabase connection string) → redeploy. `vercel.json` wires
+the SPA fallback, `/api/*` functions, and security headers (nosniff, DENY
+framing, permissions policy). `api/health.ts` provides the liveness endpoint
+used by the keep-alive cron.
+
+---
+
+## ⚙ Full setup guide (Supabase + Vercel + keep-alive)
+
+Everything below is one-time setup. After it, the classroom works for
+everyone with the URL.
+
+### Step 1 — Create the Supabase database
+
+1. Go to [supabase.com](https://supabase.com) → **Start your project** →
+   sign in (GitHub login works).
+2. **New project** → name it (e.g. `p5-quiz`) → set a strong database
+   password (save it — you'll need it once) → region closest to you →
+   **Create new project** (free tier is fine).
+3. Wait ~1 minute for initialization. Now grab the connection string —
+   **any one of these three ways works**:
+
+   **A. The Connect button (top bar of the dashboard)**
+   - Click **Connect**. A dialog opens with tabs at the top:
+     `Session pooler` · `Transaction pooler` · `Direct connection` (plus ORM
+     tabs like ORMs/GraphQL).
+   - If you see the tabs → choose **Transaction pooler** and copy the string
+     (it ends in `:6543`).
+   - If the tabs are missing or hidden, scroll inside the dialog and pick the
+     **URI** format — or use method B below.
+
+   **B. Settings → Database (always works)**
+   - Left sidebar, bottom: ⚙️ **Project Settings** → **Database**.
+   - Look for **Connection string** / **Connection info** section, `URI` tab.
+   - Copy the **Transaction mode** (port `6543`) or the **Session mode**
+     (port `5432`) string — both work with this app.
+
+   **C. Build it manually (never fails)**
+   - ⚙️ **Project Settings** → **General** → copy your **Project Reference**
+     ID (looks like `abcdefghijklmnop`).
+   - The **Direct connection** string always works from Vercel (no pooler
+     needed for a small classroom):
+     ```
+     postgresql://postgres:YOUR-PASSWORD@db.PROJECT-REF.supabase.co:5432/postgres
+     ```
+   - The **pooler transaction** string (recommended, copy the pooler host from
+     the Connect dialog — don't guess it):
+     ```
+     postgresql://postgres.PROJECT-REF:YOUR-PASSWORD@aws-0-REGION.pooler.supabase.com:6543/postgres
+     ```
+   - Replace `YOUR-PASSWORD` with the database password from step 2.
+
+   > Either the pooler string (6543) or the direct string (5432) works with
+   > this app — the pooler is just better behaved under serverless load.
+
+### Supabase troubleshooting (common errors)
+
+- **"Tenant or user not found"** → you used the pooler host with the direct
+  username. Pooler strings must use `postgres.PROJECT-REF` (with the ref),
+  direct strings use plain `postgres`.
+- **Connection refused / timeout from Vercel** → you're on the direct string
+  but your network/deploy is IPv4-only. Switch to the pooler string (methods
+  A/B above) — the pooler is IPv4 on every tier.
+- **"aws-0" host** → the pooler cluster number (`aws-0`, `aws-1`…) is not
+  tied to your region — always copy the host from the dashboard, never
+  compose it.
+- **Password with special characters** → URL-encode them (e.g. `@` → `%40`,
+  `#` → `%23`) in `DATABASE_URL`.
+
+### Step 2 — Run it locally (optional but recommended)
+
+```bash
+npm i -g vercel
+cp .env.example .env
+# edit .env → paste the Supabase connection string into DATABASE_URL
+vercel dev            # http://localhost:3000 — frontend + /api
+```
+
+Verify: open http://localhost:3000/api/health → `{"ok":true,"db":"up"}`.
+Then run the classroom end-to-end test:
+
+```bash
+node authtest.mjs
+```
+
+### Step 3 — Deploy to Vercel
+
+1. `npm i -g vercel` (if you haven't) → run `vercel` in this folder →
+   log in → accept defaults → first deploy done.
+2. In the [Vercel dashboard](https://vercel.com/dashboard) → your project →
+   **Settings → Environment Variables** → add:
+   - `DATABASE_URL` = the Supabase connection string from Step 1
+   - (no other vars needed — `SECURE_COOKIES` is automatic on Vercel)
+3. **Deployments** tab → **Redeploy** the latest deployment so the new
+   variable takes effect.
+4. Done — share the `*.vercel.app` URL. The classroom works for everyone.
+
+### Step 4 — The daily keep-alive (stops Supabase from pausing)
+
+Supabase free projects **pause after ~7 days without activity**, and GitHub
+disables scheduled workflows after 60 days of repo inactivity. The included
+[`.github/workflows/keep-alive.yml`](.github/workflows/keep-alive.yml) fixes
+both:
+
+1. After pushing to GitHub, add a repository secret:
+   **Settings → Secrets and variables → Actions → New repository secret** →
+   name `VERCEL_URL`, value `https://your-app.vercel.app` (no trailing slash).
+2. That's it. Every day at 12:00 UTC the workflow calls `/api/health`, which
+   runs a real `SELECT 1` against Supabase — real database activity, so the
+   project never pauses. The workflow also re-schedules itself so GitHub's
+   60-day rule never kills it. You can trigger it manually anytime from the
+   **Actions** tab → `keep-alive` → **Run workflow**.
 
 ---
 
@@ -40,7 +218,7 @@ prompts, settings) is stored in your browser's `localStorage`.
 3. **Results** — All-Out Attack finale, rank S–F, stat radar, per-question review,
    achievements, XP. `🎯 Reinforce weak areas` builds a retest prompt from your
    actual misses.
-4. **Title menu** — `↑↓` navigate · `Enter` confirm · `1-5` jump · `Esc` deselect.
+4. **Title menu** — `↑↓` navigate · `Enter` confirm · `1-6` jump · `Esc` deselect.
    Click the giant name for a star burst.
 
 ---
@@ -119,14 +297,16 @@ Wrong answers are still rejected.
 ## Project structure
 
 ```
+api/                Vercel serverless functions (auth, classes, quizzes, results, health)
+  _lib/             db pool + schema · auth (argon2/sessions/CSRF) · zod validation · rate limiting
 src/
   core/     types, validator, store (localStorage), share (gzip links),
             prompts (master-prompt engine + 14 presets), audio (synth + file BGM),
-            art (portrait registry)
+            art (portrait registry), api (cloud client)
   engine/   quiz runner, scoring, achievements
   fx/       particles (canvas), transitions/cut-ins, ransom lettering, sprite cursor
-  ui/       title, load, library, quiz, results, prompts, settings, profiles,
-            leaderboard, screens (router)
+  ui/       title, entry, dashboard, load, library, quiz, results, prompts,
+            settings, profiles, leaderboard, screens (router)
   styles/   tokens, p5 (ambient/cursor), components, screens
 public/
   audio/    background.mp3, select.mp3
@@ -151,6 +331,7 @@ running on `:5183`:
 | `node fixtest.mjs` / `resumetest.mjs` | partial credit, pause-freeze, resume restore |
 | `node studytest.mjs` | reinforce-weak-areas, goals, prompt links |
 | `node porttest.mjs` / `audit.mjs` | P5ex port features; 16-screen UI audit |
+| `node authtest.mjs` | classroom e2e (needs `vercel dev` + `DATABASE_URL`; auto-skips otherwise) |
 
 ---
 
@@ -170,10 +351,12 @@ running on `:5183`:
 
 ## Privacy
 
-Everything lives in `localStorage`: saved quizzes, high scores, XP, profiles,
-prompt history, settings. Clear the browser's site data to wipe it all.
-Share links are gzip+base64 of your quiz JSON — they contain your quiz content
-and nothing else.
+Guest mode lives entirely in `localStorage`: saved quizzes, high scores, XP,
+profiles, prompt history, settings. Clear the browser's site data to wipe it
+all. Classroom mode additionally stores your account (argon2id hash only),
+class membership, shared quizzes, and scores in the configured database —
+visible to members of your class. Share links are gzip+base64 of your quiz
+JSON — they contain your quiz content and nothing else.
 
 ## Troubleshooting
 

@@ -39,7 +39,9 @@ export type Route =
   | { name: "settings" }
   | { name: "profiles" }
   | { name: "leaderboard" }
-  | { name: "prompts" };
+  | { name: "prompts" }
+  | { name: "entry" }
+  | { name: "dashboard" };
 
 type MountFn = (root: HTMLElement) => () => void;
 
@@ -75,6 +77,34 @@ export function currentRoute(): Route {
   return current;
 }
 
+/* ---------- class badge (persistent classroom indicator) ---------- */
+import { cloud } from "../core/api";
+
+export function updateClassBadge() {
+  const badge = document.getElementById("class-badge");
+  if (!badge) return;
+  const cls = cloud.session?.cls;
+  if (cls) {
+    badge.classList.remove("hidden");
+    badge.querySelector<HTMLElement>(".cb-name")!.textContent = cls.name;
+    badge.querySelector<HTMLElement>(".cb-code")!.textContent = cls.code;
+    badge.querySelector<HTMLElement>(".cb-role")!.textContent = cls.role === "teacher" ? "★" : "🎓";
+  } else {
+    badge.classList.add("hidden");
+  }
+}
+
+export function initClassBadge() {
+  const badge = document.getElementById("class-badge");
+  if (!badge || badge.getAttribute("data-wired")) return;
+  badge.setAttribute("data-wired", "1");
+  badge.addEventListener("click", () => {
+    void go(cloud.session ? { name: "dashboard" } : { name: "entry" });
+  });
+  window.addEventListener("p5q-session", () => updateClassBadge());
+  updateClassBadge();
+}
+
 export async function startQuiz(quiz: Quiz & { savedId?: string; source?: string }) {
   // ALWAYS normalize through the validator — raw JSON (samples, old saves,
   // resume) lacks derived fields like correctText that the engine needs.
@@ -99,6 +129,8 @@ export function hashToRoute(h: string): Route | null {
     profiles: { name: "profiles" },
     leaderboard: { name: "leaderboard" },
     prompts: { name: "prompts" },
+    entry: { name: "entry" },
+    dashboard: { name: "dashboard" },
   };
   const key = h.replace(/^#\/?/, "") as keyof typeof map;
   return map[key] ?? null;

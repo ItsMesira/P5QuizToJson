@@ -7,21 +7,24 @@ import { fx } from "../fx/particles";
 import { RM } from "../fx/transitions";
 import { ransomize } from "../fx/ransom";
 import { loadProgress } from "../core/store";
+import { cloud } from "../core/api";
 
 interface MenuEntry {
   label: string;
-  route: "load" | "library" | "prompts" | "settings" | "profiles";
+  route: "load" | "library" | "prompts" | "settings" | "profiles" | "entry" | "dashboard";
   size: string;   // clamp() font size for the ransom letters
   icon: string;
   tilt: number;   // deg — each button sits at its own torn-paper angle
+  target: () => void;
 }
 
 const ITEMS: MenuEntry[] = [
-  { label: "BEGIN HEIST",    route: "load",      size: "clamp(30px,4.4vw,58px)", icon: "★", tilt: -1.2 },
-  { label: "QUIZ LIBRARY",   route: "library",   size: "clamp(26px,3.6vw,47px)", icon: "🗂", tilt: 0.8 },
-  { label: "MASTER PROMPTS", route: "prompts",   size: "clamp(22px,3.0vw,39px)", icon: "⚙", tilt: -0.5 },
-  { label: "SETTINGS",       route: "settings",  size: "clamp(28px,3.9vw,51px)", icon: "◷", tilt: 1.1 },
-  { label: "PROFILES",       route: "profiles",  size: "clamp(27px,3.8vw,49px)", icon: "🃏", tilt: -0.8 },
+  { label: "BEGIN HEIST",    route: "load",      size: "clamp(30px,4.4vw,58px)", icon: "★", tilt: -1.2, target: () => void go({ name: "load" }) },
+  { label: "CLASSROOM",      route: "entry",     size: "clamp(26px,3.6vw,47px)", icon: "🎓", tilt: 0.8, target: () => void go(cloud.session ? { name: "dashboard" } : { name: "entry" }) },
+  { label: "QUIZ LIBRARY",   route: "library",   size: "clamp(26px,3.6vw,47px)", icon: "🗂", tilt: -0.5, target: () => void go({ name: "library" }) },
+  { label: "MASTER PROMPTS", route: "prompts",   size: "clamp(22px,3.0vw,39px)", icon: "⚙", tilt: 1.1, target: () => void go({ name: "prompts" }) },
+  { label: "SETTINGS",       route: "settings",  size: "clamp(28px,3.9vw,51px)", icon: "◷", tilt: -0.8, target: () => void go({ name: "settings" }) },
+  { label: "PROFILES",       route: "profiles",  size: "clamp(27px,3.8vw,49px)", icon: "🃏", tilt: 0.6, target: () => void go({ name: "profiles" }) },
 ];
 
 registerScreen("title", (root) => {
@@ -52,7 +55,7 @@ registerScreen("title", (root) => {
     const rect = el.getBoundingClientRect();
     fx.ink(rect.left + rect.width / 2, rect.top + rect.height / 2, "#e60012");
     fx.slashes(3);
-    void go({ name: ITEMS[idx].route });
+    ITEMS[idx].target();
   };
 
   const menuItem = (item: MenuEntry, i: number): HTMLElement => {
@@ -171,7 +174,7 @@ registerScreen("title", (root) => {
       if (active >= 0) navigate(active);
     } else if (e.key === "Escape") {
       activate(-1);
-    } else if (e.key >= "1" && e.key <= "5") {
+    } else if (e.key >= "1" && e.key <= String(ITEMS.length)) {
       navigate(Number(e.key) - 1);
     }
   };
