@@ -1,6 +1,6 @@
 /* POST /api/classes/create — create a class (creator becomes teacher) */
 import type { ApiRequest, ApiResponse } from "../_lib/types";
-import { sql } from "@vercel/postgres";
+import { sql } from "../_lib/db";
 import { ensureSchema } from "../_lib/db";
 import { getUserByToken, parseCookies, csrfValid, newId, newClassCode } from "../_lib/auth";
 import { classNameSchema, parse } from "../_lib/validate";
@@ -30,7 +30,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     await sql`INSERT INTO classes (id, name, code, owner_id) VALUES (${id}, ${n.data}, ${code}, ${user.id})`;
     await sql`INSERT INTO members (class_id, user_id, role) VALUES (${id}, ${user.id}, 'teacher')`;
     return ok(res, { ok: true, cls: { id, name: n.data, code, role: "teacher" } });
-  } catch {
+  } catch (err) {
+    console.error("[p5q]", err);
     return serverError(res);
   }
 }

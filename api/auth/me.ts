@@ -12,7 +12,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     const session = await sessionInfo(token);
     if (!session) return unauthorized(res);
     return ok(res, { ok: true, session });
-  } catch {
+  } catch (err) {
+    console.error("[p5q]", err);
     return serverError(res);
   }
 }

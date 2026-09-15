@@ -1,6 +1,6 @@
 /* POST /api/auth/login — verify credentials (+ optionally auto-join a class) */
 import type { ApiRequest, ApiResponse } from "../_lib/types";
-import { sql } from "@vercel/postgres";
+import { sql } from "../_lib/db";
 import { ensureSchema } from "../_lib/db";
 import { verifyPassword, createSession, cookieHeader, csrfCookieHeader, sessionInfo } from "../_lib/auth";
 import { usernameSchema, passwordSchema, classCodeSchema, parse } from "../_lib/validate";
@@ -40,7 +40,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     const { token, csrf } = await createSession(String(user.id));
     res.setHeader("Set-Cookie", [cookieHeader("p5q_session", token, 60 * 60 * 24 * 30), csrfCookieHeader(csrf, 60 * 60 * 24 * 30)]);
     return ok(res, { ok: true, session: await sessionInfo(token) });
-  } catch {
+  } catch (err) {
+    console.error("[p5q]", err);
     return serverError(res);
   }
 }

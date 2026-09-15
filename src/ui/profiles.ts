@@ -130,7 +130,7 @@ registerScreen("profiles", (root) => {
       row.addEventListener("click", () => {
         audio.sfx("select");
         switchProfile(p.id);
-        toast(`Now playing as ${p.name}`, "info");
+        toast(t("Now playing as {name}", { name: p.name }), "info");
         void go({ name: "profiles" }, { instant: true });
       });
       roster.appendChild(row);

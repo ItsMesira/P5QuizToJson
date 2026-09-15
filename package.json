@@ -18,13 +18,15 @@
     "@fontsource/jetbrains-mono": "^5.2.5",
     "@fontsource/kanit": "^5.3.0",
     "@node-rs/argon2": "^2.2.1",
-    "@vercel/postgres": "^0.10.0",
     "gsap": "^3.13.0",
     "katex": "^0.16.22",
+    "pg": "^8.23.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/node": "^26.5.1",
+    "@types/pg": "^8.23.1",
+    "esbuild": "^0.28.2",
     "puppeteer-core": "^25.10.0",
     "typescript": "^5.8.3",
     "vite": "^6.3.5"

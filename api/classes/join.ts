@@ -1,6 +1,6 @@
 /* POST /api/classes/join — join a class by code */
 import type { ApiRequest, ApiResponse } from "../_lib/types";
-import { sql } from "@vercel/postgres";
+import { sql } from "../_lib/db";
 import { ensureSchema } from "../_lib/db";
 import { getUserByToken, parseCookies, csrfValid } from "../_lib/auth";
 import { classCodeSchema, parse } from "../_lib/validate";
@@ -26,7 +26,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     const id = String(cls.rows[0].id);
     await sql`INSERT INTO members (class_id, user_id, role) VALUES (${id}, ${user.id}, 'student') ON CONFLICT DO NOTHING`;
     return ok(res, { ok: true, cls: { id, name: String(cls.rows[0].name), code: String(cls.rows[0].code), role: "student" } });
-  } catch {
+  } catch (err) {
+    console.error("[p5q]", err);
     return serverError(res);
   }
 }

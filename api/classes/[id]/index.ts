@@ -1,6 +1,6 @@
 /* GET /api/classes/[id] — class info + members (membership required) */
 import type { ApiRequest, ApiResponse } from "../../_lib/types";
-import { sql } from "@vercel/postgres";
+import { sql } from "../../_lib/db";
 import { ensureSchema } from "../../_lib/db";
 import { getUserByToken, parseCookies, membership } from "../../_lib/auth";
 import { classIdSchema, parse } from "../../_lib/validate";
@@ -36,7 +36,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       },
       members: members.rows.map((m) => ({ username: String(m.username), role: String(m.role) })),
     });
-  } catch {
+  } catch (err) {
+    console.error("[p5q]", err);
     return serverError(res);
   }
 }

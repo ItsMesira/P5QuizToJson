@@ -1,6 +1,6 @@
 /* /api/classes/[id]/quizzes — GET list · POST save (any member) · DELETE (teacher only) */
 import type { ApiRequest, ApiResponse } from "../../_lib/types";
-import { sql } from "@vercel/postgres";
+import { sql } from "../../_lib/db";
 import { ensureSchema } from "../../_lib/db";
 import { getUserByToken, parseCookies, csrfValid, membership, newId } from "../../_lib/auth";
 import { classIdSchema, quizTitleSchema, quizDataSchema, parse } from "../../_lib/validate";
@@ -60,7 +60,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     }
 
     return fail(res, 405, "GET/POST/DELETE only");
-  } catch {
+  } catch (err) {
+    console.error("[p5q]", err);
     return serverError(res);
   }
 }

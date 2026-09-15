@@ -53,7 +53,7 @@ registerScreen("results", (root) => {
   if (goalHit) {
     clearGoal(result.quizTitle);
     window.setTimeout(() => {
-      toast(`GOAL REACHED — ${goal.targetRank} rank in “${result.quizTitle}”!`, "info");
+      toast(t("GOAL REACHED — {rank} rank in “{title}”!", { rank: goal.targetRank, title: result.quizTitle }), "info");
       audio.sfx("rankup");
       fx.starRain(2);
     }, 5400);
@@ -69,8 +69,8 @@ registerScreen("results", (root) => {
       h("section", { class: "rank-card" }, [
         h("div", { class: "rank-card-inner corner-frame" }, [
           h("div", { class: "rank-letter", style: `color:${rank.color}` }, [result.rank]),
-          h("div", { class: "rank-label" }, [rank.label]),
-          h("div", { class: "rank-sub" }, [result.pass ? "HEIST COMPLETE" : t("HEIST FAILED")]),
+          h("div", { class: "rank-label" }, [t(rank.label)]),
+          h("div", { class: "rank-sub" }, [t(result.pass ? "HEIST COMPLETE" : "HEIST FAILED")]),
           h("div", { class: "rank-stars" }, ["★".repeat(result.rank === "S" ? 5 : result.rank === "A" ? 4 : result.rank === "B" ? 3 : 2)]),
         ]),
       ]),
@@ -328,7 +328,7 @@ registerScreen("results", (root) => {
   }
 
   function resultText(r: QuizResult): string {
-    return `★ P5 QUIZ — ${r.quizTitle.toUpperCase()} ★\nRANK: ${r.rank} (${r.pass ? "HEIST COMPLETE" : t("FAILED")})\n${r.points}/${r.maxPoints} pts · ${r.correct}/${r.total} correct · streak ${r.bestStreak}\n`;
+    return `★ P5 QUIZ — ${r.quizTitle.toUpperCase()} ★\n${t("RANK")}: ${r.rank} (${t(r.pass ? "HEIST COMPLETE" : "FAILED")})\n${t("{points}/{max} pts · {correct}/{total} correct · streak {n}", { points: r.points, max: r.maxPoints, correct: r.correct, total: r.total, n: r.bestStreak })}\n`;
   }
 
   root.appendChild(el);

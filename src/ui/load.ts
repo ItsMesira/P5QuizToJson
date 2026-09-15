@@ -26,12 +26,12 @@ registerScreen("load", (root) => {
     }
     saveQuiz(v.quiz, source);
     audio.sfx("paper");
-    toast(`“${v.quiz.title}” loaded`, "info");
+    toast(t("“{title}” loaded", { title: v.quiz.title }), "info");
     // classroom sync: any member can add a quiz to their class shelf
     if (cloud.session?.cls) {
       cloud.saveQuiz(cloud.session.cls.id, v.quiz)
         .then((r) => {
-          if (r.ok) toast(`Added to class “${cloud.session!.cls!.name}”`, "info");
+          if (r.ok) toast(t("Added to class “{name}”", { name: cloud.session!.cls!.name }), "info");
         })
         .catch(() => undefined);
     }

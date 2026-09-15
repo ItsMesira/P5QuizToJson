@@ -34,7 +34,7 @@ registerScreen("dashboard", (root) => {
               h("span", { class: "dash-code-value" }, [cls.code]),
               h("button", { class: "lib-btn dash-copy" }, [t("⧉ COPY")]),
             ]),
-            h("div", { class: "dash-role" }, [`${cls.role.toUpperCase()} · ${session.user.username}`]),
+            h("div", { class: "dash-role" }, [`${t(cls.role.toUpperCase())} · ${session.user.username}`]),
           ])
         : h("div", { class: "dash-empty" }, [
             h("div", { class: "dash-empty-title" }, [t("NO CLASSROOM YET")]),
@@ -89,17 +89,29 @@ registerScreen("dashboard", (root) => {
   });
   el.querySelector(".dash-add")?.addEventListener("click", () => void go({ name: "load" }));
 
+  let loading = false;
+
   /* ---- data ---- */
   async function loadData() {
     const membersBox = el.querySelector<HTMLElement>(".dash-members");
     const quizBox = el.querySelector<HTMLElement>(".dash-quizzes");
     const boardBox = el.querySelector<HTMLElement>(".dash-board");
-    if (!cls || !membersBox || !quizBox || !boardBox) return;
+    if (!cls || !membersBox || !quizBox || !boardBox || loading) return;
+    loading = true;
     const c = cls;
-
+    const fail = (box: HTMLElement, msg: string) => {
+      box.textContent = "";
+      box.appendChild(h("p", { class: "profile-empty" }, [msg]));
+    };
     try {
-      const info = await cloud.classInfo(c.id);
-      if (info.ok && info.data.members) {
+      const [infoR, quizzesR, resultsR] = await Promise.allSettled([
+        cloud.classInfo(c.id),
+        cloud.listQuizzes(c.id),
+        cloud.classResults(c.id),
+      ]);
+
+      const info = infoR.status === "fulfilled" ? infoR.value : null;
+      if (info && info.ok && info.data.members) {
         membersBox.textContent = "";
         info.data.members.forEach((m, i) => {
           const row = h("div", { class: `dash-member ${m.role === "teacher" ? "teacher" : ""}` }, [
@@ -111,12 +123,11 @@ registerScreen("dashboard", (root) => {
           if (!RM()) gsap.fromTo(row, { x: -30, opacity: 0 }, { x: 0, opacity: 1, duration: 0.3, delay: i * 0.05, ease: "back.out(1.5)" });
         });
       } else {
-        membersBox.textContent = "";
-        membersBox.appendChild(h("p", { class: "profile-empty" }, [info.data.error ? cloudError(info) : t("Couldn't load members")]));
+        fail(membersBox, info?.data?.error ? cloudError(info) : t("Couldn't load members"));
       }
 
-      const quizzes = await cloud.listQuizzes(c.id);
-      if (quizzes.ok && quizzes.data.quizzes) {
+      const quizzes = quizzesR.status === "fulfilled" ? quizzesR.value : null;
+      if (quizzes && quizzes.ok && quizzes.data.quizzes) {
         quizBox.textContent = "";
         if (!quizzes.data.quizzes.length) {
           quizBox.appendChild(h("p", { class: "profile-empty" }, [t("No quizzes yet — ADD one below.")]));
@@ -165,12 +176,11 @@ registerScreen("dashboard", (root) => {
           });
         });
       } else {
-        quizBox.textContent = "";
-        quizBox.appendChild(h("p", { class: "profile-empty" }, [quizzes.data.error ? cloudError(quizzes) : t("Couldn't load quizzes")]));
+        fail(quizBox, quizzes?.data?.error ? cloudError(quizzes) : t("Couldn't load quizzes"));
       }
 
-      const results = await cloud.classResults(c.id);
-      if (results.ok && results.data.results) {
+      const results = resultsR.status === "fulfilled" ? resultsR.value : null;
+      if (results && results.ok && results.data.results) {
         boardBox.textContent = "";
         if (!results.data.results.length) {
           boardBox.appendChild(h("p", { class: "profile-empty" }, [t("No scores yet — play something!")]));
@@ -187,15 +197,15 @@ registerScreen("dashboard", (root) => {
           if (!RM()) gsap.fromTo(row, { x: 30, opacity: 0 }, { x: 0, opacity: 1, duration: 0.3, delay: i * 0.04, ease: "back.out(1.5)" });
         });
       } else {
-        boardBox.textContent = "";
-        boardBox.appendChild(h("p", { class: "profile-empty" }, [results.data.error ? cloudError(results) : t("Couldn't load scores")]));
+        fail(boardBox, results?.data?.error ? cloudError(results) : t("Couldn't load scores"));
       }
     } catch (err) {
       console.error("[p5q] dashboard load failed:", err);
       for (const box of [membersBox, quizBox, boardBox]) {
-        box.textContent = "";
-        box.appendChild(h("p", { class: "profile-empty" }, [t("Couldn't load — check your connection and try again.")]));
+        fail(box, t("Couldn't load — check your connection and try again."));
       }
+    } finally {
+      loading = false;
     }
   }
 

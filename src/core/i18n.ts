@@ -73,6 +73,23 @@ if (typeof location !== "undefined" && (location.hostname === "localhost" || loc
   (window as unknown as Record<string, unknown>).__p5qMissingKeys = missingKeys;
 }
 
+/* quiz question-type ids → translated labels (keys already exist in the dicts) */
+const TYPE_KEYS: Record<string, string> = {
+  multiple: "CHOICE",
+  boolean: "TRUE/FALSE",
+  multi: "MULTI-PICK",
+  fill: "FILL-IN",
+  order: "ORDER",
+  match: "MATCH",
+  numeric: "NUMERIC",
+  open: "OPEN",
+  hotspot: "HOTSPOT",
+};
+
+export function typeLabel(type: string): string {
+  return t(TYPE_KEYS[type] ?? type.toUpperCase());
+}
+
 export function fmtNum(n: number): string {
   return new Intl.NumberFormat(current).format(n);
 }

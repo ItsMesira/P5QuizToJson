@@ -370,7 +370,7 @@ registerScreen("prompts", (root) => {
     });
     form.querySelector(".dice-btn")!.addEventListener("click", () => {
       audio.sfx("select");
-      const topics = ["World War 2", "Greek mythology", "Space exploration", "80s music", "The human brain", "Ancient Egypt", "Dinosaurs", "Quantum physics", "World cuisines", "Famous heists"];
+      const topics = ["World War 2", "Greek mythology", "Space exploration", "80s music", "The human brain", "Ancient Egypt", "Dinosaurs", "Quantum physics", "World cuisines", "Famous heists"].map((x) => t(x));
       const btn = form.querySelector<HTMLElement>(".dice-btn")!;
       const rect = btn.getBoundingClientRect();
       const topicInput = form.querySelector<HTMLInputElement>(".builder-input")!;
@@ -439,7 +439,7 @@ registerScreen("prompts", (root) => {
       playBtn.classList.remove("hidden");
       saveLibBtn.classList.remove("hidden");
       gsap.fromTo([playBtn, saveLibBtn], { scale: 0 }, { scale: 1, duration: 0.3, stagger: 0.08, ease: "back.out(2)" });
-      toast(`“${validatedQuiz.quiz.title}” is valid`, "info");
+      toast(t("“{title}” is valid", { title: validatedQuiz.quiz.title }), "info");
     });
     playBtn.addEventListener("click", () => {
       if (validatedQuiz?.ok) {
@@ -533,9 +533,9 @@ registerScreen("prompts", (root) => {
       }, [
         h("div", { class: "prompt-card-star", style: isFav ? "color:var(--gold)" : "" }, ["★"]),
         p.kind === "custom" ? h("div", { class: "preset-badge" }, [t("CUSTOM")]) : null,
-        h("h3", { class: "prompt-card-title" }, [p.title]),
-        h("p", { class: "prompt-card-tagline" }, [p.tagline]),
-        h("div", { class: "prompt-card-tags" }, p.tags.slice(0, 4).map((t) => h("span", { class: "prompt-tag" }, [t]))),
+        h("h3", { class: "prompt-card-title" }, [t(p.title)]),
+        h("p", { class: "prompt-card-tagline" }, [t(p.tagline)]),
+        h("div", { class: "prompt-card-tags" }, p.tags.slice(0, 4).map((tag) => h("span", { class: "prompt-tag" }, [t(tag)]))),
         h("div", { class: "prompt-card-actions" }, [
           h("button", { class: "lib-btn prompt-view" }, [t("VIEW")]),
           h("button", { class: "lib-btn play prompt-copy" }, [t("⧉ COPY")]),
@@ -574,7 +574,7 @@ registerScreen("prompts", (root) => {
         audio.sfx("select");
         Object.assign(fields, { ...defaultFields(), ...p.fields });
         setTab("builder");
-        toast(`Loaded “${p.title}” into the builder`, "info");
+        toast(t("Loaded “{title}” into the builder", { title: p.title }), "info");
       });
       const del = card.querySelector<HTMLElement>(".prompt-del");
       if (del) {
@@ -617,7 +617,7 @@ registerScreen("prompts", (root) => {
           audio.sfx("rankup");
           fx.starBurst(window.innerWidth / 2, window.innerHeight / 2, { gold: true, n: 16 });
           setTab("builder");
-          toast(`Combined “${a.title}” + “${b.title}”`, "info");
+          toast(t("Combined “{a}” + “{b}”", { a: a.title, b: b.title }), "info");
           return;
         }
         mergeTargets = [];

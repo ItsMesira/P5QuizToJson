@@ -10,7 +10,7 @@ import { encodeQuizLink, currentShareUrl } from "../core/share";
 import { totalQuestions, validateQuiz } from "../core/validator";
 import type { Quiz } from "../core/types";
 import { RANKS } from "../core/types";
-import { t } from "../core/i18n";
+import { t, typeLabel } from "../core/i18n";
 
 registerScreen("library", (root) => {
   const el = h("div", { class: "screen library-screen" }, [
@@ -191,7 +191,7 @@ registerScreen("library", (root) => {
     audio.sfx("rankup");
     fx.starBurst(window.innerWidth / 2, window.innerHeight / 2, { gold: true, n: 14 });
     goalModal.classList.add("hidden");
-    toast(`Goal set: ${pickedRank} rank in “${goalTitle}”`, "info");
+    toast(t("Goal set: {rank} rank in “{title}”", { rank: pickedRank, title: goalTitle }), "info");
     void go({ name: "library" }, { instant: true });
   });
   goalModal.querySelector(".goal-clear-btn")!.addEventListener("click", () => {
@@ -261,7 +261,7 @@ registerScreen("library", (root) => {
       s.questions.forEach((q) => {
         n++;
         const row = h("div", { class: "inspect-row" }, [
-          h("div", { class: "inspect-q" }, [`Q${n} · ${(q.type ?? "?").toUpperCase()} — ${q.question}`]),
+          h("div", { class: "inspect-q" }, [`Q${n} · ${typeLabel(q.type ?? "?")} — ${q.question}`]),
           h("div", { class: "inspect-a" }, [t("EXPECTED: {answer}", { answer: expectedOf(q as never) })]),
         ]);
         body.appendChild(row);

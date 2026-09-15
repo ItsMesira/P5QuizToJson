@@ -1,10 +1,64 @@
 /* ============ P5 QUIZ API — DB POOL + SCHEMA ============ */
-import { sql, createPool } from "@vercel/postgres";
+/* Plain node-postgres — works with Supabase, Neon, RDS and local Postgres.
+   `sql` tagged template keeps the call sites terse and parameterized. */
+import { Pool, type QueryResultRow } from "pg";
 
-export const pool = createPool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: true,
+const url = process.env.DATABASE_URL ?? "";
+const isLocal = /localhost|127\.0\.0\.1/.test(url);
+
+export const pool = new Pool({
+  connectionString: url,
+  ssl: isLocal || url === "" ? undefined : { rejectUnauthorized: false },
+  // serverless guidance (Supabase): one connection per warm instance,
+  // keep-alive + a short idle window so frozen instances drop stale sockets
+  max: 1,
+  idleTimeoutMillis: 15_000,
+  connectionTimeoutMillis: 15_000,
+  keepAlive: true,
+  // hard caps so a stuck socket can never hang a request forever
+  statement_timeout: 10_000,
+  query_timeout: 10_000,
 });
+
+/* an idle-socket error must never take the whole function down */
+pool.on("error", (err) => {
+  console.error("[p5q] idle db client error:", err.message);
+});
+
+const CONN_ERROR = /terminated|ECONNRESET|ECONNREFUSED|EPIPE|Connection ended|timeout|ETIMEDOUT|Timed out/i;
+
+const withTimeout = <T,>(p: Promise<T>, ms: number): Promise<T> =>
+  Promise.race([
+    p,
+    new Promise<never>((_, rej) => setTimeout(() => rej(new Error(`query timed out after ${ms}ms`)), ms)),
+  ]);
+
+export async function sql<T extends QueryResultRow = QueryResultRow>(
+  strings: TemplateStringsArray,
+  ...values: unknown[]
+): Promise<{ rows: T[]; rowCount: number | null }> {
+  let text = "";
+  const params: unknown[] = [];
+  strings.forEach((chunk, i) => {
+    text += chunk;
+    if (i < values.length) {
+      params.push(values[i]);
+      text += `$${params.length}`;
+    }
+  });
+  const run = () => pool.query<T>(text, params);
+  try {
+    return await withTimeout(run(), 10_000);
+  } catch (err) {
+    // one retry for connection-level failures (cold instances, stale sockets)
+    if (CONN_ERROR.test(String((err as Error)?.message ?? ""))) {
+      console.warn("[p5q] db connection error — retrying once");
+      await new Promise((r) => setTimeout(r, 250));
+      return withTimeout(run(), 10_000);
+    }
+    throw err;
+  }
+}
 
 const schema = `
 CREATE TABLE IF NOT EXISTS users (
@@ -59,14 +113,17 @@ CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions (user_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions (expires);
 `;
 
-let inited = false;
-export async function ensureSchema() {
-  if (inited) return;
-  inited = true;
-  try {
-    await sql.query(schema);
-  } catch {
-    inited = false;
-    throw new Error("Database unavailable");
+let schemaReady: Promise<void> | null = null;
+export function ensureSchema(): Promise<void> {
+  if (!schemaReady) {
+    schemaReady = pool
+      .query(schema)
+      .then(() => undefined)
+      .catch((err) => {
+        console.error("[p5q] ensureSchema failed:", err);
+        schemaReady = null;
+        throw new Error("Database unavailable");
+      });
   }
+  return schemaReady;
 }

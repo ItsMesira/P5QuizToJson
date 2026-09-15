@@ -1,7 +1,7 @@
 /* ============ P5 QUIZ API — AUTH: argon2id, session tokens, cookies, CSRF ============ */
 import { hash, verify } from "@node-rs/argon2";
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
-import { sql } from "@vercel/postgres";
+import { sql } from "./db";
 
 const SESSION_DAYS = 30;
 const COOKIE = "p5q_session";
@@ -93,8 +93,9 @@ export async function verifyPassword(passHash: string, password: string): Promis
 export async function createSession(userId: string): Promise<{ token: string; csrf: string }> {
   const token = randomToken();
   const csrf = randomToken();
+  const expires = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000);
   await sql`INSERT INTO sessions (token_hash, user_id, expires)
-    VALUES (${sha256hex(token)}, ${userId}, now() + interval '${SESSION_DAYS} days')`;
+    VALUES (${sha256hex(token)}, ${userId}, ${expires})`;
   return { token, csrf };
 }
 

@@ -15,7 +15,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     await destroySession(token);
     res.setHeader("Set-Cookie", clearCookieHeaders());
     return ok(res);
-  } catch {
+  } catch (err) {
+    console.error("[p5q]", err);
     return serverError(res);
   }
 }

@@ -1,6 +1,6 @@
 /* GET /api/classes/mine — every class the user belongs to */
 import type { ApiRequest, ApiResponse } from "../_lib/types";
-import { sql } from "@vercel/postgres";
+import { sql } from "../_lib/db";
 import { ensureSchema } from "../_lib/db";
 import { getUserByToken, parseCookies } from "../_lib/auth";
 import { ok, unauthorized, serverError } from "../_lib/http";
@@ -27,7 +27,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         members: Number(r.members),
       })),
     });
-  } catch {
+  } catch (err) {
+    console.error("[p5q]", err);
     return serverError(res);
   }
 }

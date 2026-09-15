@@ -1,6 +1,6 @@
 /* /api/classes/[id]/results — GET class leaderboard · POST submit result (members) */
 import type { ApiRequest, ApiResponse } from "../../_lib/types";
-import { sql } from "@vercel/postgres";
+import { sql } from "../../_lib/db";
 import { ensureSchema } from "../../_lib/db";
 import { getUserByToken, parseCookies, csrfValid, membership, newId } from "../../_lib/auth";
 import { classIdSchema, resultSchema, parse } from "../../_lib/validate";
@@ -51,7 +51,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     }
 
     return fail(res, 405, "GET/POST only");
-  } catch {
+  } catch (err) {
+    console.error("[p5q]", err);
     return serverError(res);
   }
 }

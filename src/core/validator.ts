@@ -65,7 +65,7 @@ function detectType(q: Record<string, unknown>): QuestionType {
 
 function normalizeQuestion(raw: unknown, path: string): { q?: Question; errors: FieldError[] } {
   const errors: FieldError[] = [];
-  if (!isObj(raw)) return { errors: [{ path, message: "Question must be an object." }] };
+  if (!isObj(raw)) return { errors: [{ path, message: t("Question must be an object.") }] };
   if (typeof raw.question !== "string" || !raw.question.trim()) {
     errors.push({ path, message: t("Missing \"question\" text.") });
   }

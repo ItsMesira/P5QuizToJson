@@ -1,6 +1,6 @@
 /* GET /api/classes/[id]/quiz/[qid] — full quiz JSON (members only) */
 import type { ApiRequest, ApiResponse } from "../../../_lib/types";
-import { sql } from "@vercel/postgres";
+import { sql } from "../../../_lib/db";
 import { ensureSchema } from "../../../_lib/db";
 import { getUserByToken, parseCookies, membership } from "../../../_lib/auth";
 import { classIdSchema, parse } from "../../../_lib/validate";
@@ -22,7 +22,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     const rows = await sql`SELECT title, data FROM quizzes WHERE id = ${qid.data} AND class_id = ${id.data} LIMIT 1`;
     if (rows.rows.length === 0) return notFound(res, "Quiz not found");
     return ok(res, { ok: true, title: String(rows.rows[0].title), quiz: rows.rows[0].data as Record<string, unknown> });
-  } catch {
+  } catch (err) {
+    console.error("[p5q]", err);
     return serverError(res);
   }
 }

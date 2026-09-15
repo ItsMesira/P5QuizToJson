@@ -1,3 +1,5 @@
+import { t } from "./i18n";
+
 /* ============ P5 QUIZ — CLOUD API CLIENT (classes/auth, Vercel functions) ============ */
 
 export interface CloudUser {
@@ -36,7 +38,7 @@ async function req(path: string, opts: { method?: string; body?: unknown } = {})
       body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
     });
   } catch {
-    return { ok: false, status: 0, data: { error: "Cannot reach the server" } };
+    return { ok: false, status: 0, data: { error: t("Cannot reach the server") } };
   }
   let data: Record<string, unknown> = {};
   try {
@@ -138,5 +140,5 @@ export const cloud = {
 };
 
 export function cloudError(r: ApiResult): string {
-  return String(r.data?.error ?? (r.status === 0 ? "Cannot reach the server — is it running?" : `Server error (${r.status})`));
+  return String(r.data?.error ?? (r.status === 0 ? t("Cannot reach the server — is it running?") : t("Server error ({code})", { code: r.status })));
 }

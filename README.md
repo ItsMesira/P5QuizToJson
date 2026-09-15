@@ -187,6 +187,14 @@ everyone with the URL.
 
 ### Step 2 — Run it locally (optional but recommended)
 
+> **No Vercel login?** Use the bundled local API host instead:
+> ```bash
+> npm run build                 # builds dist/
+> node devapi.mjs 3011          # serves the app + /api from dist/ with your .env
+> ```
+> Put your database URL in `.env` (`DATABASE_URL=...`) and test the classroom
+> with `P5Q_BASE=http://localhost:3011 node authtest.mjs`.
+
 ```bash
 npm i -g vercel
 cp .env.example .env
@@ -320,7 +328,7 @@ Wrong answers are still rejected.
 
 ```
 api/                Vercel serverless functions (auth, classes, quizzes, results, health)
-  _lib/             db pool + schema · auth (argon2/sessions/CSRF) · zod validation · rate limiting
+  _lib/             pg pool + schema · auth (argon2/sessions/CSRF) · zod validation · rate limiting
 src/
   core/     types, validator, store (localStorage), share (gzip links),
             prompts (master-prompt engine + 14 presets), audio (synth + file BGM),
@@ -346,7 +354,9 @@ public/
 Extra suites for the newer systems: `node themetest.mjs` (theme presets,
 custom colors, persistence), `node langtest.mjs` (all 6 locales: zero missing
 keys, Thai grapheme integrity, long-string layouts), `node uifixtest.mjs`
-(menu geometry, classroom flows, veil watchdog, double-submit lock).
+(menu geometry, classroom flows, veil watchdog, double-submit lock),
+`node authtest.mjs` (full classroom e2e against a real database — run it with
+`node devapi.mjs` + `P5Q_BASE=http://localhost:3011`, no Vercel CLI needed).
 
 `npm i -D puppeteer-core` (Chrome must be installed), then with the dev server
 running on `:5183`:

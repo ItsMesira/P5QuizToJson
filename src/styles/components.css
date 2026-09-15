@@ -3593,6 +3593,28 @@
   line-height: 1.5;
   letter-spacing: 0.01em;
 }
+:lang(th) .menu-ransom {
+  line-height: 1.35;
+}
+:lang(th) .rank-label {
+  letter-spacing: 0.1em;
+}
+:lang(th) .rank-sub {
+  letter-spacing: 0.08em;
+}
+:lang(th) .aot-title,
+:lang(th) .aot-title-2 {
+  line-height: 1.3;
+  letter-spacing: 0.02em;
+}
+@media (max-width: 480px) {
+  :lang(th) .toggle-row {
+    flex-wrap: wrap;
+  }
+  :lang(th) .toggle-label {
+    letter-spacing: 0.03em;
+  }
+}
 :lang(th) #tagline,
 :lang(th) .entry-lead,
 :lang(th) .entry-sub,
