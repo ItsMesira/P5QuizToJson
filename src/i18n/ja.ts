@@ -504,6 +504,11 @@ const ja: Record<string, string> = {
   "Loaded “{title}” into the builder": "「{title}」をビルダーに読み込みました",
   "Combined “{a}” + “{b}”": "「{a}」+「{b}」を結合しました",
   "GOAL REACHED — {rank} rank in “{title}”!": "目標達成 — 「{title}」でランク{rank}!",
+  "INTERVIEW MODE": "インタビューモード",
+  "The AI interviews you first, then builds": "AIが先に質問し、それから作成します",
+  "Master Prompt — Interview": "マスタープロンプト — インタビュー",
+  "Answers a few quick questions, then the AI builds the quiz.": "いくつかの質問に答えると、AIがクイズを作成します。",
+  "guided": "ガイド付き",
 };
 
 export default ja;

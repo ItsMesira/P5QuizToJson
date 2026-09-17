@@ -504,6 +504,11 @@ const th: Record<string, string> = {
   "Loaded “{title}” into the builder": "โหลด “{title}” ลงตัวสร้างแล้ว",
   "Combined “{a}” + “{b}”": "รวม “{a}” + “{b}” แล้ว",
   "GOAL REACHED — {rank} rank in “{title}”!": "ถึงเป้าหมายแล้ว — อันดับ {rank} ใน “{title}”!",
+  "INTERVIEW MODE": "โหมดสัมภาษณ์",
+  "The AI interviews you first, then builds": "AI จะถามคุณก่อน แล้วจึงสร้างควิซ",
+  "Master Prompt — Interview": "มาสเตอร์พรอมป์ — สัมภาษณ์",
+  "Answers a few quick questions, then the AI builds the quiz.": "ตอบคำถามสั้น ๆ ไม่กี่ข้อ แล้ว AI จะสร้างควิซให้",
+  "guided": "มีไกด์",
 };
 
 export default th;

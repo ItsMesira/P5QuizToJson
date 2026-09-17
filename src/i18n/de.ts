@@ -504,6 +504,11 @@ const de: Record<string, string> = {
   "Loaded “{title}” into the builder": "„{title}“ in den Editor geladen",
   "Combined “{a}” + “{b}”": "„{a}“ + „{b}“ kombiniert",
   "GOAL REACHED — {rank} rank in “{title}”!": "ZIEL ERREICHT — Rang {rank} in „{title}“!",
+  "INTERVIEW MODE": "INTERVIEW-MODUS",
+  "The AI interviews you first, then builds": "Die KI fragt zuerst, dann baut sie",
+  "Master Prompt — Interview": "Master-Prompt — Interview",
+  "Answers a few quick questions, then the AI builds the quiz.": "Beantworte ein paar kurze Fragen, dann baut die KI das Quiz.",
+  "guided": "geführt",
 };
 
 export default de;

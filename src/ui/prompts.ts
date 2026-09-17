@@ -226,6 +226,7 @@ registerScreen("prompts", (root) => {
         h("textarea", { class: "open-area builder-notes", placeholder: t("Avoid questions about X… only cover 2010–2020…") }, [fields.notes]),
       ]),
       h("div", { class: "builder-toggles" }, [
+        toggle(t("INTERVIEW MODE"), t("The AI interviews you first, then builds"), () => !!fields.interview, (v) => (fields.interview = v)),
         toggle(t("EXPLANATIONS"), t("AI writes a why for every answer"), () => fields.explanations, (v) => (fields.explanations = v)),
         toggle(t("HINTS"), t("Every question gets a clue"), () => fields.hints, (v) => (fields.hints = v)),
         toggle(t("NEGATIVE MARKING"), t("Wrong answers cost points"), () => fields.negativeMarking, (v) => (fields.negativeMarking = v)),

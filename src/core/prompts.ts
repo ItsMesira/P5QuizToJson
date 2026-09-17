@@ -28,6 +28,8 @@ export interface PromptFields {
   spaced: boolean;
   targetLang?: string;
   nativeLang?: string;
+  /* interview mode: the AI asks for what it still needs, then builds the quiz */
+  interview?: boolean;
 }
 
 export interface Preset {
@@ -207,6 +209,7 @@ function answerKeyLine(): string {
 /* ---------------- builders ---------------- */
 
 export function buildPrompt(f: PromptFields): string {
+  if (f.interview) return buildInterviewPrompt(f);
   const topic = f.topic.trim() || "[TOPIC]";
   const lines: string[] = [];
   lines.push(`${roleLine(f)}\nCreate a quiz about "${topic}". The quiz loads into a quiz game that reads a JSON file, so output an object matching the schema below EXACTLY.`);
@@ -238,6 +241,99 @@ export function buildPrompt(f: PromptFields): string {
   if (!f.exampleEmbed) lines.push(EXAMPLE);
   lines.push("Write the complete quiz JSON now. Verify it mentally against every hard rule, then output the raw JSON only.");
   return lines.join("\n\n");
+}
+
+/* ---------------- interview master prompt ---------------- */
+
+const TYPE_LABEL: Record<QuestionType, string> = {
+  multiple: "multiple choice (4 answers, one correct)",
+  boolean: "true/false",
+  multi: "multi-pick (2-3 correct)",
+  fill: "fill-in the blank",
+  order: "put-in-order",
+  match: "matching pairs",
+  numeric: "numeric answer",
+  open: "open / self-graded",
+  hotspot: "click-the-image hotspot",
+};
+
+/* what the builder already knows — the AI must not re-ask these */
+function knownLines(f: PromptFields): string[] {
+  const out: string[] = [];
+  const topic = f.topic.trim();
+  if (topic) out.push(`- Topic / subject: "${topic}"`);
+  if (f.title.trim()) out.push(`- Title: "${f.title.trim()}"`);
+  out.push(`- Quiz content language: ${f.language}`);
+  out.push(`- Audience: ${f.audience}`);
+  out.push(`- Length: ${f.count} questions across ${f.sections} section${f.sections === 1 ? "" : "s"}`);
+  if (f.spaced) out.push(`- Structure: spaced repetition, "Session 1" onward in rising difficulty`);
+  const types = f.types.length ? f.types : (["multiple"] as QuestionType[]);
+  out.push(`- Question types: ${types.map((x) => TYPE_LABEL[x]).filter(Boolean).join(", ")}`);
+  const [e, m, h] = DIFF_SPLIT[f.difficulty];
+  out.push(`- Difficulty mix: ${e}% easy / ${m}% medium / ${h}% hard`);
+  out.push(`- Tone: ${f.tone}`);
+  out.push(`- Game mode: ${f.mode}; time per question: ${f.timeLimit ?? "none (untimed)"}`);
+  out.push(`- Explanations: ${f.explanations ? "yes" : "no"}; hints: ${f.hints ? "yes" : "no"}; negative marking: ${f.negativeMarking ? "yes" : "no"}`);
+  if (f.answerKey) out.push("- Teacher answer key: yes (output it after the JSON)");
+  if (f.exampleEmbed) out.push("- Match the sample question's format and tone exactly");
+  if (f.targetLang && f.nativeLang) out.push(`- Language-learning quiz: teach ${f.targetLang} to a ${f.nativeLang} speaker`);
+  if (f.notes.trim()) out.push(`- Extra requirements from the user (follow exactly): ${f.notes.trim()}`);
+  return out;
+}
+
+export function buildInterviewPrompt(f: PromptFields): string {
+  const topic = f.topic.trim();
+  const known = knownLines(f);
+  const unknown: string[] = [];
+  if (!topic) unknown.push("the exact topic and its scope (what is in, what is out)");
+  if (!f.title.trim()) unknown.push("the title (or confirm you should invent one)");
+  unknown.push("anything else that makes this quiz special: must-include facts, must-avoid topics, exam board, recent events, inside jokes");
+
+  const L: string[] = [];
+  L.push(roleLine(f));
+  L.push("");
+  L.push("YOUR TASK — INTERVIEW, THEN BUILD:");
+  L.push("You are going to write a quiz for me, but first you interview me so the quiz comes out exactly right. When the interview is finished you output the finished quiz file in one go.");
+  L.push("");
+  L.push("HOW TO INTERVIEW (follow strictly):");
+  L.push("1. Ask ONE question at a time. Never dump a list of questions.");
+  L.push('2. Give each question 2-5 short lettered options (a, b, c...) and mark the one you recommend with "(recommended)". I can answer with just a letter, or type my own answer.');
+  L.push("3. Keep it SHORT — only ask what is genuinely missing or ambiguous. Aim for 2-5 questions total, never more than 8.");
+  L.push("4. NEVER ask about anything already settled below. If my first message answers several things, skip those.");
+  L.push('5. If I say "go", "build", "default", "surprise me", or "just build it" at any point — stop asking and build immediately using your recommended options.');
+  L.push('6. Before every question, briefly note what you will assume if I answer "default".');
+  L.push("");
+  L.push("WHAT IS ALREADY SETTLED (do NOT ask about these unless something is empty or contradictory):");
+  L.push(known.join("\n"));
+  L.push("");
+  L.push("WHAT YOU MAY STILL NEED TO ASK:");
+  L.push(unknown.map((u) => "- " + u).join("\n"));
+  L.push("- Anything on the settled list above that looks vague for this topic.");
+  L.push("");
+  L.push("WHEN THE INTERVIEW IS DONE — BUILD THE QUIZ:");
+  L.push("Output the quiz JSON ONLY. The very first character must be an opening curly brace and the last must be a closing curly brace. No markdown fences, no \"here is your quiz\", no commentary, and no questions after this point.");
+  L.push("");
+  L.push(SCHEMA_REF);
+  L.push("");
+  L.push(RULES);
+  L.push("");
+  L.push("QUIZ REQUIREMENTS TO HONOR IN THE FINAL BUILD:");
+  L.push("- " + f.count + " questions total, split into " + f.sections + " section" + (f.sections > 1 ? "s" : "") + " with short names.");
+  L.push("- Question types (these exact counts):");
+  L.push(typePlan(f));
+  L.push("- " + difficultyLine(f));
+  L.push("- " + bloomsLine(f));
+  L.push('- settings: "timeLimit": ' + (f.timeLimit ?? "null") + ', "shuffle": true' + (f.negativeMarking ? ', "negativeMarking": true' : "") + ".");
+  if (f.explanations) L.push('- EVERY question gets an "explanation" — max 2 short sentences, never just repeats the answer.');
+  if (f.hints) L.push('- EVERY question gets a "hint" that guides without giving the answer away.');
+  if (f.spaced) L.push("- " + spacedLine(f));
+  if (f.targetLang && f.nativeLang) L.push("- " + langLearnLine(f));
+  if (f.answerKey) L.push("- " + answerKeyLine());
+  L.push("");
+  L.push(EXAMPLE);
+  L.push("");
+  L.push("Now greet me with your FIRST question (with lettered options and your recommendation). Interview me first — build only when I say go or when nothing is left to ask.");
+  return L.join("\n");
 }
 
 export function buildFollowUpPrompt(f: PromptFields, extra = ""): string {
@@ -281,7 +377,7 @@ export function vagueTopics(topic: string): string | null {
   return null;
 }
 
-/* ---------------- 14 presets ---------------- */
+/* ---------------- 15 presets ---------------- */
 
 function mk(
   id: string, title: string, tagline: string, tags: string[],
@@ -294,6 +390,9 @@ function mk(
 }
 
 export const BUILTIN_PRESETS: Preset[] = [
+  mk("interview", "Master Prompt — Interview", "Answers a few quick questions, then the AI builds the quiz.", ["interview", "guided", "any topic"], {
+    interview: true, count: 10, sections: 2, audience: "adults",
+  }),
   mk("universal", "Universal Quiz", "The one prompt to rule them all — any topic, clean multiple choice.", ["multiple choice", "any topic", "safe default"], {
     types: ["multiple", "fill"], count: 10, sections: 2, audience: "adults",
   }),

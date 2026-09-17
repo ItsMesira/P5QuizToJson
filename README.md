@@ -331,7 +331,7 @@ api/                Vercel serverless functions (auth, classes, quizzes, results
   _lib/             pg pool + schema · auth (argon2/sessions/CSRF) · zod validation · rate limiting
 src/
   core/     types, validator, store (localStorage), share (gzip links),
-            prompts (master-prompt engine + 14 presets), audio (synth + file BGM),
+            prompts (master-prompt engine + 15 presets), audio (synth + file BGM),
             art (portrait registry), api (cloud client), theme (palettes + custom),
             i18n (t() engine, locale detect, Intl helpers)
   i18n/     th, es, fr, de, ja dictionaries (English keys, typed)
