@@ -287,31 +287,47 @@ export function buildInterviewPrompt(f: PromptFields): string {
   const unknown: string[] = [];
   if (!topic) unknown.push("the exact topic and its scope (what is in, what is out)");
   if (!f.title.trim()) unknown.push("the title (or confirm you should invent one)");
-  unknown.push("anything else that makes this quiz special: must-include facts, must-avoid topics, exam board, recent events, inside jokes");
 
   const L: string[] = [];
   L.push(roleLine(f));
   L.push("");
-  L.push("YOUR TASK — INTERVIEW, THEN BUILD:");
-  L.push("You are going to write a quiz for me, but first you interview me so the quiz comes out exactly right. When the interview is finished you output the finished quiz file in one go.");
+  L.push("YOUR TASK — INTERVIEW ME, THEN BUILD:");
+  L.push("You are going to write a quiz for me. Think of it as me filling in a quiz builder — except YOU do the asking, so I get to control far more than a fixed form would allow. Interview me in two short rounds, then output the finished quiz file in one go.");
   L.push("");
-  L.push("HOW TO INTERVIEW (follow strictly):");
+  L.push("ROUND 1 — THE ESSENTIALS (only what is missing):");
   L.push("1. Ask ONE question at a time. Never dump a list of questions.");
-  L.push('2. Give each question 2-5 short lettered options (a, b, c...) and mark the one you recommend with "(recommended)". I can answer with just a letter, or type my own answer.');
-  L.push("3. Keep it SHORT — only ask what is genuinely missing or ambiguous. Aim for 2-5 questions total, never more than 8.");
-  L.push("4. NEVER ask about anything already settled below. If my first message answers several things, skip those.");
-  L.push('5. If I say "go", "build", "default", "surprise me", or "just build it" at any point — stop asking and build immediately using your recommended options.');
-  L.push('6. Before every question, briefly note what you will assume if I answer "default".');
+  L.push('2. Each question gives 2-5 short lettered options (a, b, c...) and marks your recommendation with "(recommended)". I can answer with a letter, several letters, or my own words.');
+  L.push("3. At most 5 questions in this round, and only about things that are genuinely missing or ambiguous. Never ask about anything already settled below.");
+  L.push('4. If I say "go", "build", "default", "surprise me" or "just build it" at ANY point — stop asking and build immediately using your recommended defaults.');
+  L.push('5. With each question, briefly note what you will assume if I answer "default".');
+  L.push("");
+  L.push("ROUND 2 — THE DEEP MENU (the fun part — this is how I choose a lot more):");
+  L.push('Once the essentials are settled, offer me ONE compact numbered menu (8-14 lines) of optional things to tune, including things a form would never ask. For every line, state the default you would use if I skip it. Then say I can reply with the numbers I want to change (several at once), or "all", "default", or "skip".');
+  L.push("Draw the menu from these (drop lines that do not apply, merge or add your own if genuinely useful):");
+  L.push("- exact scope: which subtopics, eras, people or facts MUST be covered, and what to avoid (spoilers, sensitive or dated material)");
+  L.push("- section plan: how many sections, each one's theme, names, and difficulty curve (warm-up opening → boss round finale?)");
+  L.push("- question style: wording length, narrator voice (playful / formal / dramatic), how tricky the wrong answers should be, trick questions allowed or strictly fair");
+  L.push("- framing: is this a heist, a school exam, a game show, a mystery? recurring characters or narrator?");
+  L.push("- difficulty mix and reading level: kids-safe and simple, or deep expert-level?");
+  L.push("- exam alignment: follow a syllabus, exam board or certification outline?");
+  L.push("- humor and references: how modern/meme-y, or plain and timeless?");
+  L.push("- per-question extras: hints, explanations, images (hotspot rounds need real image URLs), per-question time limits, point values");
+  L.push("- game mode and pacing: standard / practice / survival / rapid / endless, seconds per question, instant feedback or results at the end");
+  L.push("- shuffle rules: shuffle questions? shuffle answer order? negative marking? pass score?");
+  L.push("- presentation: accent color, one-line description, author name, section emoji or Persona-5-style flavour text");
+  L.push("- extras after the JSON as plain text: teacher answer key, study notes, a short revision list (I copy only the JSON block)");
+  L.push("If I pick items: ask ONE short follow-up round covering just those, then build. If I skip everything: build straight away with your defaults.");
   L.push("");
   L.push("WHAT IS ALREADY SETTLED (do NOT ask about these unless something is empty or contradictory):");
   L.push(known.join("\n"));
   L.push("");
-  L.push("WHAT YOU MAY STILL NEED TO ASK:");
-  L.push(unknown.map((u) => "- " + u).join("\n"));
-  L.push("- Anything on the settled list above that looks vague for this topic.");
+  if (unknown.length) {
+    L.push("WHAT YOU MAY STILL NEED TO ASK:");
+    L.push(unknown.map((u) => "- " + u).join("\n"));
+  }
   L.push("");
   L.push("WHEN THE INTERVIEW IS DONE — BUILD THE QUIZ:");
-  L.push("Output the quiz JSON ONLY. The very first character must be an opening curly brace and the last must be a closing curly brace. No markdown fences, no \"here is your quiz\", no commentary, and no questions after this point.");
+  L.push('Output the quiz JSON ONLY. The very first character must be an opening curly brace and the last must be a closing curly brace. No markdown fences, no "here is your quiz", no commentary, and no questions after this point. Everything I chose must be reflected in the file.');
   L.push("");
   L.push(SCHEMA_REF);
   L.push("");
@@ -332,7 +348,7 @@ export function buildInterviewPrompt(f: PromptFields): string {
   L.push("");
   L.push(EXAMPLE);
   L.push("");
-  L.push("Now greet me with your FIRST question (with lettered options and your recommendation). Interview me first — build only when I say go or when nothing is left to ask.");
+  L.push("Now greet me and start ROUND 1 with your FIRST question (lettered options, your recommendation, and the default you would use). Interview first — build only when I say go or when nothing is left to ask.");
   return L.join("\n");
 }
 
