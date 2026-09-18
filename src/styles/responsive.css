@@ -93,6 +93,79 @@ label,
   }
 }
 
+/* ---------------- master-prompt builder: shrink, never overflow ----------------
+   Grid/flex children default to min-width:auto, so a text input's intrinsic
+   width drags .builder-grid wider than the viewport; .screen{overflow-x:hidden}
+   then clips the right panel (warning + preview) at the screen edge. Allowing
+   the tracks/children to shrink is a no-op wherever the content already fits. */
+.builder-grid {
+  grid-template-columns: minmax(320px, 430px) minmax(0, 1fr);
+}
+.builder-right,
+.builder-form,
+.builder-viz,
+.viz-col,
+.builder-stats,
+.builder-actions,
+.batch-row,
+.builder-paste,
+.field-col,
+.field-row-2,
+.slider-row,
+.diff-row,
+.builder-notes {
+  min-width: 0;
+}
+.field-row-2 {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+.slider-row {
+  grid-template-columns: 90px minmax(0, 1fr) 52px;
+}
+.diff-row {
+  grid-template-columns: 44px minmax(0, 1fr) 38px;
+}
+.builder-viz {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+/* inputs carry an intrinsic size — let the container drive their width */
+.builder-input,
+.builder-notes,
+.paste-area {
+  min-width: 0;
+  width: 100%;
+}
+/* long unbroken tokens in the generated prompt must break, not clip */
+.builder-preview,
+.builder-warn {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 900px) {
+  .builder-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ---------------- very narrow screens ----------------
+   wrap only happens when the row genuinely does not fit, so wider layouts are
+   untouched. */
+.prompts-tabs {
+  flex-wrap: wrap;
+}
+@media (max-width: 420px) {
+  .screen-title {
+    font-size: clamp(16px, 5.2vw, 28px);
+    letter-spacing: 0.1em;
+  }
+}
+/* the prompt modal's black panel must break long tokens, never clip them */
+.pm-body {
+  min-width: 0;
+}
+.pm-text {
+  overflow-wrap: anywhere;
+}
+
 /* ---------------- low-power: stop the full-bleed per-frame drifts ----------------
    Identical static appearance — only the animation stops. Everything else
    (colour, blend, opacity, blur, shadows) is left exactly as designed. */
