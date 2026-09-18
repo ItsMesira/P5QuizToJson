@@ -5,6 +5,8 @@ const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ["--mute-audio", "--window-size=1440,900"] });
 const page = await browser.newPage();
 await page.setViewport({ width: 1440, height: 900 });
+// deterministic question order for this suite (shuffletest covers randomization)
+await page.evaluateOnNewDocument(() => localStorage.setItem("p5q.settings", JSON.stringify({ alwaysShuffle: false })));
 const errs = [];
 page.on("pageerror", (e) => errs.push("PAGEERROR: " + String(e).slice(0, 200)));
 page.on("console", (m) => { if (m.type() === "error") errs.push("CONSOLE: " + m.text().slice(0, 150)); });

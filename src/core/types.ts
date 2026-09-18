@@ -152,6 +152,7 @@ export interface Settings {
   autoAdvance: boolean;
   fullscreen: boolean;
   reducedMotion: boolean;
+  alwaysShuffle: boolean; // force question + choice randomization on every attempt
   theme: string;  // theme id from src/core/theme.ts ("calling-card" | "noir" | ... | "custom")
   customTheme: CustomTheme;
   lang: string;   // locale code from src/i18n ("en" | "th" | ...), "" = auto-detect
@@ -185,6 +186,7 @@ export const DEFAULT_SETTINGS: Settings = {
   autoAdvance: false,
   fullscreen: false,
   reducedMotion: false,
+  alwaysShuffle: true,
   theme: "calling-card",
   customTheme: { accent: "#e60012", ink: "#0c0c0e", paper: "#f6f4f0" },
   lang: "",

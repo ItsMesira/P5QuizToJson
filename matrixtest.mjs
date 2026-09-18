@@ -3,6 +3,8 @@ import puppeteer from "puppeteer-core";
 const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ["--mute-audio"] });
 const page = await browser.newPage();
+// this suite asserts a fixed question type order — pin authored order (shuffletest covers randomization)
+await page.evaluateOnNewDocument(() => localStorage.setItem("p5q.settings", JSON.stringify({ alwaysShuffle: false })));
 const errs = [];
 page.on("pageerror", (e) => errs.push(String(e).slice(0, 200)));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

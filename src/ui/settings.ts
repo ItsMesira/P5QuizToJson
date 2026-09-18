@@ -165,6 +165,7 @@ registerScreen("settings", (root) => {
       toggle(t("MUSIC"), () => s.music, (v) => (s.music = v), t("Background music on/off")),
       toggle(t("SOUND FX"), () => s.sfx, (v) => (s.sfx = v), t("Clicks, chimes, slashes")),
       h("h3", { class: "rs-title" }, [t("— PLAY —")]),
+      toggle(t("ALWAYS RANDOMIZE"), () => s.alwaysShuffle, (v) => (s.alwaysShuffle = v), t("Shuffle questions and choices on every attempt")),
       toggle(t("AUTO-ADVANCE"), () => s.autoAdvance, (v) => (s.autoAdvance = v), t("Skip the NEXT button")),
       toggle(t("FULLSCREEN"), () => s.fullscreen, (v) => (s.fullscreen = v), t("Fill the whole screen")),
       h("div", { class: "settings-actions" }, [
@@ -208,7 +209,7 @@ registerScreen("settings", (root) => {
     audio.sfx("paper");
     Object.assign(app.settings, {
       fx: "maximum", particles: true, shake: true, slowmo: true, crt: false,
-      music: true, bgm: "authentic", sfx: true, volume: 0.7, autoAdvance: false, fullscreen: false, reducedMotion: false,
+      music: true, bgm: "authentic", sfx: true, volume: 0.7, autoAdvance: false, fullscreen: false, reducedMotion: false, alwaysShuffle: true,
       theme: "calling-card", customTheme: { accent: "#e60012", ink: "#0c0c0e", paper: "#f6f4f0" }, lang: "",
     });
     applyGlobalSettings();

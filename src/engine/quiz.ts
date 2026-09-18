@@ -23,6 +23,24 @@ export interface RunnerCallbacks {
   onHeartbeat: () => void;
 }
 
+export interface RunnerOptions {
+  /** force question + choice randomization regardless of the quiz's own settings */
+  randomize?: boolean;
+  /** resume an attempt with the exact same shuffle */
+  seed?: number;
+}
+
+/* mulberry32 — tiny deterministic PRNG so a run can be replayed from its seed */
+function mulberry32(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 export class QuizRunner {
   readonly quiz: Quiz;
   readonly settings: QuizSettings;
@@ -45,6 +63,8 @@ export class QuizRunner {
   qStart = 0;
   finished = false;
   over = false;
+  seed = 0; // reproduces this attempt's shuffle (persisted for resume)
+  private answerCache = new Map<number, Answer[]>();
   private timerId: number | null = null;
   private elapsedId: number | null = null;
   private cb: RunnerCallbacks;
@@ -53,25 +73,40 @@ export class QuizRunner {
   private tickListeners = new Set<(left: number, total: number) => void>();
   private wrongStack: number[] = []; // endless mode
 
-  constructor(quiz: Quiz, cb: RunnerCallbacks) {
+  constructor(quiz: Quiz, cb: RunnerCallbacks, opts: RunnerOptions = {}) {
     this.quiz = quiz;
-    this.settings = { ...DEFAULT_QUIZ_SETTINGS, ...quiz.settings };
+    const settings = { ...DEFAULT_QUIZ_SETTINGS, ...quiz.settings };
+    if (opts.randomize) {
+      settings.shuffle = true;
+      settings.shuffleAnswers = true;
+    }
+    this.settings = settings;
     this.cb = cb;
     this.refs = [];
     quiz.sections.forEach((s) =>
       s.questions.forEach((q, i) => this.refs.push({ section: s.name, index: i, q })),
     );
+    // fresh random seed every attempt; restored from progress when resuming
+    this.seed = opts.seed ?? (((Math.random() * 0xffffffff) >>> 0) || 1);
     this.order = this.refs.map((_, i) => i);
-    if (this.settings.shuffle) this.shuffle(this.order);
+    if (this.settings.shuffle) this.seededShuffle(this.order, 0);
     this.hearts = 3;
     this.maxPoints = this.refs.reduce((n, r) => n + (r.q.points ?? 100), 0);
   }
 
-  private shuffle<T>(arr: T[]) {
+  /** deterministic shuffle from the run seed; same seed + salt = same order */
+  seededShuffle<T>(arr: T[], salt = 0): T[] {
+    const rng = mulberry32((this.seed + salt * 0x9e3779b1) >>> 0);
     for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
+      const j = Math.floor(rng() * (i + 1));
       [arr[i], arr[j]] = [arr[j], arr[i]];
     }
+    return arr;
+  }
+
+  /** stable position of a question inside the (unshuffled) ref list */
+  refIndex(ref: QuestionRef): number {
+    return this.refs.indexOf(ref);
   }
 
   /* ---------- flow ---------- */
@@ -104,10 +139,14 @@ export class QuizRunner {
   }
 
   shuffledAnswers(q: QuestionRef): Answer[] {
+    const key = this.refIndex(q);
+    const cached = this.answerCache.get(key);
+    if (cached) return cached;
     const ans = [...(q.q.answers ?? [])];
     if (this.settings.shuffleAnswers && q.q.type !== "match") {
-      this.shuffle(ans);
+      this.seededShuffle(ans, key * 7 + 3);
     }
+    this.answerCache.set(key, ans);
     return ans;
   }
 

@@ -228,7 +228,7 @@ export function buildPrompt(f: PromptFields): string {
   if (f.mode !== "standard") {
     lines.push(`- Game mode: "${f.mode}".${f.mode === "survival" ? " Player has 3 hearts — questions must be fair to a knowledgeable player." : ""}${f.mode === "rapid" ? " Questions must be answerable in 8 seconds: short text, obvious choices." : ""}`);
   }
-  lines.push(`- settings: "timeLimit": ${f.timeLimit ?? "null"}, "shuffle": true${f.negativeMarking ? ', "negativeMarking": true' : ""}.`);
+  lines.push(`- settings: "timeLimit": ${f.timeLimit ?? "null"}, "shuffle": true, "shuffleAnswers": true${f.negativeMarking ? ', "negativeMarking": true' : ""}.`);
   if (f.explanations) lines.push(`- EVERY question gets an "explanation" — max 2 short sentences, teaches something, never just repeats the answer.`);
   if (f.hints) lines.push(`- EVERY question gets a "hint" that guides without giving the answer away.`);
   lines.push(`- ${bloomsLine(f)}`);
@@ -339,7 +339,7 @@ export function buildInterviewPrompt(f: PromptFields): string {
   L.push(typePlan(f));
   L.push("- " + difficultyLine(f));
   L.push("- " + bloomsLine(f));
-  L.push('- settings: "timeLimit": ' + (f.timeLimit ?? "null") + ', "shuffle": true' + (f.negativeMarking ? ', "negativeMarking": true' : "") + ".");
+  L.push('- settings: "timeLimit": ' + (f.timeLimit ?? "null") + ', "shuffle": true, "shuffleAnswers": true' + (f.negativeMarking ? ', "negativeMarking": true' : "") + ".");
   if (f.explanations) L.push('- EVERY question gets an "explanation" — max 2 short sentences, never just repeats the answer.');
   if (f.hints) L.push('- EVERY question gets a "hint" that guides without giving the answer away.');
   if (f.spaced) L.push("- " + spacedLine(f));

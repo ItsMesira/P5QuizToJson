@@ -158,6 +158,8 @@ export interface Progress {
   answers: (string | null)[];
   earned: number[];
   times: number[];
+  seed?: number;   // reproduces this attempt's randomization on resume
+  order?: number[]; // the shuffled question order for this attempt
 }
 export function saveProgress(p: Progress) {
   write(K.progress, p);

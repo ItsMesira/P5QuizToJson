@@ -37,7 +37,7 @@ registerScreen("quiz", (root) => {
         fx.shards(window.innerWidth * 0.5, window.innerHeight * 0.4);
         fx.shake(18);
       },
-    }),
+    }, { randomize: app.settings.alwaysShuffle }),
     lock: false,
     tickCb: () => undefined,
     heartbeatSec: 0,
@@ -394,11 +394,7 @@ registerScreen("quiz", (root) => {
     const chips: HTMLElement[] = [];
     // order questions ALWAYS scramble the display — the correct order lives in the JSON,
     // and showing it pre-solved would defeat the question.
-    const answers = [...(ref.q.answers ?? [])];
-    for (let i = answers.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [answers[i], answers[j]] = [answers[j], answers[i]];
-    }
+    const answers = runner.seededShuffle([...(ref.q.answers ?? [])], runner.refIndex(ref) * 7 + 1);
     answers.forEach((a, i) => {
       const chip = h("button", { class: "order-chip" }, [
         h("span", { class: "chip-num" }, [String(i + 1)]),
@@ -447,13 +443,9 @@ registerScreen("quiz", (root) => {
 
   const renderMatch = (box: HTMLElement, ref: QuestionRef) => {
     const lefts = (ref.q.pairs ?? []).map((p) => p.left);
-    const rights = (ref.q.pairs ?? []).map((p) => p.right);
-    if (runner.settings.shuffleAnswers) {
-      for (let i = rights.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [rights[i], rights[j]] = [rights[j], rights[i]];
-      }
-    }
+    const rights = runner.settings.shuffleAnswers
+      ? runner.seededShuffle((ref.q.pairs ?? []).map((p) => p.right), runner.refIndex(ref) * 7 + 2)
+      : (ref.q.pairs ?? []).map((p) => p.right);
     const matches = new Map<string, string>();
     const colL = h("div", { class: "match-col" }, []);
     const colR = h("div", { class: "match-col" }, []);
@@ -960,6 +952,10 @@ registerScreen("quiz", (root) => {
 
   const prog = loadProgress();
   if (prog && prog.quizId === quiz.title) {
+    // restore the attempt's exact shuffle BEFORE the saved answers are replayed,
+    // otherwise the position-indexed answer array would map onto different questions
+    if (typeof prog.seed === "number") runner.seed = prog.seed;
+    if (Array.isArray(prog.order) && prog.order.length === runner.refs.length) runner.order = prog.order;
     runner.index = prog.index - 1;
     runner.points = prog.points;
     runner.correct = prog.correct;
@@ -1009,6 +1005,8 @@ registerScreen("quiz", (root) => {
         answers: runner.answered,
         earned: runner.earned,
         times: runner.times,
+        seed: runner.seed,
+        order: runner.order,
       });
     }
     return r;
