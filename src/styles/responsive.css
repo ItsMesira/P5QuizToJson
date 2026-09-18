@@ -1,8 +1,10 @@
 /* ============ P5 QUIZ — RESPONSIVE / TOUCH / PERF OVERRIDES ============
-   Loaded last so it can safely tighten or downgrade the base styles.
-   Targets: iPad + phones, every aspect ratio, portrait & landscape. */
+   Loaded last. Deliberately small: it adds device affordances (safe areas,
+   touch behaviour) and stops the costliest full-bleed loops on weak devices,
+   but it must NOT change how the app looks. Any rule here that alters
+   appearance is a bug. */
 
-/* ---------------- touch fundamentals ---------------- */
+/* ---------------- touch fundamentals (no visual impact) ---------------- */
 html {
   -webkit-text-size-adjust: 100%;
 }
@@ -30,14 +32,16 @@ label,
   touch-action: manipulation;
 }
 
-/* inner scrollers should not chain into the page / trigger bounce */
+/* inner scrollers should not chain into the page / trigger rubber-banding */
 .screen,
 .builder-preview,
 .pm-body {
   overscroll-behavior: contain;
 }
 
-/* ---------------- safe areas (notch / rounded corners / home indicator) ---------------- */
+/* ---------------- safe areas (notch / rounded corners / home indicator) ----------------
+   env() resolves to 0 on non-notched devices, so these are no-ops on desktop
+   and the original offsets are preserved exactly where there is no inset. */
 #app {
   padding: env(safe-area-inset-top) env(safe-area-inset-right)
     env(safe-area-inset-bottom) env(safe-area-inset-left);
@@ -49,12 +53,21 @@ label,
 #class-badge {
   top: calc(env(safe-area-inset-top) + 8px);
 }
+/* keep the base 26px/52px and the <=640px 14px/92px placements intact */
 .bgm-panel {
-  right: max(14px, env(safe-area-inset-right));
+  right: max(26px, env(safe-area-inset-right));
   bottom: calc(52px + env(safe-area-inset-bottom));
 }
+@media (max-width: 640px) {
+  .bgm-panel {
+    right: max(14px, env(safe-area-inset-right));
+    bottom: calc(92px + env(safe-area-inset-bottom));
+  }
+}
 
-/* ---------------- grids: never demand more width than the phone has ---------------- */
+/* ---------------- grids: never demand more width than the viewport has ----------------
+   min(100%, …) only changes anything when the viewport is narrower than one
+   track; when it fits, rendering is identical to the original. */
 .library-grid {
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
 }
@@ -65,282 +78,26 @@ label,
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr));
 }
 .profile-grid {
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 170px), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr));
 }
 .ach-grid {
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
 }
 
-/* ---------------- comfortable touch targets (touch devices only) ---------------- */
-@media (pointer: coarse) {
-  /* keyboard keycap legend is meaningless on a touch device — reclaim the space */
-  #hud-bottom {
-    display: none;
-  }
-  .menu-key {
-    width: 30px;
-    height: 30px;
-  }
-  .lifeline {
-    min-width: 44px;
-    min-height: 44px;
-  }
-  .bgm-toggle {
-    min-height: 40px;
-  }
-  .mini-toggle,
-  .seg-btn,
-  .type-chip {
-    min-height: 34px;
-  }
-  .sticker-btn {
-    min-height: 40px;
-  }
-  /* sliders need a grabbable hit area, not a 5px hairline */
-  input[type="range"] {
-    min-height: 28px;
-  }
-}
-
-/* ---------------- hover is not a thing on touch: kill the sticky, costly ones ---------------- */
-@media (hover: none) {
-  /* the shine sweep animates `left` (layout) — never worth it on a tap */
-  .sticker-btn::after,
-  .shine::after {
-    display: none;
-  }
-  /* sticky lifted shadows after a tap */
-  .sample-card:hover,
-  .lib-card:hover,
-  .prompt-card:hover,
-  .history-card:hover,
-  .sticker-btn:hover,
-  .choice-btn:hover,
-  .match-btn:hover,
-  .menu-item:hover {
-    box-shadow: var(--shadow-cut);
-  }
-}
-
-/* ---------------- phones ---------------- */
-@media (max-width: 480px) {
-  .library-grid,
-  .prompts-grid,
-  .history-grid,
-  .profile-grid {
-    grid-template-columns: 1fr;
-  }
-  .quiz-stage {
-    padding: 16px 14px;
-  }
-  .quiz-top {
-    gap: 8px;
-    padding: 8px 10px;
-  }
-  .results-body {
-    padding: 18px 14px 96px;
-  }
-  .load-body,
-  .settings-body,
-  .profiles-body,
-  .leaderboard-body {
-    padding-left: 14px;
-    padding-right: 14px;
-  }
-  .load-head {
-    padding: 12px 14px;
-    gap: 12px;
-  }
-  .entry-deco-word {
-    font-size: clamp(56px, 26vw, 110px);
-  }
-  .builder-preview {
-    max-height: 40vh;
-  }
-  .bgm-panel {
-    right: 10px;
-  }
-}
-
-@media (max-width: 380px) {
-  .field-row-2 {
-    grid-template-columns: 1fr;
-  }
-  .lb-row {
-    grid-template-columns: 32px 24px 1fr 56px;
-  }
-  .bar-row {
-    grid-template-columns: 64px 1fr 36px;
-  }
-  .thief-stat {
-    grid-template-columns: 90px 1fr auto;
-  }
-  #hud-top {
-    padding: 14px 14px 0;
-  }
-  #hud-bottom {
-    padding: 0 14px 12px;
-  }
-}
-
-/* ---------------- landscape phones / short tablets ----------------
-   Short viewports get a compact, width-using layout instead of a cramped
-   portrait column with the HUD cutting into it. */
+/* ---------------- short landscape ----------------
+   the keycap legend is an absolute bottom bar; once the title column scrolls
+   (the original short-screen behaviour) it would sit over the menu. */
 @media (orientation: landscape) and (max-height: 560px) {
   #hud-bottom {
     display: none;
   }
-  .title-screen {
-    justify-content: flex-start;
-    overflow-y: auto;
-    padding-top: 40px;
-    padding-bottom: 22px;
-  }
-  #big-name {
-    margin-bottom: 0.8vh;
-  }
-  #big-name .name-ransom {
-    font-size: clamp(22px, 4vw, 40px) !important;
-  }
-  #big-name .name-ransom + .name-ransom {
-    font-size: clamp(19px, 3.4vw, 34px) !important;
-  }
-  #intro-eyebrow {
-    font-size: 9px;
-    letter-spacing: 0.3em;
-    margin-bottom: 0.3vh;
-  }
-  #tagline {
-    font-size: 11px;
-    padding: 5px 10px;
-    margin-bottom: 0.6vh;
-  }
-  /* two columns use the landscape width so all six entries fit without scrolling */
-  #menu {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    align-items: start;
-    justify-items: start;
-    column-gap: clamp(14px, 4vw, 48px);
-    row-gap: 0.2vh;
-    margin-top: 0.8vh;
-  }
-  .menu-item {
-    padding-top: 0;
-    padding-bottom: 0;
-    padding-right: 26px;
-  }
-  .menu-item:nth-child(n) .menu-ransom {
-    font-size: clamp(16px, 2.4vw, 26px) !important;
-  }
-  .menu-item .menu-key {
-    width: 22px;
-    height: 22px;
-    font-size: 11px;
-  }
-  .quiz-top,
-  .quiz-bottom {
-    padding: 8px 12px;
-  }
-  .load-head {
-    padding: 10px 14px;
-  }
-  .bgm-panel {
-    bottom: 10px;
-  }
-  .entry-screen {
-    padding-top: 56px;
-  }
-  .entry-wrap {
-    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
-    gap: 18px;
-  }
-  .settings-body,
-  .profiles-body,
-  .leaderboard-body,
-  .load-body,
-  .results-body {
-    padding-top: 14px;
-    padding-bottom: 60px;
-  }
-  .builder-preview {
-    max-height: 56vh;
-  }
-  .prompt-modal {
-    align-items: flex-start;
-  }
 }
 
-/* iPads in landscape have plenty of width but limited height as well */
-@media (orientation: landscape) and (min-height: 561px) and (max-height: 820px) {
-  .title-screen {
-    padding-top: 48px;
-    padding-bottom: 48px;
-  }
-  #big-name {
-    margin-bottom: 1.6vh;
-  }
-  #menu {
-    margin-top: 1.8vh;
-  }
-}
-
-/* ---------------- low-power / mobile effect downgrades ----------------
-   html[data-perf="low"] is set for phones, tablets, weak desktops and
-   reduced-motion users. We drop the paint-heavy loops (box-shadow, filter,
-   background-position animation) and the blur backdrops. */
-
+/* ---------------- low-power: stop the full-bleed per-frame drifts ----------------
+   Identical static appearance — only the animation stops. Everything else
+   (colour, blend, opacity, blur, shadows) is left exactly as designed. */
 html[data-perf="low"] #ambient #bg-stripes::before,
 html[data-perf="low"] #ambient #bg-halftone::before,
 html[data-perf="low"] #ambient .bg-star {
   animation: none;
-}
-html[data-perf="low"] #ambient #bg-halftone {
-  mix-blend-mode: normal;
-  opacity: 0.3;
-}
-
-/* box-shadow pulses repaint on every frame */
-html[data-perf="low"] .next-btn,
-html[data-perf="low"] .drop-zone:hover,
-html[data-perf="low"] .drop-zone.dragging,
-html[data-perf="low"] .ach-card,
-html[data-perf="low"] .builder-warn {
-  animation: none;
-}
-/* filter flicker at 70ms */
-html[data-perf="low"] .builder-input.rolling {
-  animation: none;
-}
-/* drop-shadow glitch */
-html[data-perf="low"] .rank-letter {
-  animation: none;
-}
-/* fullscreen conic speed lines */
-html[data-perf="low"] .cutin-speed {
-  display: none;
-}
-
-/* blur backdrops are the most expensive single paint on mobile */
-html[data-perf="low"] .bgm-panel,
-html[data-perf="low"] .load-head,
-html[data-perf="low"] .results-actions,
-html[data-perf="low"] .pause-overlay,
-html[data-perf="low"] .load-paste,
-html[data-perf="low"] .load-url,
-html[data-perf="low"] .prompt-modal {
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-}
-html[data-perf="low"] .load-head,
-html[data-perf="low"] .results-actions {
-  background: rgba(12, 12, 14, 0.96);
-}
-html[data-perf="low"] .pause-overlay {
-  background: rgba(8, 8, 10, 0.92);
-}
-html[data-perf="low"] .load-paste,
-html[data-perf="low"] .load-url,
-html[data-perf="low"] .prompt-modal {
-  background: rgba(8, 8, 10, 0.94);
 }

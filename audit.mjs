@@ -65,7 +65,7 @@ await page.goto("http://localhost:5183/#load", { waitUntil: "networkidle0" });
 await audit("load");
 // library (needs a saved quiz → load sample first in same session)
 await page.goto("http://localhost:5183/#load", { waitUntil: "networkidle0" });
-await sleep(1100);
+await page.waitForSelector(".sample-card", { timeout: 8000 });
 await page.evaluate(() => document.querySelector(".sample-card").click());
 await sleep(1500);
 await page.goto("http://localhost:5183/#library", { waitUntil: "networkidle0" });
@@ -98,7 +98,7 @@ await page.goto("http://localhost:5183/#leaderboard", { waitUntil: "networkidle0
 await audit("leaderboard");
 // quiz screen mid-game
 await page.goto("http://localhost:5183/#load", { waitUntil: "networkidle0" });
-await sleep(1100);
+await page.waitForSelector(".sample-card", { timeout: 8000 });
 await page.evaluate(() => document.querySelector(".sample-card").click());
 await audit("quiz-screen");
 // results — play through fast

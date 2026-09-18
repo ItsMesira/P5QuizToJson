@@ -117,7 +117,10 @@ body {
 #ambient #bg-halftone::before {
   content: "";
   position: absolute;
-  inset: -30%;
+  /* overscan must exceed the drift distance (stripes travel 520px) or the
+     translating layer exposes a gap where the background-position version
+     wrapped seamlessly */
+  inset: -240px -640px;
   will-change: transform;
 }
 #ambient #bg-stripes::before {
