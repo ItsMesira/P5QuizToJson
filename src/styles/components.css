@@ -17,7 +17,6 @@
   overflow: hidden;
   transition: transform var(--dur-fast) var(--ease-pop), box-shadow var(--dur-fast) ease;
   box-shadow: var(--shadow-cut-sm);
-  will-change: transform;
 }
 .sticker-btn::after {
   content: "";

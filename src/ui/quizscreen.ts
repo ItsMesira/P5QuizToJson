@@ -1,6 +1,7 @@
 /* ============ P5 QUIZ — QUIZ SCREEN (the heist itself) ============ */
 import gsap from "gsap";
 import katex from "katex";
+import "katex/dist/katex.min.css";
 import { registerScreen, go, app } from "./screens";
 import { h, clear, toast } from "./dom";
 import { t } from "../core/i18n";

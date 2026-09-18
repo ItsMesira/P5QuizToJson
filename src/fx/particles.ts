@@ -1,4 +1,5 @@
 /* ============ P5 QUIZ — CANVAS FX LAYER (particles, slashes, rain, shake) ============ */
+import { perf } from "../core/perf";
 
 type ParticleKind = "star" | "spark" | "slash" | "confetti" | "shard" | "ring" | "ink" | "text" | "rain" | "dust";
 
@@ -21,59 +22,77 @@ class FxLayer {
   private parts: Particle[] = [];
   private w = 0;
   private h = 0;
-  private last = 0;
   private shakeMag = 0;
   private shakeX = 0;
   private shakeY = 0;
   private flashA = 0;
   private flashColor = "#ffffff";
   private heartPulse = 0;
-  private crtOn = false;
   private dustTimer = 0;
-  private running = false;
+  private cleared = true;
+  private lastAppTransform = "";
   private cursorX = -100;
   private cursorY = -100;
-  private cursorActive = false;
+  private cursorSeenAt = 0;
   private cursorTimer = 0;
   private goldAmbient = false;
   private goldTimer = 0;
   private particlesOn = true;
+  private detach: (() => void) | null = null;
   app: HTMLElement | null = null;
 
   init(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
-    this.ctx = canvas.getContext("2d")!;
+    this.ctx = canvas.getContext("2d", { alpha: true })!;
     this.resize();
-    window.addEventListener("resize", () => this.resize());
-    window.addEventListener("pointermove", (e) => {
+    const offResize = perf.onResize(() => this.resize());
+    const onMove = (e: PointerEvent) => {
+      // only a real pointing device gets the trailing star
+      if (e.pointerType === "touch") return;
       this.cursorX = e.clientX;
       this.cursorY = e.clientY;
-      this.cursorActive = true;
-    });
-    window.addEventListener("pointerleave", () => {
-      this.cursorActive = false;
-    });
-    this.running = true;
-    this.last = performance.now();
-    requestAnimationFrame((t) => this.loop(t));
+      this.cursorSeenAt = performance.now();
+    };
+    const onLeave = () => {
+      this.cursorSeenAt = 0;
+    };
+    window.addEventListener("pointermove", onMove, { passive: true });
+    window.addEventListener("pointerleave", onLeave, { passive: true });
+    this.detach = () => {
+      offResize();
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerleave", onLeave);
+    };
+    perf.onFrame((now, dt) => this.frame(now, dt));
+  }
+
+  destroy() {
+    this.detach?.();
+    this.detach = null;
+    this.parts = [];
+    this.ctx.clearRect(0, 0, this.w, this.h);
+    this.cleared = true;
   }
 
   private resize() {
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const dpr = Math.min(perf.dprCap, window.devicePixelRatio || 1);
     this.w = window.innerWidth;
     this.h = window.innerHeight;
-    this.canvas.width = this.w * dpr;
-    this.canvas.height = this.h * dpr;
+    this.canvas.width = Math.max(1, Math.round(this.w * dpr));
+    this.canvas.height = Math.max(1, Math.round(this.h * dpr));
     this.canvas.style.width = `${this.w}px`;
     this.canvas.style.height = `${this.h}px`;
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    this.cleared = false;
   }
 
   /* ---------------- spawning ---------------- */
 
   private add(p: Partial<Particle> & { kind: ParticleKind; x: number; y: number }) {
     if (!this.particlesOn) return;
-    if (this.parts.length > 900) this.parts.splice(0, 100);
+    if (this.parts.length > perf.maxParticles) {
+      this.parts.splice(0, Math.max(1, Math.floor(perf.maxParticles / 9)));
+    }
     this.parts.push({
       vx: 0, vy: 0, rot: 0, vrot: 0,
       life: 1, maxLife: 1, size: 6, color: "#f6f4f0",
@@ -190,7 +209,8 @@ class FxLayer {
   }
 
   setCrt(on: boolean) {
-    this.crtOn = on;
+    // CRT scanlines are a static CSS overlay now — no per-frame canvas cost
+    document.body.classList.toggle("crt", on);
   }
 
   setAmbientGold(on: boolean) {
@@ -202,17 +222,44 @@ class FxLayer {
     if (!on) this.parts = [];
   }
 
+  private cursorActive(now: number): boolean {
+    return perf.cursorTrail && now - this.cursorSeenAt < 150;
+  }
+
+  private get hasWork(): boolean {
+    return (
+      this.parts.length > 0 ||
+      this.shakeMag > 0.1 ||
+      this.flashA > 0.01 ||
+      this.heartPulse > 0.01 ||
+      this.goldAmbient ||
+      this.cursorActive(performance.now())
+    );
+  }
+
   /* ---------------- loop ---------------- */
 
-  private loop(t: number) {
-    if (!this.running) return;
-    const dt = Math.min(0.05, (t - this.last) / 1000);
-    this.last = t;
-
+  private frame(now: number, dt: number) {
     const ctx = this.ctx;
+    const activeCursor = this.cursorActive(now);
+
+    // idle: nothing to draw and the canvas is already blank -> skip everything
+    if (!this.hasWork) {
+      if (!this.cleared) {
+        ctx.clearRect(0, 0, this.w, this.h);
+        this.cleared = true;
+      }
+      if (this.lastAppTransform) {
+        if (this.app) this.app.style.transform = "";
+        this.lastAppTransform = "";
+      }
+      return;
+    }
+
+    this.cleared = false;
     ctx.clearRect(0, 0, this.w, this.h);
 
-    // shake decay + apply to app element
+    // shake decay + apply to app element (only write when it actually changes)
     if (this.shakeMag > 0.1) {
       this.shakeMag *= Math.pow(0.001, dt); // fast decay
       this.shakeX = (Math.random() - 0.5) * 2 * this.shakeMag;
@@ -223,29 +270,37 @@ class FxLayer {
       this.shakeY = 0;
     }
     if (this.app) {
-      this.app.style.transform =
-        this.shakeMag > 0.1 ? `translate3d(${this.shakeX}px, ${this.shakeY}px, 0)` : "";
+      const transform =
+        this.shakeMag > 0.1
+          ? `translate3d(${this.shakeX.toFixed(2)}px, ${this.shakeY.toFixed(2)}px, 0)`
+          : "";
+      if (transform !== this.lastAppTransform) {
+        this.app.style.transform = transform;
+        this.lastAppTransform = transform;
+      }
     }
 
-    // ambient dust
-    this.dustTimer -= dt;
-    if (this.dustTimer <= 0) {
-      this.dustTimer = 0.7;
-      this.add({
-        kind: "dust", x: Math.random() * this.w, y: this.h + 10,
-        vy: -(0.15 + Math.random() * 0.35),
-        vx: (Math.random() - 0.5) * 0.2,
-        size: 1 + Math.random() * 2.5,
-        maxLife: 14,
-        color: Math.random() < 0.7 ? "rgba(246,244,240,0.35)" : "rgba(230,0,18,0.3)",
-      });
+    // ambient dust — desktop only; it is the one thing that keeps the loop awake
+    if (perf.ambientDust) {
+      this.dustTimer -= dt;
+      if (this.dustTimer <= 0) {
+        this.dustTimer = 1.4;
+        this.add({
+          kind: "dust", x: Math.random() * this.w, y: this.h + 10,
+          vy: -(0.15 + Math.random() * 0.35),
+          vx: (Math.random() - 0.5) * 0.2,
+          size: 1 + Math.random() * 2.5,
+          maxLife: 14,
+          color: Math.random() < 0.7 ? "rgba(246,244,240,0.35)" : "rgba(230,0,18,0.3)",
+        });
+      }
     }
 
     // ambient gold rising stars (results celebration)
     if (this.goldAmbient) {
       this.goldTimer -= dt;
       if (this.goldTimer <= 0) {
-        this.goldTimer = 0.5;
+        this.goldTimer = 0.4;
         this.add({
           kind: "rain", x: Math.random() * this.w, y: this.h + 10,
           vy: -(0.8 + Math.random() * 1.4),
@@ -258,11 +313,11 @@ class FxLayer {
       }
     }
 
-    // cursor star trail
-    if (this.cursorActive) {
+    // cursor star trail (fine pointer only)
+    if (activeCursor) {
       this.cursorTimer -= dt;
       if (this.cursorTimer <= 0) {
-        this.cursorTimer = 0.045;
+        this.cursorTimer = 0.06;
         this.add({
           kind: "rain", x: this.cursorX + (Math.random() - 0.5) * 18, y: this.cursorY + (Math.random() - 0.5) * 18,
           vx: (Math.random() - 0.5) * 0.8, vy: (Math.random() - 0.5) * 0.8 - 0.3,
@@ -272,13 +327,10 @@ class FxLayer {
           color: Math.random() < 0.55 ? "#e60012" : "#ffd76a",
         });
       }
-    }
-
-    // cursor star
-    if (this.cursorActive) {
+      // cursor star
       ctx.save();
       ctx.translate(this.cursorX, this.cursorY);
-      ctx.rotate(t * 0.0012);
+      ctx.rotate(now * 0.0012);
       ctx.fillStyle = "rgba(255,215,106,0.9)";
       ctx.beginPath();
       const s = 7;
@@ -330,15 +382,7 @@ class FxLayer {
       this.heartPulse *= Math.pow(0.02, dt);
     }
 
-    // CRT scanlines
-    if (this.crtOn) {
-      ctx.globalAlpha = 0.12;
-      ctx.fillStyle = "#000";
-      for (let y = 0; y < this.h; y += 3) ctx.fillRect(0, y, this.w, 1);
-      ctx.globalAlpha = 1;
-    }
-
-    requestAnimationFrame((tt) => this.loop(tt));
+    // CRT scanlines are drawn by a static CSS overlay (body.crt), not per frame
   }
 
   private draw(ctx: CanvasRenderingContext2D, p: Particle) {

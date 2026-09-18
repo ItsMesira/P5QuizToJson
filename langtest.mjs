@@ -63,9 +63,14 @@ for (const loc of LOCALES) {
   await sleep(1500);
   const shortOk = await page.evaluate(() => {
     const scroller = document.querySelector(".title-screen");
-    return !!scroller && scroller.scrollHeight > scroller.clientHeight;
+    const last = document.querySelector(".menu-item:last-child");
+    if (!scroller || !last) return false;
+    // either the compact landscape layout fits, or the column scrolls —
+    // in both cases the last menu item must be reachable on screen
+    if (scroller.scrollHeight > scroller.clientHeight + 1) scroller.scrollTop = scroller.scrollHeight;
+    return last.getBoundingClientRect().bottom <= scroller.getBoundingClientRect().bottom + 1;
   });
-  check("th tiny landscape viewport falls back to scrolling", shortOk);
+  check("th tiny landscape keeps the menu reachable", shortOk);
   await page.close();
 }
 

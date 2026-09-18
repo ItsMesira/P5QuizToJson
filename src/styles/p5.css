@@ -106,9 +106,21 @@ body {
 #ambient .bg-layer {
   position: absolute;
   inset: 0;
+}
+/* The two full-bleed gradients drift on the COMPOSITOR (transform on a pseudo
+   element) instead of repainting the whole viewport with background-position. */
+#ambient #bg-stripes,
+#ambient #bg-halftone {
+  overflow: hidden;
+}
+#ambient #bg-stripes::before,
+#ambient #bg-halftone::before {
+  content: "";
+  position: absolute;
+  inset: -30%;
   will-change: transform;
 }
-#ambient #bg-stripes {
+#ambient #bg-stripes::before {
   background: repeating-linear-gradient(
     115deg,
     var(--red) 0 46px,
@@ -119,18 +131,20 @@ body {
   animation: stripe-drift-115 22s linear infinite;
 }
 @keyframes stripe-drift-115 {
-  from { background-position: 0 0; }
-  to { background-position: 520px 0; }
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(520px, 0, 0); }
 }
-#ambient #bg-halftone {
+#ambient #bg-halftone::before {
   background-image: radial-gradient(circle, rgba(0, 0, 0, 0.35) 1.6px, transparent 1.7px);
   background-size: 14px 14px;
-  mix-blend-mode: multiply;
   animation: halftone-drift 30s linear infinite;
 }
+#ambient #bg-halftone {
+  mix-blend-mode: multiply;
+}
 @keyframes halftone-drift {
-  from { background-position: 0 0; }
-  to { background-position: -140px 140px; }
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-140px, 140px, 0); }
 }
 #ambient #bg-vignette {
   background: radial-gradient(ellipse at 32% 40%, transparent 30%, rgba(0, 0, 0, 0.72) 100%);
@@ -174,7 +188,6 @@ body {
   background: var(--ink);
   clip-path: polygon(58% 0, 100% 0, 100% 100%, 40% 100%, 52% 62%, 45% 60%, 60% 24%, 51% 22%);
   transition: clip-path 0.8s cubic-bezier(0.8, 0, 0.15, 1);
-  will-change: transform, clip-path;
 }
 body[data-screen]:not([data-screen="home"]) #ambient #bg-slash {
   clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 0 62%, 0 60%, 0 24%, 0 22%);
@@ -188,7 +201,6 @@ body[data-screen]:not([data-screen="home"]) #ambient #bg-slash {
   height: 100%;
   object-fit: cover;
   opacity: 0;
-  will-change: transform;
   transition: opacity 0.55s ease;
 }
 body[data-screen="home"] #art-home {
@@ -241,12 +253,36 @@ body.has-art-home #ambient #bg-vignette {
   font-size: 12px;
 }
 
-/* reduced motion — gentle mode */
+/* CRT scanlines — a static composited overlay (used to be hundreds of
+   fillRect calls every frame on the canvas) */
+body.crt::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 25;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.14) 0 1px,
+    transparent 1px 3px
+  );
+}
+
+/* reduced motion — gentle mode: stop the ambient drifts and every decorative
+   loop, so nothing moves that does not have to */
 @media (prefers-reduced-motion: reduce) {
-  #ambient #bg-stripes,
-  #ambient #bg-halftone,
+  #ambient #bg-stripes::before,
+  #ambient #bg-halftone::before,
   #ambient .bg-star {
     animation: none;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
   }
 }
 

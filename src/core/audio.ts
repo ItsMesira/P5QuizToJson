@@ -62,7 +62,8 @@ class AudioEngine {
       this.fileBgm = new Audio("./audio/background.mp3");
       this.fileBgm.loop = true;
       this.fileBgm.volume = 0;
-      this.fileBgm.preload = "auto";
+      // don't pull ~8MB of music until the player actually turns music on
+      this.fileBgm.preload = "none";
     }
     return this.fileBgm;
   }

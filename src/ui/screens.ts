@@ -55,6 +55,33 @@ export function registerScreen(name: Route["name"], fn: MountFn) {
   mounts[name] = fn;
 }
 
+/* Screens are code-split: each module registers itself on first import, so the
+   initial bundle only carries the router + FX. The import overlaps the wipe. */
+const loaders: Record<Route["name"], () => Promise<unknown>> = {
+  title: () => import("./title"),
+  load: () => import("./load"),
+  library: () => import("./library"),
+  quiz: () => import("./quizscreen"),
+  results: () => import("./results"),
+  settings: () => import("./settings"),
+  profiles: () => import("./profiles"),
+  leaderboard: () => import("./leaderboard"),
+  prompts: () => import("./prompts"),
+  entry: () => import("./entry"),
+  dashboard: () => import("./dashboard"),
+};
+
+async function ensureScreen(name: Route["name"]) {
+  if (mounts[name]) return;
+  const load = loaders[name];
+  if (!load) return;
+  try {
+    await load();
+  } catch (err) {
+    console.error(`[p5q] failed to load screen "${name}":`, err);
+  }
+}
+
 let cleanup: (() => void) | null = null;
 let current: Route = { name: "title" };
 const stage = document.getElementById("app")!;
@@ -64,6 +91,7 @@ export async function go(route: Route, opts: { instant?: boolean } = {}) {
   current = route;
   location.hash = route.name;
   document.body.dataset.screen = route.name === "title" ? "home" : route.name;
+  await ensureScreen(route.name);
   if (!opts.instant) await slashWipe(veil, "in");
   try {
     cleanup?.();
@@ -87,6 +115,7 @@ export async function go(route: Route, opts: { instant?: boolean } = {}) {
         current = { name: "title" };
         location.hash = "title";
         document.body.dataset.screen = "home";
+        await ensureScreen("title");
         cleanup = mounts.title(stage);
         ransomizeAll([".screen-title"]);
       } catch (err2) {

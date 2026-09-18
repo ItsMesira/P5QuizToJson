@@ -78,7 +78,7 @@ check("clock shows time", /^\d{1,2}:\d{2}/.test(clock1.trim()), clock1);
 // background layers
 const bg = await page.evaluate(() => ({
   screen: document.body.dataset.screen,
-  stripes: getComputedStyle(document.querySelector("#bg-stripes")).backgroundImage.includes("linear-gradient"),
+  stripes: getComputedStyle(document.querySelector("#bg-stripes"), "::before").backgroundImage.includes("linear-gradient"),
   halftone: !!document.querySelector("#bg-halftone"),
   stars: document.querySelectorAll(".bg-star").length,
   slash: !!document.querySelector("#bg-slash"),
