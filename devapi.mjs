@@ -187,8 +187,7 @@ const server = createServer(async (nodeReq, nodeRes) => {
   }
 
   /* static app from dist/ with SPA fallback */
-  let rel = url.pathname === "/" ? "/index.html" : url.pathname;
-  if (!rel.includes(".", rel.lastIndexOf("/") + 1)) rel = rel.replace(/\/?$/, "/") + "index.html";
+  const rel = url.pathname === "/" ? "/index.html" : url.pathname;
   const file = join(dist, decodeURIComponent(rel));
   if (file.startsWith(dist) && (await sendFile(nodeReq, nodeRes, file))) return;
   if (await sendFile(nodeReq, nodeRes, join(dist, "index.html"))) return;

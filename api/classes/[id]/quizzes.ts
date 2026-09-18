@@ -18,14 +18,6 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     if (!mem) return forbidden(res);
 
     if (req.method === "GET") {
-      /* ?qid=… → one full quiz (this used to be /classes/[id]/quiz/[qid]) */
-      if (req.query?.qid) {
-        const qid = parse(classIdSchema, req.query?.qid);
-        if (!qid.ok) return badRequest(res, qid.error);
-        const one = await sql`SELECT title, data FROM quizzes WHERE id = ${qid.data} AND class_id = ${id.data} LIMIT 1`;
-        if (one.rows.length === 0) return notFound(res, "Quiz not found");
-        return ok(res, { ok: true, title: String(one.rows[0].title), quiz: one.rows[0].data as Record<string, unknown> });
-      }
       const rows = await sql`
         SELECT q.id, q.title, q.author_id, u.username AS author, q.created
         FROM quizzes q JOIN users u ON u.id = q.author_id
