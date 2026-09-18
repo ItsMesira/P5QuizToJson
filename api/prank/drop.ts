@@ -1,9 +1,9 @@
 /* POST /api/prank/drop — store a one-time .env blob, return its code.
    The plaintext code is only ever returned here; the DB stores its hash.
    Not covered by CSRF on purpose: it is anonymous and rate-limited. */
-import type { ApiRequest, ApiResponse } from "../_lib/types";
-import { sql, ensureSchema } from "../_lib/db";
-import { ok, fail, tooMany, badRequest, readBody, clientIp, rateLimit, serverError } from "../_lib/http";
+import type { ApiRequest, ApiResponse } from "../_lib/types.js";
+import { sql, ensureSchema } from "../_lib/db.js";
+import { ok, fail, tooMany, badRequest, readBody, clientIp, rateLimit, serverError } from "../_lib/http.js";
 import { createHash, randomBytes } from "node:crypto";
 
 const MAX_ENV = 4096;

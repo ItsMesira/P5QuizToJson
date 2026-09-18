@@ -1,9 +1,9 @@
 /* /api/prank/redeem — consume a one-time .env drop.
    GET  ?code=…  → existence check only (never consumes, safe for link previews)
    POST {code}   → atomic DELETE … RETURNING, so exactly one caller wins */
-import type { ApiRequest, ApiResponse } from "../_lib/types";
-import { sql, ensureSchema } from "../_lib/db";
-import { ok, fail, tooMany, notFound, readBody, clientIp, rateLimit, serverError } from "../_lib/http";
+import type { ApiRequest, ApiResponse } from "../_lib/types.js";
+import { sql, ensureSchema } from "../_lib/db.js";
+import { ok, fail, tooMany, notFound, readBody, clientIp, rateLimit, serverError } from "../_lib/http.js";
 import { createHash } from "node:crypto";
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
