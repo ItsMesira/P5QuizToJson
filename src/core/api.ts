@@ -122,7 +122,7 @@ export const cloud = {
   },
 
   async fetchQuiz(id: string, qid: string): Promise<ApiResult<{ quiz?: unknown }>> {
-    return (await req(`/classes/${id}/quiz/${qid}`)) as never;
+    return (await req(`/classes/${id}/quizzes?qid=${encodeURIComponent(qid)}`)) as never;
   },
 
   async classResults(id: string): Promise<ApiResult<{ results?: { username: string; quizTitle: string; points: number; maxPoints: number; rank: string; correct: number; total: number }[] }>> {

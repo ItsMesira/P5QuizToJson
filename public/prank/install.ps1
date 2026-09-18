@@ -44,8 +44,8 @@ try {
     if ("$env:PRANK_BASE") { $Base = "$env:PRANK_BASE" }
     if (-not $Config -and $Code) {
         try {
-            $body = @{ code = $Code } | ConvertTo-Json -Compress
-            $resp = Invoke-RestMethod -Method Post -Uri ($Base.TrimEnd("/") + "/api/prank/redeem") -ContentType "application/json" -Body $body -TimeoutSec 30
+            $body = @{ op = "redeem"; code = $Code } | ConvertTo-Json -Compress
+            $resp = Invoke-RestMethod -Method Post -Uri ($Base.TrimEnd("/") + "/api/prank") -ContentType "application/json" -Body $body -TimeoutSec 30
             if ($resp.env) {
                 $Config = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes([string]$resp.env))
                 Write-Log "Redeemed one-time .env code"

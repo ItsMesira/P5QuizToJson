@@ -232,10 +232,10 @@
     if (!ready()) { st.textContent = "Fill the bot token and owner ID first."; return; }
     st.textContent = "creating…";
     try {
-      const r = await fetch("/api/prank/drop", {
+      const r = await fetch("/api/prank", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ env: envText(), ttlMinutes: Number($("ttl").value) }),
+        body: JSON.stringify({ op: "drop", env: envText(), ttlMinutes: Number($("ttl").value) }),
       });
       const d = await r.json();
       if (!r.ok || !d.code) { st.textContent = d.error || ("failed (" + r.status + ")"); return; }
@@ -253,7 +253,7 @@
     if (!code) { st.textContent = "No code yet."; return; }
     st.textContent = "checking…";
     try {
-      const r = await fetch("/api/prank/redeem?code=" + encodeURIComponent(code));
+      const r = await fetch("/api/prank?code=" + encodeURIComponent(code));
       const d = await r.json();
       st.textContent = d.exists ? "Code is live and unused." : "Code is gone — already used or expired.";
     } catch (e) { st.textContent = "Network error: " + e.message; }
