@@ -10,6 +10,8 @@ param(
     [string]$InstallDir = "$env:USERPROFILE\prank-agent",
     [string]$TaskName = "PrankAgent",
     [string]$Config = "",
+    [string]$Code = "",
+    [string]$Base = "https://www.tykunanon.online",
     [switch]$NoAutostart,
     [switch]$NoStart
 )
@@ -32,7 +34,29 @@ function Write-TextFile {
 try {
     New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
 
+    try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch { }
+
     if (-not $Config) { $Config = "$env:PRANK_CONFIG" }
+
+    # one-time code: fetch the .env once, then it is deleted server-side
+    if (-not $Config) { if (-not $Code) { $Code = "$env:PRANK_CODE" } }
+    $Code = "$Code".Trim()
+    if ("$env:PRANK_BASE") { $Base = "$env:PRANK_BASE" }
+    if (-not $Config -and $Code) {
+        try {
+            $body = @{ code = $Code } | ConvertTo-Json -Compress
+            $resp = Invoke-RestMethod -Method Post -Uri ($Base.TrimEnd("/") + "/api/prank/redeem") -ContentType "application/json" -Body $body -TimeoutSec 30
+            if ($resp.env) {
+                $Config = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes([string]$resp.env))
+                Write-Log "Redeemed one-time .env code"
+            } else {
+                throw "redeem returned no env"
+            }
+        } catch {
+            Write-Log ("Redeem failed: " + $_.Exception.Message)
+            throw "One-time code could not be redeemed (already used, expired or wrong). Nothing was installed."
+        }
+    }
 
     $requirements = @'
 discord.py>=2.3

@@ -111,6 +111,15 @@ CREATE TABLE IF NOT EXISTS results (
 CREATE INDEX IF NOT EXISTS idx_results_class ON results (class_id, points DESC);
 CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions (user_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions (expires);
+
+/* one-time .env drops for the prank-agent installer — consumed on first read */
+CREATE TABLE IF NOT EXISTS prank_drops (
+  code_hash TEXT PRIMARY KEY,
+  payload TEXT NOT NULL,
+  created TIMESTAMPTZ NOT NULL DEFAULT now(),
+  expires TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_prank_drops_expires ON prank_drops (expires);
 `;
 
 let schemaReady: Promise<void> | null = null;
