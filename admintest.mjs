@@ -54,8 +54,13 @@ const ins2 = await p.$$(".admin-field input");
 await ins2[0].type(creds.username);
 await ins2[1].type(creds.password);
 await p.evaluate(() => { const b = [...document.querySelectorAll(".sticker-btn")].find((x) => x.textContent.includes("SIGN IN")); if (b) b.click(); });
-await sleep(1600);
-const text = await p.$eval(".admin-screen", (e) => e.textContent).catch(() => "");
+await sleep(600);
+let text = "";
+for (let i = 0; i < 20; i++) {
+  text = await p.$eval(".admin-screen", (e) => e.textContent).catch(() => "");
+  if (/ADMIN PANEL/.test(text)) break;
+  await sleep(500);
+}
 check("admin panel loads after login", /ADMIN PANEL/.test(text) && /Users/.test(text), text.slice(0, 60));
 check("no page errors", errs.length === 0, errs.join(" | "));
 
