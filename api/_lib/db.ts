@@ -5,9 +5,39 @@
    only (no DDL), so nothing here creates tables. */
 import { Pool, type QueryResultRow } from "pg";
 
-const url = process.env.DATABASE_URL ?? "";
+const rawUrl = process.env.DATABASE_URL ?? "";
+/* Tolerate the common copy/paste mistakes so a slightly-wrong env value
+   doesn't take the whole API down: surrounding quotes, a leading
+   "DATABASE_URL=", and stray whitespace/newlines. */
+function normalizeDbUrl(raw: string): string {
+  let s = raw.trim();
+  s = s.replace(/^DATABASE_URL\s*=\s*/i, "").trim();
+  if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
+    s = s.slice(1, -1).trim();
+  }
+  return s;
+}
+const url = normalizeDbUrl(rawUrl);
 const isLocal = /localhost|127\.0\.0\.1/.test(url);
 const ca = (process.env.DATABASE_CA_CERT ?? "").replace(/\\n/g, "\n").trim();
+
+/* A Supabase pooler URL must carry the project ref in the username
+   (`role.<ref>`); without it every connection fails with ENOIDENTIFIER. */
+function poolerRefHint(): void {
+  if (!url || isLocal || !/pooler\.supabase\.com/.test(url)) return;
+  try {
+    const u = new URL(url);
+    if (!u.username.includes(".")) {
+      console.error(
+        "[p5q] DATABASE_URL looks wrong: Supabase pooler usernames must be \"role.<project-ref>\" " +
+        `(got "${u.username}"). e.g. "postgres.<ref>" or "p5q_app.<ref>".`,
+      );
+    }
+  } catch {
+    console.error("[p5q] DATABASE_URL is not a valid URL.");
+  }
+}
+poolerRefHint();
 
 function sslConfig(): false | { ca?: string; rejectUnauthorized: boolean } | undefined {
   if (url === "" || isLocal) return undefined;
