@@ -28,7 +28,7 @@
     "@types/node": "^26.5.1",
     "@types/pg": "^8.23.1",
     "esbuild": "^0.28.2",
-    "puppeteer-core": "^25.10.0",
+    "puppeteer-core": "^25.11.0",
     "typescript": "^5.8.3",
     "vite": "^6.3.5"
   }
