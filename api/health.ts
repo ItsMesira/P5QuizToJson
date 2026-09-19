@@ -13,11 +13,14 @@ function dbReason(err: unknown): string {
   const msg = String(e?.message ?? "");
   const code = String(e?.code ?? "");
   if (/tenant identifier|ENOIDENTIFIER/i.test(msg) || code === "XX000") return "db-url-missing-project-ref";
+  if (/tenant or user not found/i.test(msg)) return "db-wrong-project-ref-or-user";
   if (code === "28P01" || /password authentication failed/i.test(msg)) return "db-auth-failed";
   if (code === "ENOTFOUND" || /getaddrinfo|ENOTFOUND/i.test(msg)) return "db-host-not-found";
   if (code === "ECONNREFUSED" || code === "ETIMEDOUT" || /timeout|timed out/i.test(msg)) return "db-unreachable";
+  if (/no pg_hba\.conf/i.test(msg)) return "db-ip-not-allowed";
+  if (/self[- ]signed|certificate/i.test(msg)) return "db-tls-error";
   if (!/^postgres(ql)?:\/\//.test((process.env.DATABASE_URL ?? "").trim())) return "db-url-missing-or-invalid";
-  return "db-error";
+  return `db-error${code ? ":" + code : ""}`;
 }
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
@@ -34,6 +37,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     }
     return ok(res, { ok: true });
   } catch (err) {
+    console.error("[p5q] health db error:", (err as { code?: string })?.code, String((err as Error)?.message ?? "").slice(0, 160));
     return fail(res, 503, dbReason(err));
   }
 }
