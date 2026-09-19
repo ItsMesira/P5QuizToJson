@@ -71,14 +71,45 @@ const loaders: Record<Route["name"], () => Promise<unknown>> = {
   dashboard: () => import("./dashboard"),
 };
 
+/* A route chunk can 404 when a tab outlives a deploy: its hashed filename is
+   gone from the new deployment, so the dynamic import fails and the screen
+   would be left blank (a black page with just the class badge). Recover by
+   pulling the current build once; guard against a reload loop. */
+const RELOAD_FLAG = "p5q.build-reload";
+let reloadPending = false;
+
+function recoverFromStaleBuild(err: unknown) {
+  console.error("[p5q] screen chunk failed to load:", err);
+  if (reloadPending) return;
+  reloadPending = true;
+  try {
+    if (!sessionStorage.getItem(RELOAD_FLAG)) {
+      sessionStorage.setItem(RELOAD_FLAG, "1");
+      location.reload();
+      return;
+    }
+  } catch {
+    /* storage unavailable — fall through to the toast */
+  }
+  toast(t("This page is out of date — reload to continue"), "error");
+}
+
+// Vite fires this on window when a preloaded chunk (JS or CSS) fails
+window.addEventListener("vite:preloadError", (e) => recoverFromStaleBuild(e));
+
 async function ensureScreen(name: Route["name"]) {
   if (mounts[name]) return;
   const load = loaders[name];
   if (!load) return;
   try {
     await load();
+    try {
+      sessionStorage.removeItem(RELOAD_FLAG);
+    } catch {
+      /* ignore */
+    }
   } catch (err) {
-    console.error(`[p5q] failed to load screen "${name}":`, err);
+    recoverFromStaleBuild(err);
   }
 }
 
