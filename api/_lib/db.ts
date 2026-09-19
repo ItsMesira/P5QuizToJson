@@ -19,7 +19,10 @@ function normalizeDbUrl(raw: string): string {
 }
 const url = normalizeDbUrl(rawUrl);
 const isLocal = /localhost|127\.0\.0\.1/.test(url);
-const ca = (process.env.DATABASE_CA_CERT ?? "").replace(/\\n/g, "\n").trim();
+const rawCa = (process.env.DATABASE_CA_CERT ?? "").replace(/\\n/g, "\n").trim();
+// Only treat it as a CA when it is actually a PEM cert — a stray placeholder
+// or empty value must never enable strict verification and break the API.
+const ca = /-----BEGIN CERTIFICATE-----/.test(rawCa) ? rawCa : "";
 
 /* A Supabase pooler URL must carry the project ref in the username
    (`role.<ref>`); without it every connection fails with ENOIDENTIFIER. */
@@ -41,13 +44,12 @@ poolerRefHint();
 
 function sslConfig(): false | { ca?: string; rejectUnauthorized: boolean } | undefined {
   if (url === "" || isLocal) return undefined;
-  // Verify the server certificate when a CA is supplied (strongest).
-  if (ca) return { ca, rejectUnauthorized: true };
-  // Explicit opt-in to strict verification without pinning a CA.
-  if (process.env.P5Q_DB_VERIFY === "1") return { rejectUnauthorized: true };
-  // Supabase's pooler presents a cert the Node trust store does not know, so
-  // without DATABASE_CA_CERT we must relax verification. Supply it to harden.
-  return { rejectUnauthorized: false };
+  // TLS is always used; certificate *verification* is opt-in via P5Q_DB_VERIFY
+  // (Supabase's pooler chain isn't in Node's default trust store). A provided
+  // CA is still sent so the chain is complete, but it can never hard-fail the
+  // connection by itself.
+  const strict = process.env.P5Q_DB_VERIFY === "1";
+  return ca ? { ca, rejectUnauthorized: strict } : { rejectUnauthorized: strict };
 }
 
 export const pool = new Pool({
