@@ -6,6 +6,7 @@ import { audio } from "../core/audio";
 import { fx } from "../fx/particles";
 import { cardSlam, RM } from "../fx/transitions";
 import { validateQuiz } from "../core/validator";
+import { repairQuiz } from "../core/repair";
 import { saveQuiz, loadProgress, savedQuizzes } from "../core/store";
 import { cloud } from "../core/api";
 import { fetchRemoteQuiz } from "../core/share";
@@ -15,33 +16,46 @@ import { t } from "../core/i18n";
 registerScreen("load", (root) => {
   let progress: ReturnType<typeof loadProgress> = null;
 
-  const attempt = async (raw: unknown, source: string): Promise<Quiz | null> => {
-    const v = validateQuiz(raw);
-    if (!v.ok) {
-      audio.sfx("wrong");
-      fx.shake(16);
-      fx.flash("#e60012", 0.25);
-      showErrors(v.errors.map((e) => `${e.path} — ${e.message}`));
-      return null;
-    }
-    saveQuiz(v.quiz, source);
+  let lastFailed: { input: string | unknown; source: string } | null = null;
+
+  const commit = async (quiz: Quiz, source: string): Promise<Quiz> => {
+    saveQuiz(quiz, source);
     audio.sfx("paper");
-    toast(t("“{title}” loaded", { title: v.quiz.title }), "info");
+    toast(t("“{title}” loaded", { title: quiz.title }), "info");
     // classroom sync: any member can add a quiz to their class shelf
     if (cloud.session?.cls) {
-      cloud.saveQuiz(cloud.session.cls.id, v.quiz)
+      cloud.saveQuiz(cloud.session.cls.id, quiz)
         .then((r) => {
           if (r.ok) toast(t("Added to class “{name}”", { name: cloud.session!.cls!.name }), "info");
         })
         .catch(() => undefined);
     }
-    return v.quiz;
+    return quiz;
   };
 
-  const showErrors = (errors: string[]) => {
-    const panel = el.querySelector<HTMLElement>(".load-errors")!;
+  const errorPanel = () => el.querySelector<HTMLElement>(".load-errors")!;
+
+  const hideErrors = () => errorPanel().classList.remove("open", "fixed");
+
+  const showReport = (report: string[]) => {
+    const panel = errorPanel();
+    clear(panel);
+    panel.classList.add("open", "fixed");
+    report.forEach((msg, i) => {
+      const row = h("div", { class: "load-error-row" }, [
+        h("span", { class: "load-error-x repair-check" }, ["✓"]),
+        h("span", {}, [msg]),
+      ]);
+      panel.appendChild(row);
+      gsap.fromTo(row, { x: -30, opacity: 0 }, { x: 0, opacity: 1, duration: 0.25, delay: i * 0.06, ease: "back.out(1.6)" });
+    });
+  };
+
+  const showErrors = (errors: string[], onRepair?: () => void) => {
+    const panel = errorPanel();
     clear(panel);
     panel.classList.add("open");
+    panel.classList.remove("fixed");
     errors.slice(0, 6).forEach((err, i) => {
       const row = h("div", { class: "load-error-row" }, [
         h("span", { class: "load-error-x" }, ["✕"]),
@@ -53,17 +67,69 @@ registerScreen("load", (root) => {
     if (errors.length > 6) {
       panel.appendChild(h("div", { class: "load-error-more" }, [t("…and {n} more", { n: errors.length - 6 })]));
     }
+    if (onRepair) {
+      const btn = h("button", { class: "sticker-btn accent repair-btn" }, [t("🔧 REPAIR")]);
+      btn.addEventListener("mouseenter", () => audio.sfx("hover"));
+      btn.addEventListener("click", () => {
+        audio.sfx("select");
+        onRepair();
+      });
+      panel.appendChild(btn);
+    }
+  };
+
+  const repairNow = async () => {
+    if (!lastFailed) return;
+    const res = repairQuiz(lastFailed.input);
+    if (!res.ok) {
+      audio.sfx("wrong");
+      fx.shake(12);
+      showErrors(res.errors.map((e) => `${e.path} — ${e.message}`), repairNow);
+      toast(t("Repair failed — {n} problem(s) remain", { n: res.errors.length }), "error");
+      return;
+    }
+    const { source } = lastFailed;
+    lastFailed = null;
+    audio.sfx("correct");
+    fx.starBurst(window.innerWidth / 2, window.innerHeight / 2, { gold: true, n: 14 });
+    if (res.report.length) showReport(res.report);
+    else hideErrors();
+    const quiz = await commit(res.quiz, source);
+    toast(
+      res.report.length
+        ? t("Repaired {n} issue(s) — loaded", { n: res.report.length })
+        : t("Repaired — no changes needed"),
+      "info",
+    );
+    void startQuiz({ ...quiz, source });
+  };
+
+  const attempt = async (raw: unknown, source: string, original?: unknown): Promise<Quiz | null> => {
+    const v = validateQuiz(raw);
+    if (!v.ok) {
+      audio.sfx("wrong");
+      fx.shake(16);
+      fx.flash("#e60012", 0.25);
+      lastFailed = { input: original ?? raw, source };
+      showErrors(v.errors.map((e) => `${e.path} — ${e.message}`), repairNow);
+      return null;
+    }
+    lastFailed = null;
+    hideErrors();
+    return commit(v.quiz, source);
   };
 
   const loadFromFile = async (file: File) => {
+    let text = "";
     try {
-      const text = await file.text();
-      const quiz = await attempt(JSON.parse(text), file.name);
+      text = await file.text();
+      const quiz = await attempt(JSON.parse(text), file.name, text);
       if (quiz) void startQuiz({ ...quiz, source: file.name });
     } catch (e) {
       audio.sfx("wrong");
       fx.shake(14);
-      showErrors([e instanceof SyntaxError ? "Not valid JSON — check commas and quotes." : String(e)]);
+      lastFailed = { input: text, source: file.name };
+      showErrors([e instanceof SyntaxError ? t("Not valid JSON — check commas and quotes.") : String(e)], repairNow);
     }
   };
 
@@ -86,6 +152,7 @@ registerScreen("load", (root) => {
         h("button", { class: "sticker-btn" }, [t("📂 BROWSE")]),
         h("button", { class: "sticker-btn" }, [t("📋 PASTE JSON")]),
         h("button", { class: "sticker-btn" }, [t("🔗 FROM URL")]),
+        h("button", { class: "sticker-btn" }, [t("🔧 REPAIR JSON")]),
       ]),
       h("div", { class: "load-samples" }, [
         h("h3", { class: "samples-title" }, [
@@ -103,8 +170,9 @@ registerScreen("load", (root) => {
         ]),
         h("textarea", { class: "paste-area", placeholder: '{ "title": t("My Quiz"), "sections": [...] }', spellcheck: "false" }, []),
         h("div", { class: "paste-actions" }, [
-          h("button", { class: "sticker-btn accent" }, [t("LOAD")]),
-          h("button", { class: "sticker-btn" }, [t("CANCEL")]),
+          h("button", { class: "sticker-btn accent paste-load" }, [t("LOAD")]),
+          h("button", { class: "sticker-btn paste-repair" }, [t("🔧 REPAIR")]),
+          h("button", { class: "sticker-btn paste-cancel" }, [t("CANCEL")]),
         ]),
       ]),
     ]),
@@ -166,7 +234,7 @@ registerScreen("load", (root) => {
     b.addEventListener("click", () => {
       audio.sfx("select");
       if (i === 0) fileInput.click();
-      if (i === 1) {
+      if (i === 1 || i === 3) {
         pasteBox.classList.remove("hidden");
         gsap.fromTo(pasteBox, { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.3, ease: "back.out(1.5)" });
         pasteArea.focus();
@@ -181,17 +249,24 @@ registerScreen("load", (root) => {
   });
   pasteBox.querySelectorAll<HTMLButtonElement>("button").forEach((b) => {
     b.addEventListener("click", async () => {
-      if (b.textContent === "CANCEL" || b.classList.contains("paste-cancel")) {
+      if (b.classList.contains("paste-cancel")) {
         pasteBox.classList.add("hidden");
         return;
       }
+      const text = pasteArea.value;
+      if (b.classList.contains("paste-repair")) {
+        lastFailed = { input: text, source: "pasted" };
+        void repairNow();
+        return;
+      }
       try {
-        const quiz = await attempt(JSON.parse(pasteArea.value), "pasted");
+        const quiz = await attempt(JSON.parse(text), "pasted", text);
         if (quiz) void startQuiz({ ...quiz, source: "pasted" });
       } catch {
         audio.sfx("wrong");
         fx.shake(12);
-        showErrors([t("Not valid JSON — check commas and quotes.")]);
+        lastFailed = { input: text, source: "pasted" };
+        showErrors([t("Not valid JSON — check commas and quotes.")], repairNow);
       }
     });
   });
@@ -215,16 +290,22 @@ registerScreen("load", (root) => {
   });
 
   // global paste
-  const onPaste = (e: ClipboardEvent) => {
+  const onPaste = async (e: ClipboardEvent) => {
     if (pasteBox.classList.contains("hidden") && urlBox.classList.contains("hidden")) {
-      const text = e.clipboardData?.getData("text") ?? "";
-      if (text.trim().startsWith("{")) {
+      const text = (e.clipboardData?.getData("text") ?? "").trim();
+      if (/^\s*[\[{]/.test(text) || text.startsWith("```")) {
         e.preventDefault();
         pasteBox.classList.remove("hidden");
-        pasteArea.value = text.trim();
-        void attempt(JSON.parse(text.trim()), "pasted").then((quiz) => {
+        pasteArea.value = text;
+        try {
+          const quiz = await attempt(JSON.parse(text), "pasted", text);
           if (quiz) void startQuiz({ ...quiz, source: "pasted" });
-        }).catch(() => undefined);
+        } catch {
+          audio.sfx("wrong");
+          fx.shake(12);
+          lastFailed = { input: text, source: "pasted" };
+          showErrors([t("Not valid JSON — check commas and quotes.")], repairNow);
+        }
       }
     }
   };

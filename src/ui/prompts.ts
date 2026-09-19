@@ -18,8 +18,9 @@ import {
   topicStats,
 } from "../core/store";
 import { validateQuiz } from "../core/validator";
+import { repairQuiz } from "../core/repair";
 import { saveQuiz } from "../core/store";
-import type { QuestionType, QuizMode } from "../core/types";
+import type { QuestionType, QuizMode, Quiz } from "../core/types";
 
 /* builder prefill bridge (results REINFORCE, ?prompt= links) */
 export const builderPrefill: { fields?: Partial<PromptFields>; tagline?: string } = {};
@@ -266,6 +267,7 @@ registerScreen("prompts", (root) => {
       h("div", { class: "builder-paste-errors hidden" }, []),
       h("div", { class: "paste-actions" }, [
         h("button", { class: "sticker-btn accent validate-btn" }, [t("✓ VALIDATE")]),
+        h("button", { class: "sticker-btn repair-btn" }, [t("🔧 REPAIR")]),
         h("button", { class: "sticker-btn play-btn hidden" }, [t("▶ PLAY NOW")]),
         h("button", { class: "sticker-btn save-lib-btn hidden" }, [t("⤓ SAVE TO LIBRARY")]),
       ]),
@@ -403,44 +405,70 @@ registerScreen("prompts", (root) => {
     const playBtn = pasteArea.querySelector<HTMLElement>(".play-btn")!;
     const saveLibBtn = pasteArea.querySelector<HTMLElement>(".save-lib-btn")!;
     let validatedQuiz: ReturnType<typeof validateQuiz> | null = null;
+
+    const showIssues = (items: string[], mark: string, ok: boolean) => {
+      errBox.textContent = "";
+      errBox.classList.remove("hidden");
+      items.slice(0, 6).forEach((msg, i) => {
+        const row = h("div", { class: "load-error-row" }, [
+          h("span", { class: "load-error-x" + (ok ? " repair-check" : "") }, [mark]),
+          h("span", {}, [msg]),
+        ]);
+        errBox.appendChild(row);
+        gsap.fromTo(row, { x: -20, opacity: 0 }, { x: 0, opacity: 1, duration: 0.22, delay: i * 0.05 });
+      });
+      playBtn.classList.add("hidden");
+      saveLibBtn.classList.add("hidden");
+    };
+
+    const showValid = (quiz: Quiz, report?: string[]) => {
+      validatedQuiz = { ok: true, quiz };
+      audio.sfx("correct");
+      fx.starBurst(window.innerWidth / 2, window.innerHeight / 2, { gold: true, n: 14 });
+      if (report && report.length) showIssues(report, "✓", true);
+      else errBox.classList.add("hidden");
+      playBtn.classList.remove("hidden");
+      saveLibBtn.classList.remove("hidden");
+      gsap.fromTo([playBtn, saveLibBtn], { scale: 0 }, { scale: 1, duration: 0.3, stagger: 0.08, ease: "back.out(2)" });
+      toast(t("“{title}” is valid", { title: quiz.title }), "info");
+    };
+
     pasteArea.querySelector(".validate-btn")!.addEventListener("click", () => {
+      let raw: unknown;
       try {
-        validatedQuiz = validateQuiz(JSON.parse(pa.value));
+        raw = JSON.parse(pa.value);
       } catch {
         validatedQuiz = null;
         audio.sfx("wrong");
         fx.shake(10);
-        errBox.textContent = "";
-        errBox.classList.remove("hidden");
-        errBox.appendChild(h("div", { class: "load-error-row" }, [h("span", { class: "load-error-x" }, ["✕"]), h("span", {}, ["Not valid JSON — check commas and quotes."])]));
-        playBtn.classList.add("hidden");
-        saveLibBtn.classList.add("hidden");
+        showIssues([t("Not valid JSON — check commas and quotes.")], "✕", false);
         return;
       }
-      if (!validatedQuiz.ok) {
+      const v = validateQuiz(raw);
+      if (!v.ok) {
+        validatedQuiz = null;
         audio.sfx("wrong");
         fx.shake(10);
-        errBox.textContent = "";
-        errBox.classList.remove("hidden");
-        validatedQuiz.errors.slice(0, 5).forEach((err, i) => {
-          const row = h("div", { class: "load-error-row" }, [
-            h("span", { class: "load-error-x" }, ["✕"]),
-            h("span", {}, [`${err.path} — ${err.message}`]),
-          ]);
-          errBox.appendChild(row);
-          gsap.fromTo(row, { x: -20, opacity: 0 }, { x: 0, opacity: 1, duration: 0.22, delay: i * 0.05 });
-        });
-        playBtn.classList.add("hidden");
-        saveLibBtn.classList.add("hidden");
+        showIssues(v.errors.map((err) => `${err.path} — ${err.message}`), "✕", false);
         return;
       }
-      audio.sfx("correct");
-      fx.starBurst(window.innerWidth / 2, window.innerHeight / 2, { gold: true, n: 14 });
-      errBox.classList.add("hidden");
-      playBtn.classList.remove("hidden");
-      saveLibBtn.classList.remove("hidden");
-      gsap.fromTo([playBtn, saveLibBtn], { scale: 0 }, { scale: 1, duration: 0.3, stagger: 0.08, ease: "back.out(2)" });
-      toast(t("“{title}” is valid", { title: validatedQuiz.quiz.title }), "info");
+      showValid(v.quiz);
+    });
+
+    pasteArea.querySelector(".repair-btn")!.addEventListener("click", () => {
+      const res = repairQuiz(pa.value);
+      if (!res.ok) {
+        validatedQuiz = null;
+        audio.sfx("wrong");
+        fx.shake(10);
+        showIssues(res.errors.map((err) => `${err.path} — ${err.message}`), "✕", false);
+        toast(t("Repair failed — {n} problem(s) remain", { n: res.errors.length }), "error");
+        return;
+      }
+      pa.value = JSON.stringify(res.quiz, null, 2);
+      validatedQuiz = null;
+      showValid(res.quiz, res.report);
+      if (!res.report.length) toast(t("Repaired — no changes needed"), "info");
     });
     playBtn.addEventListener("click", () => {
       if (validatedQuiz?.ok) {

@@ -165,6 +165,17 @@ async function handleParams() {
       await go({ name: "quiz" });
       return;
     }
+    // a link can carry a quiz that needs repair too
+    const { repairQuiz } = await import("./core/repair");
+    const fixed = repairQuiz(quiz);
+    if (fixed.ok) {
+      saveQuiz(fixed.quiz, source);
+      toast(t("Repaired {n} issue(s) — loaded", { n: fixed.report.length }), "info");
+      const { app } = await import("./ui/screens");
+      app.currentQuiz = { ...fixed.quiz, source };
+      await go({ name: "quiz" });
+      return;
+    }
     toast(t("Quiz link was invalid JSON"), "error");
   }
 

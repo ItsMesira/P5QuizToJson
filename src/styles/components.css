@@ -839,6 +839,9 @@
 .fb-card.hint {
   border-left-color: var(--gold);
 }
+.fb-card.expl {
+  border-left-color: var(--gold);
+}
 .fb-partial-icon { color: var(--gold); }
 .fb-head {
   display: flex;
@@ -1265,6 +1268,17 @@
   color: var(--smoke);
   font-family: var(--font-mono);
   font-size: 12px;
+}
+.load-errors.fixed {
+  background: rgba(47, 196, 90, 0.1);
+  border-color: var(--green);
+}
+.repair-check {
+  color: var(--green);
+}
+.load-errors .repair-btn {
+  align-self: flex-start;
+  margin-top: 8px;
 }
 .load-paste,
 .load-url {

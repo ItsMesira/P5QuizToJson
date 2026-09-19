@@ -625,11 +625,13 @@ registerScreen("quiz", (root) => {
     popPoints();
     el.querySelector<HTMLElement>(".points-readout .pts-num")!.textContent = String(runner.points);
 
-    // highlight correct answers
+    // reveal card is instant-only; the explanation note shows in BOTH modes
+    // (end mode already stamps CORRECT/MISS, so hiding the note only confused people)
+    let fbCard: HTMLElement | null = null;
     if (instant) {
       highlightCorrect(o);
       if (o.partial) {
-        const fb = h("div", { class: "fb-card partial" }, [
+        fbCard = h("div", { class: "fb-card partial" }, [
           fbPortrait(),
           h("div", { class: "fb-body" }, [
             h("div", { class: "fb-head" }, [h("span", { class: "fb-partial-icon" }, ["◐"]), h("span", {}, [t("PARTIAL CREDIT")])]),
@@ -637,10 +639,8 @@ registerScreen("quiz", (root) => {
             o.explanation ? h("p", { class: "fb-expl" }, renderMarkdown(o.explanation)) : null,
           ]),
         ]);
-        feedback.appendChild(fb);
-        gsap.fromTo(fb, { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.35, ease: "back.out(1.4)" });
       } else if (!o.correct && o.expected.length && o.expected[0]) {
-        const fb = h("div", { class: "fb-card wrong" }, [
+        fbCard = h("div", { class: "fb-card wrong" }, [
           fbPortrait(),
           h("div", { class: "fb-body" }, [
             h("div", { class: "fb-head" }, [h("span", { class: "fb-x" }, ["✕"]), h("span", {}, [t("MISSED")])]),
@@ -648,19 +648,28 @@ registerScreen("quiz", (root) => {
             o.explanation ? h("p", { class: "fb-expl" }, renderMarkdown(o.explanation)) : null,
           ]),
         ]);
-        feedback.appendChild(fb);
-        gsap.fromTo(fb, { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.35, ease: "back.out(1.4)" });
       } else if (o.correct) {
-        const fb = h("div", { class: "fb-card right" }, [
+        fbCard = h("div", { class: "fb-card right" }, [
           fbPortrait(),
           h("div", { class: "fb-body" }, [
             h("div", { class: "fb-head" }, [h("span", { class: "fb-check" }, ["✓"]), h("span", {}, [t("CORRECT")])]),
             o.explanation ? h("p", { class: "fb-expl" }, renderMarkdown(o.explanation)) : null,
           ]),
         ]);
-        feedback.appendChild(fb);
-        gsap.fromTo(fb, { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.35, ease: "back.out(1.4)" });
       }
+    }
+    if (!fbCard && o.explanation) {
+      fbCard = h("div", { class: "fb-card expl" }, [
+        fbPortrait(),
+        h("div", { class: "fb-body" }, [
+          h("div", { class: "fb-head" }, [h("span", { class: "fb-hint-icon" }, ["💡"]), h("span", {}, [t("EXPLANATION")])]),
+          h("p", { class: "fb-expl" }, renderMarkdown(o.explanation)),
+        ]),
+      ]);
+    }
+    if (fbCard) {
+      feedback.appendChild(fbCard);
+      gsap.fromTo(fbCard, { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.35, ease: "back.out(1.4)" });
     }
 
     // rank up toast
