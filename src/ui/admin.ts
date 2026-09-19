@@ -273,6 +273,26 @@ registerScreen("admin", (root) => {
     return c;
   };
 
+  /* perform an action, optionally confirm first; on success show a notice and
+     re-render the active tab so the state change is visible. Without this,
+     successful destructive actions (Revoke/Promote/Clear/delete in list tabs)
+     changed the DB but left the row and button untouched — i.e. they looked
+     like "nothing happened". */
+  const runAction = async (
+    action: string,
+    payload: Record<string, unknown>,
+    opts: { confirm?: string; success?: string } = {},
+  ): Promise<boolean> => {
+    if (opts.confirm && !(await askConfirm(opts.confirm))) return false;
+    const r = await guarded(action, payload);
+    if (r.ok) {
+      if (opts.success) notify(opts.success);
+      await renderTab(active);
+      return true;
+    }
+    return false;
+  };
+
   const tabUsers = async () => {
     const r = await adminReq("users.list", { limit: 100 });
     if (!r.ok) return cardWith(err(r));
@@ -283,19 +303,25 @@ registerScreen("admin", (root) => {
         h("span", { class: "grow" }, [`${u.username}${u.is_admin ? "  ★admin" : ""}  ·  ${u.email ?? "—"}  ·  ${u.classes} classes`]),
         btn(t("Reset pw"), async () => {
           const res = await guarded("users.resetPassword", { id });
-          if (res.ok) await showSecret(t("Temporary password"), String(res.data.temporaryPassword ?? ""));
+          if (res.ok) {
+            await showSecret(t("Temporary password"), String(res.data.temporaryPassword ?? ""));
+            await renderTab(active);
+          }
         }),
-        btn(t("Revoke"), () => void guarded("users.revokeSessions", { id })),
-        btn(t(u.is_admin ? "Demote" : "Promote"), () => void guarded("users.setAdmin", { id, isAdmin: !u.is_admin })),
+        btn(t("Revoke"), () => void runAction("users.revokeSessions", { id }, { success: t("Sessions revoked") })),
+        btn(t(u.is_admin ? "Demote" : "Promote"), () =>
+          void runAction("users.setAdmin", { id, isAdmin: !u.is_admin }, {
+            success: u.is_admin ? t("Admin access revoked") : t("Admin access granted"),
+          })),
         btn(t("Impersonate"), async () => {
           const res = await guarded("impersonate.start", { userId: id });
           if (res.ok) location.href = "/";
         }),
-        btn(t("Delete"), async () => {
-          if (!(await askConfirm(t("Delete {name}? This cascades their quizzes and results.", { name: String(u.username) })))) return;
-          await guarded("users.delete", { id });
-          void renderTab(active);
-        }, "accent"),
+        btn(t("Delete"), () =>
+          void runAction("users.delete", { id }, {
+            confirm: t("Delete {name}? This cascades their quizzes and results.", { name: String(u.username) }),
+            success: t("User deleted"),
+          }), "accent"),
       ]);
     });
   };
@@ -308,12 +334,16 @@ registerScreen("admin", (root) => {
       const id = String(c.id);
       return row([
         h("span", { class: "grow" }, [`${c.name}  ·  code ${c.code}  ·  owner ${c.owner}  ·  ${c.members} members  ·  ${c.quizzes} quizzes`]),
-        btn(t("Clear results"), () => void guarded("results.clear", { classId: id })),
-        btn(t("Delete"), async () => {
-          if (!(await askConfirm(t("Delete class {name}? This removes its quizzes and results.", { name: String(c.name) })))) return;
-          await guarded("classes.delete", { id });
-          void renderTab(active);
-        }, "accent"),
+        btn(t("Clear results"), () =>
+          void runAction("results.clear", { classId: id }, {
+            confirm: t("Clear all results posted to {name}?", { name: String(c.name) }),
+            success: t("Class results cleared"),
+          })),
+        btn(t("Delete"), () =>
+          void runAction("classes.delete", { id }, {
+            confirm: t("Delete class {name}? This removes its quizzes and results.", { name: String(c.name) }),
+            success: t("Class deleted"),
+          }), "accent"),
       ]);
     });
   };
@@ -328,9 +358,9 @@ registerScreen("admin", (root) => {
         .map(([k, v]) => `${k}: ${v === null ? "—" : typeof v === "object" ? JSON.stringify(v) : String(v)}`)
         .join("  ·  ");
       const actions: Node[] = [];
-      if (key === "quizzes") actions.push(btn(t("Delete"), () => void guarded("quizzes.delete", { id: String(it.id) }), "accent"));
-      if (key === "results") actions.push(btn(t("Delete"), () => void guarded("results.delete", { id: String(it.id) }), "accent"));
-      if (key === "sessions") actions.push(btn(t("Revoke user"), () => void guarded("sessions.revoke", { userId: String(it.user_id ?? "") })));
+      if (key === "quizzes") actions.push(btn(t("Delete"), () => void runAction("quizzes.delete", { id: String(it.id) }, { confirm: t("Delete this quiz?"), success: t("Quiz deleted") }), "accent"));
+      if (key === "results") actions.push(btn(t("Delete"), () => void runAction("results.delete", { id: String(it.id) }, { confirm: t("Delete this result?"), success: t("Result deleted") }), "accent"));
+      if (key === "sessions") actions.push(btn(t("Revoke user"), () => void runAction("sessions.revoke", { userId: String(it.user_id ?? "") }, { success: t("Sessions revoked") })));
       return row([h("span", { class: "grow" }, [summary]), ...actions]);
     });
   };

@@ -6,7 +6,7 @@ import type { ApiRequest, ApiResponse } from "./_lib/types.js";
 import { sql, ensureSchema } from "./_lib/db.js";
 import { z } from "zod";
 import {
-  adminByToken, createSession, destroySession, destroyUserSessions, parseCookies,
+  adminByToken, createSession, destroySession, destroyAllSessions, destroyOtherSessions, parseCookies,
   csrfValid, csrfCookieHeader, adminCookie, clearAdminCookieHeader, verifyPassword, hashPassword,
   markStepUp, steppedRecently, audit, randomToken, ADMIN_COOKIE, SESSION_DAYS,
   recordAuthFail, clearAuthFails, authLocked, dummyVerify,
@@ -30,7 +30,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (req.method !== "POST") return fail(res, 405, "POST only");
   if (!sameSite(req)) return fail(res, 403, "Cross-origin request blocked");
   const ip = clientIp(req.headers as never);
-  if (!rateLimit(`admin:${ip}`, 40)) return tooMany(res);
+  if (!rateLimit(`admin:${ip}`, 120)) return tooMany(res);
 
   try {
     await ensureSchema();
@@ -82,7 +82,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       const r = await sql`SELECT pass_hash FROM users WHERE id = ${admin.user.id} LIMIT 1`;
       if (!(await verifyPassword(String(r.rows[0]?.pass_hash ?? ""), v.data.current))) return fail(res, 401, "Wrong password");
       await sql`UPDATE users SET pass_hash = ${await hashPassword(v.data.next)}, must_change_password = false WHERE id = ${admin.user.id}`;
-      await destroyUserSessions(admin.user.id); // revoke other sessions; keep the current admin one
+      await destroyOtherSessions(admin.user.id, token!); // revoke every other session; keep the current admin one
       await audit(admin.user, "admin.change_password", admin.user.id, null, ip);
       return ok(res, { ok: true });
     }
@@ -93,6 +93,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       const r = await sql`SELECT pass_hash FROM users WHERE id = ${admin.user.id} LIMIT 1`;
       if (!(await verifyPassword(String(r.rows[0]?.pass_hash ?? ""), v.data.password))) return fail(res, 401, "Wrong password");
       await markStepUp(token!);
+      await audit(admin.user, "admin.step_up", null, null, ip);
       return ok(res, { ok: true });
     }
 
@@ -221,6 +222,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     if (action === "users.update") {
       const v = parse(z.object({ id: idSchema, username: usernameSchema.optional(), email: emailOpt }), body);
       if (!v.ok) return badRequest(res, v.error);
+      const exists = await sql`SELECT 1 FROM users WHERE id = ${v.data.id} LIMIT 1`;
+      if (!exists.rows.length) return notFound(res, "User not found");
       if (v.data.username !== undefined) {
         const dup = await sql`SELECT 1 FROM users WHERE username = ${v.data.username} AND id <> ${v.data.id} LIMIT 1`;
         if (dup.rows.length) return fail(res, 409, "Username already taken");
@@ -236,9 +239,11 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     if (action === "users.resetPassword") {
       const v = parse(z.object({ id: idSchema }), body);
       if (!v.ok) return badRequest(res, v.error);
+      const exists = await sql`SELECT 1 FROM users WHERE id = ${v.data.id} LIMIT 1`;
+      if (!exists.rows.length) return notFound(res, "User not found");
       const temp = randomToken().slice(0, 14);
       await sql`UPDATE users SET pass_hash = ${await hashPassword(temp)}, must_change_password = true WHERE id = ${v.data.id}`;
-      await destroyUserSessions(v.data.id);
+      await destroyAllSessions(v.data.id);
       await audit(admin.user, "users.reset_password", v.data.id, null, ip);
       return ok(res, { ok: true, temporaryPassword: temp });
     }
@@ -246,8 +251,10 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     if (action === "users.setPassword") {
       const v = parse(z.object({ id: idSchema, password: passwordSchema }), body);
       if (!v.ok) return badRequest(res, v.error);
+      const exists = await sql`SELECT 1 FROM users WHERE id = ${v.data.id} LIMIT 1`;
+      if (!exists.rows.length) return notFound(res, "User not found");
       await sql`UPDATE users SET pass_hash = ${await hashPassword(v.data.password)}, must_change_password = false WHERE id = ${v.data.id}`;
-      await destroyUserSessions(v.data.id);
+      await destroyAllSessions(v.data.id);
       await audit(admin.user, "users.set_password", v.data.id, null, ip);
       return ok(res, { ok: true });
     }
@@ -255,6 +262,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     if (action === "users.revokeSessions") {
       const v = parse(z.object({ id: idSchema }), body);
       if (!v.ok) return badRequest(res, v.error);
+      const exists = await sql`SELECT 1 FROM users WHERE id = ${v.data.id} LIMIT 1`;
+      if (!exists.rows.length) return notFound(res, "User not found");
       await sql`DELETE FROM sessions WHERE user_id = ${v.data.id}`;
       await audit(admin.user, "users.revoke_sessions", v.data.id, null, ip);
       return ok(res, { ok: true });
@@ -303,6 +312,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     if (action === "classes.transfer") {
       const v = parse(z.object({ classId: idSchema, userId: idSchema }), body);
       if (!v.ok) return badRequest(res, v.error);
+      const cls = await sql`SELECT 1 FROM classes WHERE id = ${v.data.classId} LIMIT 1`;
+      if (!cls.rows.length) return notFound(res, "Class not found");
       const u = await sql`SELECT 1 FROM users WHERE id = ${v.data.userId} LIMIT 1`;
       if (!u.rows.length) return notFound(res, "User not found");
       await sql`INSERT INTO members (class_id, user_id, role) VALUES (${v.data.classId}, ${v.data.userId}, 'teacher')
@@ -333,7 +344,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     if (action === "results.delete") {
       const v = parse(z.object({ id: idSchema }), body);
       if (!v.ok) return badRequest(res, v.error);
-      await sql`DELETE FROM results WHERE id = ${v.data.id}`;
+      const d = await sql`DELETE FROM results WHERE id = ${v.data.id}`;
+      if (d.rowCount === 0) return notFound(res, "Result not found");
       await audit(admin.user, "results.delete", v.data.id, null, ip);
       return ok(res, { ok: true });
     }

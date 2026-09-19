@@ -165,6 +165,18 @@ export async function destroyUserSessions(userId: string): Promise<void> {
   await sql`DELETE FROM sessions WHERE user_id = ${userId} AND kind = 'user'`;
 }
 
+/* Kill every session of a user regardless of kind (user/admin/impersonation).
+   Used when an admin resets someone's password. */
+export async function destroyAllSessions(userId: string): Promise<void> {
+  await sql`DELETE FROM sessions WHERE user_id = ${userId}`;
+}
+
+/* Kill every session of a user except the caller's current one. Used on
+   self password change so other logged-in devices are logged out. */
+export async function destroyOtherSessions(userId: string, keepToken: string): Promise<void> {
+  await sql`DELETE FROM sessions WHERE user_id = ${userId} AND token_hash <> ${sha256hex(keepToken)}`;
+}
+
 /* normal user / impersonation sessions (admin uses adminByToken) */
 export async function getUserByToken(token: string | undefined): Promise<SessionUser | null> {
   if (!token) return null;
