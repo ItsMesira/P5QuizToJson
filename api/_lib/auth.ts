@@ -5,7 +5,7 @@ import { sql } from "./db.js";
 
 const SESSION_DAYS = 7; // user sessions (tightened from 30)
 const ADMIN_HOURS = 8; // admin sessions
-const STEP_UP_MINUTES = 10; // destructive admin actions
+const STEP_UP_MINUTES = 30; // destructive admin actions
 const COOKIE = "p5q_session";
 const ADMIN_COOKIE = "p5q_admin";
 const CSRF_COOKIE = "p5q_csrf";

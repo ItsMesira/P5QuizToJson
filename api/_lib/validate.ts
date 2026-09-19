@@ -10,10 +10,12 @@ export const usernameSchema = z
 
 export const passwordSchema = z
   .string()
-  .min(10, "Password needs 10+ characters")
-  .max(128, "Password max 128 characters")
-  .refine((p) => !/^(?:password|admin|123456|qwerty)/i.test(p), "Password is too common")
-  .refine((p) => !/^\d+$/.test(p), "Password cannot be only numbers");
+  .min(8, "Password needs 8+ characters")
+  .max(128, "Password max 128 characters");
+
+/* Login must accept ANY existing password — old accounts may be short/weak.
+   The policy above is enforced only when creating or setting a password. */
+export const loginPasswordSchema = z.string().min(1, "Password required").max(128);
 
 export const emailSchema = z
   .string()

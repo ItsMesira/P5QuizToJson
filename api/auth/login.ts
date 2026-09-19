@@ -6,7 +6,7 @@ import {
   verifyPassword, dummyVerify, createSession, sessionCookie, csrfCookieHeader, sessionInfo,
   recordAuthFail, clearAuthFails, authLocked, SESSION_DAYS,
 } from "../_lib/auth.js";
-import { usernameSchema, passwordSchema, classCodeSchema, parse } from "../_lib/validate.js";
+import { usernameSchema, loginPasswordSchema, classCodeSchema, parse } from "../_lib/validate.js";
 import { badRequest, ok, fail, tooMany, readBody, clientIp, rateLimit, serverError, sameSite } from "../_lib/http.js";
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
@@ -19,7 +19,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     const body = await readBody(req as never);
     const u = parse(usernameSchema, (body as Record<string, unknown>)?.username);
     if (!u.ok) return badRequest(res, u.error);
-    const p = parse(passwordSchema, (body as Record<string, unknown>)?.password);
+    const p = parse(loginPasswordSchema, (body as Record<string, unknown>)?.password);
     if (!p.ok) return badRequest(res, p.error);
 
     const userKey = `login-user:${u.data.toLowerCase()}`;

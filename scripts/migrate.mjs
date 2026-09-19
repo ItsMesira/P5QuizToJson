@@ -80,12 +80,12 @@ try {
   if (adminUser && adminHash) {
     await pool.query(
       `INSERT INTO users (id, username, email, pass_hash, is_admin, must_change_password)
-       VALUES ($1, $2, NULL, $3, true, true)
+       VALUES ($1, $2, NULL, $3, true, false)
        ON CONFLICT (username)
-       DO UPDATE SET is_admin = true, pass_hash = excluded.pass_hash, must_change_password = true`,
+       DO UPDATE SET is_admin = true, pass_hash = excluded.pass_hash, must_change_password = false`,
       [randomUUID(), adminUser, adminHash],
     );
-    console.log(`seeded admin "${adminUser}" (must change password on first login)`);
+    console.log(`seeded admin "${adminUser}"`);
   }
 
   // ---- verification ----

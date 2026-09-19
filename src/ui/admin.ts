@@ -162,8 +162,7 @@ registerScreen("admin", (root) => {
         notify(err(r));
         return;
       }
-      if (r.data.mustChangePassword) renderChange();
-      else void boot();
+      void boot();
     };
     c.append(
       h("h3", {}, [t("ADMIN LOGIN")]),
@@ -178,27 +177,13 @@ registerScreen("admin", (root) => {
     body().appendChild(c);
   };
 
-  const renderChange = () => {
-    body().replaceChildren();
-    const c = card();
-    const cur = h("input", { type: "password", autocomplete: "current-password" });
-    const next = h("input", { type: "password", autocomplete: "new-password" });
-    c.append(
-      h("h3", {}, [t("CHANGE PASSWORD REQUIRED")]),
-      h("div", { class: "admin-field" }, [h("span", {}, [t("Current password")]), cur]),
-      h("div", { class: "admin-field" }, [h("span", {}, [t("New password (10+ chars)")]), next]),
-      h("div", { class: "admin-tabs" }, [
-        btn(t("SAVE"), async () => {
-          const r = await adminReq("changePassword", { current: cur.value, next: next.value });
-          if (!r.ok) {
-            notify(err(r));
-            return;
-          }
-          void boot();
-        }, "accent"),
-      ]),
-    );
-    body().appendChild(c);
+  const changePwFlow = async () => {
+    const cur = await promptPassword(t("Current password"));
+    if (!cur) return;
+    const next = await promptPassword(t("New password (8+ chars)"));
+    if (!next) return;
+    const r = await adminReq("changePassword", { current: cur, next });
+    notify(r.ok ? t("Password changed") : err(r));
   };
 
   /* ---------- tabs ---------- */
@@ -234,6 +219,7 @@ registerScreen("admin", (root) => {
       h("span", { class: "admin-note" }, [who ? `@${who}` : ""]),
       h("span", { class: "spacer" }, []),
       btn(t("↻ REFRESH"), () => void renderTab(active)),
+      btn(t("CHANGE PW"), () => void changePwFlow()),
       btn(t("⤶ SIGN OUT"), async () => {
         await adminReq("logout");
         location.href = "/";
@@ -367,10 +353,6 @@ registerScreen("admin", (root) => {
 
   const boot = async () => {
     const me = await adminReq("me");
-    if (me.ok && me.data.mustChangePassword) {
-      renderChange();
-      return;
-    }
     if (me.ok) {
       await renderImpersonationBanner();
       await renderPanel();

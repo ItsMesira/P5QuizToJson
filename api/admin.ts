@@ -24,7 +24,7 @@ const emailOpt = z.string().trim().toLowerCase().email().max(150).nullable().opt
 const idSchema = z.string().uuid();
 const limitSchema = z.number().int().min(1).max(200).optional();
 const offsetSchema = z.number().int().min(0).max(1_000_000).optional();
-const passwordSchema = z.string().min(10).max(128).refine((p) => !/^(?:password|admin|123456|qwerty)/i.test(p), "Password is too common");
+const passwordSchema = z.string().min(8).max(128);
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (req.method !== "POST") return fail(res, 405, "POST only");
@@ -67,8 +67,6 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     if (!admin) return unauthorized(res, "Admin login required");
     if (!csrfValid(req.headers as never, req.headers.cookie ?? null)) return unauthorized(res, "Missing CSRF token");
 
-    const gate = await sql`SELECT must_change_password FROM users WHERE id = ${admin.user.id} LIMIT 1`;
-    const mustChange = !!gate.rows[0]?.must_change_password;
     const stepUpOk = async (): Promise<boolean> => !!token && (await steppedRecently(token));
 
     if (action === "logout") {
@@ -98,10 +96,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       return ok(res, { ok: true });
     }
 
-    if (action === "me") return ok(res, { ok: true, admin: admin.user, mustChangePassword: mustChange });
-
-    // force the first-login password change before anything else
-    if (mustChange) return forbidden(res, "Change your password before continuing");
+    if (action === "me") return ok(res, { ok: true, admin: admin.user });
 
     /* ---------- reads ---------- */
     if (action === "stats") {

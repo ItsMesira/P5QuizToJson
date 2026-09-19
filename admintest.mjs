@@ -47,16 +47,16 @@ await p.evaluate(() => { const b = [...document.querySelectorAll(".sticker-btn")
 await sleep(900);
 check("wrong password keeps login screen", await p.$eval(".admin-screen", (e) => e.textContent.includes("ADMIN LOGIN")).catch(() => false));
 
-// 3. correct password → forced change gate (admin seeded with must_change_password)
+// 3. correct password → admin panel loads (no forced change)
 await p.goto(`${BASE}/ijustlovehavingtheadminpanel`, { waitUntil: "networkidle0" });
 await sleep(1200);
 const ins2 = await p.$$(".admin-field input");
 await ins2[0].type(creds.username);
 await ins2[1].type(creds.password);
 await p.evaluate(() => { const b = [...document.querySelectorAll(".sticker-btn")].find((x) => x.textContent.includes("SIGN IN")); if (b) b.click(); });
-await sleep(1200);
+await sleep(1600);
 const text = await p.$eval(".admin-screen", (e) => e.textContent).catch(() => "");
-check("forced password-change gate", /CHANGE PASSWORD REQUIRED/i.test(text), text.slice(0, 60));
+check("admin panel loads after login", /ADMIN PANEL/.test(text) && /Users/.test(text), text.slice(0, 60));
 check("no page errors", errs.length === 0, errs.join(" | "));
 
 console.log(fails ? `\n${fails} ADMIN UI FAILURES` : "\nADMIN UI PASS");
