@@ -62,6 +62,22 @@ for (let i = 0; i < 20; i++) {
   await sleep(500);
 }
 check("admin panel loads after login", /ADMIN PANEL/.test(text) && /Users/.test(text), text.slice(0, 60));
+
+// every tab must render content (this is the regression that bricked the panel)
+const names = ["Users", "Classes", "Quizzes", "Results", "Sessions", "Audit", "System"];
+let tabsOk = true;
+for (const n of names) {
+  const labels = await p.$$eval(".admin-tabs .sticker-btn", (els) => els.map((e) => e.textContent.trim()));
+  const i = labels.indexOf(n);
+  if (i < 0) { tabsOk = false; console.log("missing tab:", n); break; }
+  const btns = await p.$$(".admin-tabs .sticker-btn");
+  await btns[i].click();
+  await sleep(800);
+  const content = await p.$eval(".admin-content", (e) => e.textContent).catch(() => "");
+  if (!content || content.includes("Loading…")) { tabsOk = false; console.log(`tab ${n} stuck:`, content.slice(0, 50)); break; }
+}
+check("all admin tabs render content", tabsOk);
+check("class badge hidden on admin panel", await p.$eval("#class-badge", (e) => getComputedStyle(e).display === "none" || e.classList.contains("hidden")).catch(() => true));
 check("no page errors", errs.length === 0, errs.join(" | "));
 
 console.log(fails ? `\n${fails} ADMIN UI FAILURES` : "\nADMIN UI PASS");

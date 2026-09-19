@@ -5,6 +5,11 @@
   margin: 0 auto;
   gap: 14px;
 }
+
+/* the classroom badge floats over every screen; hide it on the admin panel */
+body[data-screen="admin"] #class-badge {
+  display: none !important;
+}
 .admin-head {
   display: flex;
   align-items: center;

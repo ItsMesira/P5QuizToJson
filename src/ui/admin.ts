@@ -231,6 +231,7 @@ registerScreen("admin", (root) => {
       tabs.appendChild(
         btn(t(name), () => {
           active = name;
+          [...tabs.children].forEach((c, i) => c.classList.toggle("active", TABS[i] === name));
           void renderTab(name);
         }, name === active ? "active" : ""),
       ),
@@ -242,26 +243,25 @@ registerScreen("admin", (root) => {
   };
 
   const renderTab = async (name: (typeof TABS)[number]) => {
-    const content = body().querySelector<HTMLElement>(".admin-content")!;
+    const content = body().querySelector<HTMLElement>(".admin-content");
+    if (!content) return;
     clear(content);
     content.appendChild(h("div", { class: "admin-note" }, [t("Loading…")]));
-    const load = async () => {
-      try {
-        if (name === "Users") return await tabUsers();
-        if (name === "Classes") return await tabClasses();
-        if (name === "Quizzes") return await tabList("quizzes.list", "quizzes", "Quizzes");
-        if (name === "Results") return await tabList("results.list", "results", "Results");
-        if (name === "Sessions") return await tabList("sessions.list", "sessions", "Sessions");
-        if (name === "Audit") return await tabList("audit.list", "audit", "Audit");
-        return await tabSystem();
-      } catch (e) {
-        return card();
-      }
-    };
-    const c = await load();
+    let c: HTMLElement;
+    try {
+      if (name === "Users") c = await tabUsers();
+      else if (name === "Classes") c = await tabClasses();
+      else if (name === "Quizzes") c = await tabList("quizzes.list", "quizzes", "Quizzes");
+      else if (name === "Results") c = await tabList("results.list", "results", "Results");
+      else if (name === "Sessions") c = await tabList("sessions.list", "sessions", "Sessions");
+      else if (name === "Audit") c = await tabList("audit.list", "audit", "Audit");
+      else c = await tabSystem();
+    } catch (e) {
+      c = cardWith(String((e as Error)?.message ?? e));
+    }
     clear(content);
-    content.classList.remove("admin-content");
-    // content may be a fresh card; splice its children
+    // NOTE: keep the .admin-content class on `content` — it is the anchor that
+    // every later renderTab call looks up (removing it bricked the panel).
     while (c.firstChild) content.appendChild(c.firstChild);
   };
 
