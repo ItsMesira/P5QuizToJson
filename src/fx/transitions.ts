@@ -3,6 +3,7 @@ import gsap from "gsap";
 import { audio } from "../core/audio";
 import { fx } from "./particles";
 import { randomPortrait } from "../core/art";
+import { isHexColor } from "../core/theme";
 
 export const RM = () =>
   window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -182,19 +183,40 @@ export function cutIn(
   const hold = opts.quick ? 0.45 : 1.1;
   const el = document.createElement("div");
   el.className = "cutin";
-  el.innerHTML = `
-    <div class="cutin-speed"></div>
-    <div class="cutin-frame">
-      <div class="cutin-portrait">
-        <div class="cutin-mask"></div>
-        <div class="cutin-eyes"></div>
-        <div class="cutin-scarf"></div>
-        ${opts.img ? `<img class="cutin-img" src="${opts.img}" alt="" />` : ""}
-      </div>
-      ${opts.letter ? `<div class="cutin-letter" style="color:${opts.color ?? "var(--red)"}">${opts.letter}</div>` : ""}
-      ${opts.name ? `<div class="cutin-name">${opts.name}</div>` : ""}
-    </div>
-  `;
+  // built with DOM APIs (textContent/style) — no HTML string interpolation
+  const speed = document.createElement("div");
+  speed.className = "cutin-speed";
+  const frame = document.createElement("div");
+  frame.className = "cutin-frame";
+  const portrait = document.createElement("div");
+  portrait.className = "cutin-portrait";
+  for (const cls of ["cutin-mask", "cutin-eyes", "cutin-scarf"]) {
+    const d = document.createElement("div");
+    d.className = cls;
+    portrait.appendChild(d);
+  }
+  if (opts.img) {
+    const img = document.createElement("img");
+    img.className = "cutin-img";
+    img.src = opts.img;
+    img.alt = "";
+    portrait.appendChild(img);
+  }
+  frame.appendChild(portrait);
+  if (opts.letter) {
+    const letter = document.createElement("div");
+    letter.className = "cutin-letter";
+    if (isHexColor(opts.color)) letter.style.color = opts.color;
+    letter.textContent = opts.letter;
+    frame.appendChild(letter);
+  }
+  if (opts.name) {
+    const name = document.createElement("div");
+    name.className = "cutin-name";
+    name.textContent = opts.name;
+    frame.appendChild(name);
+  }
+  el.append(speed, frame);
   const img = el.querySelector<HTMLImageElement>(".cutin-img");
   if (img) {
     img.addEventListener("error", () => img.remove());
@@ -227,9 +249,11 @@ export function portraitPop(scope: HTMLElement, x: number, y: number) {
   el.className = "portrait-pop";
   el.style.left = `${x}px`;
   el.style.top = `${y}px`;
-  el.innerHTML = `<img src="${p.src}" alt="" />`;
+  const img = document.createElement("img");
+  img.src = p.src;
+  img.alt = "";
+  el.appendChild(img);
   scope.appendChild(el);
-  const img = el.querySelector("img")!;
   img.addEventListener("error", () => el.remove());
   gsap.fromTo(el, { scale: 0.2, opacity: 0, rotate: -24 }, { scale: 1, opacity: 1, rotate: 10, duration: 0.2, ease: "back.out(2)" });
   gsap.to(el, { scale: 1.5, opacity: 0, rotate: 22, duration: 0.4, delay: 0.32, ease: "power2.in", onComplete: () => el.remove() });

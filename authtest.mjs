@@ -98,7 +98,7 @@ await t1.click(".entry-form input");
 await t1.type(".entry-form input", teacher);
 const passInputs = await t1.$$(".entry-form input");
 await passInputs[2].click();
-await passInputs[2].type("password123");
+await passInputs[2].type("Heist#2026pass");
 check("teacher lands in dashboard", await tryRegister(t1, "teacher"));
 const code = await t1.$eval(".dash-code-value", (e) => e.textContent.trim()).catch(() => null);
 if (!code) {
@@ -137,7 +137,7 @@ const sInputs = await s1.$$(".entry-form input");
 await sInputs[0].click();
 await sInputs[0].type(student);
 await sInputs[2].click();
-await sInputs[2].type("password123");
+await sInputs[2].type("Heist#2026pass");
 check("student joined via code", await tryRegister(s1, "student"));
 check("student sees the class name", await s1.$eval(".dash-classname", (e) => e.textContent.includes("Test Class 101")).catch(() => false));
 

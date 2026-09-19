@@ -8,6 +8,16 @@ async function gzipBytes(bytes: Uint8Array): Promise<Uint8Array> {
 
 const B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
+/* Limits so an attacker-crafted share link can't blow up the tab:
+   base64 input cap + a hard cap on inflated output (zip-bomb defense). */
+const MAX_IN = 2_000_000; // encoded characters
+const MAX_OUT = 500_000; // decoded bytes
+
+function inflateCapped(bytes: Uint8Array): Uint8Array | null {
+  if (bytes.length > MAX_OUT) return null;
+  return bytes;
+}
+
 function toBase64Url(bytes: Uint8Array): string {
   let out = "";
   for (let i = 0; i < bytes.length; i += 3) {
@@ -41,15 +51,19 @@ export async function encodeQuizLink(quiz: Quiz): Promise<string> {
 export async function decodeQuizLink(params: URLSearchParams): Promise<Quiz | null> {
   const q = params.get("q");
   const z = params.get("z");
+  if ((q && q.length > MAX_IN) || (z && z.length > MAX_IN)) return null;
   try {
     if (q) {
       const gz = fromBase64Url(q);
       const stream = new Blob([gz as unknown as BlobPart]).stream().pipeThrough(new DecompressionStream("gzip"));
-      const bytes = new Uint8Array(await new Response(stream).arrayBuffer());
-      return JSON.parse(new TextDecoder().decode(bytes)) as Quiz;
+      const out = inflateCapped(new Uint8Array(await new Response(stream).arrayBuffer()));
+      if (!out) return null;
+      return JSON.parse(new TextDecoder().decode(out)) as Quiz;
     }
     if (z) {
-      return JSON.parse(new TextDecoder().decode(fromBase64Url(z))) as Quiz;
+      const out = inflateCapped(fromBase64Url(z));
+      if (!out) return null;
+      return JSON.parse(new TextDecoder().decode(out)) as Quiz;
     }
   } catch {
     /* fall through */
@@ -72,6 +86,7 @@ export async function encodePayload(obj: unknown): Promise<string> {
 }
 
 export async function decodePayload<T>(s: string): Promise<T | null> {
+  if (s.length > MAX_IN) return null;
   try {
     const bytes = fromBase64Url(s);
     let data: Uint8Array;
@@ -81,7 +96,9 @@ export async function decodePayload<T>(s: string): Promise<T | null> {
     } catch {
       data = bytes;
     }
-    return JSON.parse(new TextDecoder().decode(data)) as T;
+    const capped = inflateCapped(data);
+    if (!capped) return null;
+    return JSON.parse(new TextDecoder().decode(capped)) as T;
   } catch {
     return null;
   }

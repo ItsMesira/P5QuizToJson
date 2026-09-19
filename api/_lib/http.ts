@@ -67,6 +67,10 @@ export function serverError(res: Parameters<typeof json>[0]) {
   return fail(res, 500, "Server error");
 }
 
+/* Max request body we will buffer. Vercel caps at ~4.5MB, but quizzes are
+   capped at 300KB of JSON and auth bodies are tiny — reject early. */
+const MAX_BODY_BYTES = 600_000;
+
 export async function readBody(req: unknown): Promise<unknown> {
   try {
     const r = req as {
@@ -75,14 +79,39 @@ export async function readBody(req: unknown): Promise<unknown> {
       [Symbol.asyncIterator]?: () => AsyncIterator<Buffer | string>;
     };
     /* fetch-style adapter (devapi) */
-    if (typeof r.text === "function") return JSON.parse((await r.text()) || "{}");
+    if (typeof r.text === "function") {
+      const raw = (await r.text()) || "{}";
+      if (raw.length > MAX_BODY_BYTES) return null;
+      return JSON.parse(raw);
+    }
     /* Vercel Node runtime pre-parses JSON bodies */
-    if (r.body !== undefined && r.body !== null) return r.body;
+    if (r.body !== undefined && r.body !== null) {
+      if (JSON.stringify(r.body).length > MAX_BODY_BYTES) return null;
+      return r.body;
+    }
     /* raw Node IncomingMessage */
     let data = "";
-    for await (const c of r as AsyncIterable<Buffer | string>) data += String(c);
+    for await (const c of r as AsyncIterable<Buffer | string>) {
+      data += String(c);
+      if (data.length > MAX_BODY_BYTES) return null;
+    }
     return JSON.parse(data || "{}");
   } catch {
     return null;
+  }
+}
+
+/* CSRF defense-in-depth for unauthenticated POSTs (login/register): a browser
+   always sends Origin on POST, so reject a mismatched one. Absent Origin
+   (server-to-server, curl) is allowed — those callers carry no victim cookie. */
+export function sameSite(req: { headers: Record<string, string | undefined> }): boolean {
+  const origin = req.headers["origin"];
+  if (!origin) return true;
+  const host = req.headers["x-forwarded-host"] ?? req.headers["host"];
+  if (!host) return false;
+  try {
+    return new URL(origin).host === host.split(",")[0].trim();
+  } catch {
+    return false;
   }
 }

@@ -6,6 +6,7 @@ export interface CloudUser {
   id: string;
   username: string;
   email: string | null;
+  impersonated?: boolean;
 }
 
 export interface CloudClass {
@@ -79,7 +80,13 @@ export const cloud = {
   },
 
   async logout(): Promise<ApiResult> {
-    const r = await req("/auth/logout", { method: "POST" });
+    const r = await req("/auth/me", { method: "POST" });
+    if (r.ok) this.setSession(null);
+    return r as never;
+  },
+
+  async deleteAccount(): Promise<ApiResult> {
+    const r = await req("/auth/me", { method: "DELETE" });
     if (r.ok) this.setSession(null);
     return r as never;
   },
@@ -129,8 +136,8 @@ export const cloud = {
     return (await req(`/classes/${id}/results`)) as never;
   },
 
-  async submitResult(id: string, result: { quizTitle: string; points: number; maxPoints: number; rank: string; correct: number; total: number }): Promise<ApiResult> {
-    return (await req(`/classes/${id}/results`, { method: "POST", body: result })) as never;
+  async submitResult(id: string, payload: { quizId: string; quizTitle: string; answers: { q: number; a: string | null }[] }): Promise<ApiResult> {
+    return (await req(`/classes/${id}/results`, { method: "POST", body: payload })) as never;
   },
 
   setSession(s: CloudSession | null) {

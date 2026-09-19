@@ -179,6 +179,12 @@ async function handleParams() {
     toast(t("Quiz link was invalid JSON"), "error");
   }
 
+  // dedicated admin path (server is the real gate; this just routes the UI)
+  if (location.pathname.replace(/\/+$/, "") === "/ijustlovehavingtheadminpanel") {
+    await go({ name: "admin" }, { instant: true });
+    return;
+  }
+
   const hashRoute = hashToRoute(location.hash);
   if (hashRoute) {
     await go(hashRoute, { instant: true });

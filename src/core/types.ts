@@ -101,6 +101,7 @@ export interface QuizResult {
   perQuestion: {
     section: string;
     question: string;
+    qIndex: number; // index of this question in the flattened quiz (for server grading)
     correct: boolean;
     points: number;
     ms: number;

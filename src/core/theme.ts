@@ -77,17 +77,30 @@ const CUSTOM_VARS = [
 ];
 
 function customVars(c: CustomTheme): Record<string, string> {
+  const accent = safeColor(c?.accent, "#e60012");
+  const ink = safeColor(c?.ink, "#0c0c0e");
+  const paper = safeColor(c?.paper, "#f6f4f0");
   return {
-    "--red": c.accent,
-    "--red-deep": shift(c.accent, -0.35),
-    "--red-hot": shift(c.accent, 0.18),
-    "--ink": c.ink,
-    "--ink-2": shift(c.ink, 0.05),
-    "--ink-3": shift(c.ink, 0.1),
-    "--paper": c.paper,
-    "--paper-dim": shift(c.paper, -0.22),
-    "--halftone": `radial-gradient(circle at 1px 1px, ${rgbaOf(c.paper, 0.16)} 1px, transparent 0)`,
+    "--red": accent,
+    "--red-deep": shift(accent, -0.35),
+    "--red-hot": shift(accent, 0.18),
+    "--ink": ink,
+    "--ink-2": shift(ink, 0.05),
+    "--ink-3": shift(ink, 0.1),
+    "--paper": paper,
+    "--paper-dim": shift(paper, -0.22),
+    "--halftone": `radial-gradient(circle at 1px 1px, ${rgbaOf(paper, 0.16)} 1px, transparent 0)`,
   };
+}
+
+/* Only a plain hex color may reach a CSS value — blocks CSS-injection via a
+   tampered localStorage custom theme. */
+const HEX_RE = /^#[0-9a-fA-F]{3,8}$/;
+export function isHexColor(v: unknown): v is string {
+  return typeof v === "string" && HEX_RE.test(v.trim());
+}
+function safeColor(v: unknown, fallback: string): string {
+  return isHexColor(v) ? v.trim() : fallback;
 }
 
 /* ---------- apply ---------- */

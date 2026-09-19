@@ -204,7 +204,8 @@ registerScreen("library", (root) => {
   function openGoalModal(title: string, existing?: { targetRank: string }) {
     goalTitle = title;
     goalModal.querySelector<HTMLElement>(".goal-q")!.textContent = `Reach which rank in “${title}”?`;
-    const first = goalModal.querySelector<HTMLElement>(`.goal-rank[data-r="${existing?.targetRank ?? "A"}"]`) ?? goalModal.querySelector<HTMLElement>(".goal-rank")!;
+    const savedRank = /^[SABCDEF]$/.test(existing?.targetRank ?? "") ? existing!.targetRank : "A";
+    const first = goalModal.querySelector<HTMLElement>(`.goal-rank[data-r="${savedRank}"]`) ?? goalModal.querySelector<HTMLElement>(".goal-rank")!;
     goalModal.querySelectorAll(".goal-rank").forEach((x) => x.classList.remove("play"));
     first.classList.add("play");
     pickedRank = first.getAttribute("data-r")!;

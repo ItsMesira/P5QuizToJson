@@ -27,16 +27,15 @@ registerScreen("results", (root) => {
   addProfileXp(gained);
   const unlocked = checkAchievements(result).filter((a) => unlockAchievement(a.id));
 
-  /* classroom sync: post the score to the class leaderboard */
+  /* classroom sync: the server re-grades from the raw answers, so only quizzes
+     that came from the class shelf (have a quizId) can post a score */
   void import("../core/api").then(({ cloud }) => {
-    if (cloud.session?.cls) {
+    const quizId = app.currentQuiz?.quizId;
+    if (cloud.session?.cls && quizId) {
       void cloud.submitResult(cloud.session.cls.id, {
+        quizId,
         quizTitle: result.quizTitle,
-        points: result.points,
-        maxPoints: result.maxPoints,
-        rank: result.rank,
-        correct: result.correct,
-        total: result.total,
+        answers: result.perQuestion.map((p) => ({ q: p.qIndex, a: p.answer ?? null })),
       });
     }
   });

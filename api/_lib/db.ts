@@ -1,14 +1,28 @@
-/* ============ P5 QUIZ API — DB POOL + SCHEMA ============ */
+/* ============ P5 QUIZ API — DB POOL ============ */
 /* Plain node-postgres — works with Supabase, Neon, RDS and local Postgres.
-   `sql` tagged template keeps the call sites terse and parameterized. */
+   `sql` tagged template keeps the call sites terse and parameterized.
+   Schema is managed out-of-band by scripts/migrate.mjs; the app role has DML
+   only (no DDL), so nothing here creates tables. */
 import { Pool, type QueryResultRow } from "pg";
 
 const url = process.env.DATABASE_URL ?? "";
 const isLocal = /localhost|127\.0\.0\.1/.test(url);
+const ca = (process.env.DATABASE_CA_CERT ?? "").replace(/\\n/g, "\n").trim();
+
+function sslConfig(): false | { ca?: string; rejectUnauthorized: boolean } | undefined {
+  if (url === "" || isLocal) return undefined;
+  // Verify the server certificate when a CA is supplied (strongest).
+  if (ca) return { ca, rejectUnauthorized: true };
+  // Explicit opt-in to strict verification without pinning a CA.
+  if (process.env.P5Q_DB_VERIFY === "1") return { rejectUnauthorized: true };
+  // Supabase's pooler presents a cert the Node trust store does not know, so
+  // without DATABASE_CA_CERT we must relax verification. Supply it to harden.
+  return { rejectUnauthorized: false };
+}
 
 export const pool = new Pool({
   connectionString: url,
-  ssl: isLocal || url === "" ? undefined : { rejectUnauthorized: false },
+  ssl: sslConfig(),
   // serverless guidance (Supabase): one connection per warm instance,
   // keep-alive + a short idle window so frozen instances drop stale sockets
   max: 1,
@@ -60,70 +74,19 @@ export async function sql<T extends QueryResultRow = QueryResultRow>(
   }
 }
 
-const schema = `
-CREATE TABLE IF NOT EXISTS users (
-  id UUID PRIMARY KEY,
-  username TEXT UNIQUE NOT NULL,
-  email TEXT UNIQUE,
-  pass_hash TEXT NOT NULL,
-  created TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE TABLE IF NOT EXISTS sessions (
-  token_hash TEXT PRIMARY KEY,
-  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  created TIMESTAMPTZ NOT NULL DEFAULT now(),
-  expires TIMESTAMPTZ NOT NULL
-);
-CREATE TABLE IF NOT EXISTS classes (
-  id UUID PRIMARY KEY,
-  name TEXT NOT NULL,
-  code TEXT UNIQUE NOT NULL,
-  owner_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  created TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE TABLE IF NOT EXISTS members (
-  class_id UUID NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
-  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  role TEXT NOT NULL DEFAULT 'student',
-  joined TIMESTAMPTZ NOT NULL DEFAULT now(),
-  PRIMARY KEY (class_id, user_id)
-);
-CREATE TABLE IF NOT EXISTS quizzes (
-  id UUID PRIMARY KEY,
-  class_id UUID NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
-  author_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  title TEXT NOT NULL,
-  data JSONB NOT NULL,
-  created TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE TABLE IF NOT EXISTS results (
-  id UUID PRIMARY KEY,
-  class_id UUID NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
-  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  quiz_title TEXT NOT NULL,
-  points INTEGER NOT NULL,
-  max_points INTEGER NOT NULL,
-  rank TEXT NOT NULL,
-  correct INTEGER NOT NULL,
-  total INTEGER NOT NULL,
-  created TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE INDEX IF NOT EXISTS idx_results_class ON results (class_id, points DESC);
-CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions (user_id);
-CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions (expires);
-`;
-
-let schemaReady: Promise<void> | null = null;
+/* The runtime no longer creates schema (the app role cannot DDL). This is a
+   cached connectivity guard so handlers fail cleanly when the DB is down. */
+let ready: Promise<void> | null = null;
 export function ensureSchema(): Promise<void> {
-  if (!schemaReady) {
-    schemaReady = pool
-      .query(schema)
+  if (!ready) {
+    ready = pool
+      .query("SELECT 1")
       .then(() => undefined)
       .catch((err) => {
-        console.error("[p5q] ensureSchema failed:", err);
-        schemaReady = null;
+        console.error("[p5q] database unavailable:", err.message);
+        ready = null;
         throw new Error("Database unavailable");
       });
   }
-  return schemaReady;
+  return ready;
 }

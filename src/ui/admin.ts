@@ -1,0 +1,386 @@
+/* ============ P5 QUIZ — ADMIN PANEL (lazy chunk) ============ */
+/* Server-authorized only: every action hits /api/admin, which requires the
+   p5q_admin session + CSRF + step-up for destructive ops. The URL is not the
+   gate. All DOM is built with h() (textContent) — CSP-safe. */
+import { registerScreen, go } from "./screens";
+import { h, clear } from "./dom";
+import { t } from "../core/i18n";
+import { audio } from "../core/audio";
+import "../styles/admin.css";
+
+interface ApiResp {
+  ok: boolean;
+  status: number;
+  data: Record<string, unknown>;
+}
+
+async function adminReq(action: string, payload: Record<string, unknown> = {}): Promise<ApiResp> {
+  const csrf = document.cookie.split("; ").find((c) => c.startsWith("p5q_csrf="))?.slice(9) ?? "";
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (csrf) headers["x-csrf-token"] = csrf;
+  try {
+    const res = await fetch("/api/admin", {
+      method: "POST",
+      credentials: "same-origin",
+      headers,
+      body: JSON.stringify({ action, ...payload }),
+    });
+    let data: Record<string, unknown> = {};
+    try {
+      data = (await res.json()) as Record<string, unknown>;
+    } catch {
+      /* empty */
+    }
+    return { ok: res.ok, status: res.status, data };
+  } catch {
+    return { ok: false, status: 0, data: { error: t("Cannot reach the server") } };
+  }
+}
+
+const err = (r: ApiResp): string => String(r.data.error ?? `HTTP ${r.status}`);
+
+registerScreen("admin", (root) => {
+  const el = h("div", { class: "screen admin-screen" }, [
+    h("div", { class: "admin-body" }, []),
+  ]);
+  root.appendChild(el);
+  const body = () => el.querySelector<HTMLElement>(".admin-body")!;
+
+  let impersonating = false;
+
+  /* ---------- small UI helpers ---------- */
+  const card = (cls = "") => h("div", { class: `admin-card ${cls}` }, []);
+  const row = (children: (Node | string | null)[]) => h("div", { class: "admin-row" }, children);
+  const btn = (label: string, fn: () => void, cls = "") => {
+    const b = h("button", { class: `sticker-btn ${cls}` }, [label]);
+    b.addEventListener("mouseenter", () => audio.sfx("hover"));
+    b.addEventListener("click", () => {
+      audio.sfx("select");
+      fn();
+    });
+    return b;
+  };
+
+  const modal = h("div", { class: "admin-modal hidden" }, []);
+  el.appendChild(modal);
+  const promptPassword = (title: string): Promise<string | null> =>
+    new Promise((resolve) => {
+      clear(modal);
+      modal.classList.remove("hidden");
+      const input = h("input", { type: "password", autocomplete: "current-password" });
+      const close = (val: string | null) => {
+        modal.classList.add("hidden");
+        clear(modal);
+        resolve(val);
+      };
+      const c = card();
+      c.append(
+        h("h3", {}, [title]),
+        h("div", { class: "admin-field" }, [input]),
+        h("div", { class: "admin-tabs" }, [
+          btn(t("CONFIRM"), () => close(input.value || null), "accent"),
+          btn(t("CANCEL"), () => close(null)),
+        ]),
+      );
+      modal.appendChild(c);
+      input.focus();
+      input.addEventListener("keydown", (e) => {
+        if ((e as KeyboardEvent).key === "Enter") close(input.value || null);
+      });
+    });
+
+  const notify = (msg: string) => {
+    const n = h("div", { class: "admin-note admin-notice" }, [msg]);
+    body().prepend(n);
+    window.setTimeout(() => n.remove(), 4000);
+  };
+
+  const askConfirm = (title: string): Promise<boolean> =>
+    new Promise((resolve) => {
+      clear(modal);
+      modal.classList.remove("hidden");
+      const done = (v: boolean) => {
+        modal.classList.add("hidden");
+        clear(modal);
+        resolve(v);
+      };
+      const c = card();
+      c.append(
+        h("h3", {}, [title]),
+        h("div", { class: "admin-tabs" }, [
+          btn(t("CONFIRM"), () => done(true), "accent"),
+          btn(t("CANCEL"), () => done(false)),
+        ]),
+      );
+      modal.appendChild(c);
+    });
+
+  const showSecret = (title: string, secret: string) =>
+    new Promise<void>((resolve) => {
+      clear(modal);
+      modal.classList.remove("hidden");
+      const done = () => {
+        modal.classList.add("hidden");
+        clear(modal);
+        resolve();
+      };
+      const c = card();
+      c.append(
+        h("h3", {}, [title]),
+        h("div", { class: "admin-note" }, [secret]),
+        h("div", { class: "admin-tabs" }, [btn(t("DONE"), done, "accent")]),
+      );
+      modal.appendChild(c);
+    });
+
+  /* run an action; on the step-up 403, prompt for the password and retry once */
+  const guarded = async (action: string, payload: Record<string, unknown> = {}): Promise<ApiResp> => {
+    let r = await adminReq(action, payload);
+    if (!r.ok && r.status === 403 && /re-enter/i.test(err(r))) {
+      const pw = await promptPassword(t("Confirm your password"));
+      if (!pw) return r;
+      const s = await adminReq("stepUp", { password: pw });
+      if (!s.ok) {
+        notify(err(s));
+        return r;
+      }
+      r = await adminReq(action, payload);
+    }
+    if (!r.ok) notify(err(r));
+    return r;
+  };
+
+  /* ---------- auth screens ---------- */
+  const renderLogin = () => {
+    body().replaceChildren();
+    const c = card();
+    const user = h("input", { type: "text", autocomplete: "username", placeholder: t("admin") });
+    const pass = h("input", { type: "password", autocomplete: "current-password", placeholder: t("password") });
+    const submit = async () => {
+      const r = await adminReq("login", { username: user.value, password: pass.value });
+      if (!r.ok) {
+        notify(err(r));
+        return;
+      }
+      if (r.data.mustChangePassword) renderChange();
+      else void boot();
+    };
+    c.append(
+      h("h3", {}, [t("ADMIN LOGIN")]),
+      h("div", { class: "admin-field" }, [user]),
+      h("div", { class: "admin-field" }, [pass]),
+      h("div", { class: "admin-tabs" }, [btn(t("SIGN IN"), submit, "accent")]),
+      h("div", { class: "admin-note" }, [t("Authorized personnel only. All actions are logged.")]),
+    );
+    pass.addEventListener("keydown", (e) => {
+      if ((e as KeyboardEvent).key === "Enter") void submit();
+    });
+    body().appendChild(c);
+  };
+
+  const renderChange = () => {
+    body().replaceChildren();
+    const c = card();
+    const cur = h("input", { type: "password", autocomplete: "current-password" });
+    const next = h("input", { type: "password", autocomplete: "new-password" });
+    c.append(
+      h("h3", {}, [t("CHANGE PASSWORD REQUIRED")]),
+      h("div", { class: "admin-field" }, [h("span", {}, [t("Current password")]), cur]),
+      h("div", { class: "admin-field" }, [h("span", {}, [t("New password (10+ chars)")]), next]),
+      h("div", { class: "admin-tabs" }, [
+        btn(t("SAVE"), async () => {
+          const r = await adminReq("changePassword", { current: cur.value, next: next.value });
+          if (!r.ok) {
+            notify(err(r));
+            return;
+          }
+          void boot();
+        }, "accent"),
+      ]),
+    );
+    body().appendChild(c);
+  };
+
+  /* ---------- tabs ---------- */
+  const TABS = ["Users", "Classes", "Quizzes", "Results", "Sessions", "Audit", "System"] as const;
+  let active: (typeof TABS)[number] = "Users";
+
+  const renderImpersonationBanner = async () => {
+    try {
+      const res = await fetch("/api/auth/me", { credentials: "same-origin" });
+      const j = (await res.json()) as { session?: { user?: { impersonated?: boolean; username?: string } } };
+      impersonating = !!j.session?.user?.impersonated;
+      if (!impersonating) return;
+      const b = h("div", { class: "admin-impersonation-banner" }, [
+        h("span", {}, [t("Impersonating {name} — you are not yourself", { name: j.session?.user?.username ?? "" })]),
+        btn(t("STOP"), async () => {
+          const r = await guarded("impersonate.stop");
+          if (r.ok) location.reload();
+        }),
+      ]);
+      el.prepend(b);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const renderPanel = async () => {
+    body().replaceChildren();
+    const identity = await adminReq("me");
+    const who = identity.ok ? String((identity.data.admin as { username?: string })?.username ?? "") : "";
+
+    const head = h("div", { class: "admin-head" }, [
+      h("h2", { class: "screen-title" }, [t("ADMIN PANEL")]),
+      h("span", { class: "admin-note" }, [who ? `@${who}` : ""]),
+      h("span", { class: "spacer" }, []),
+      btn(t("↻ REFRESH"), () => void renderTab(active)),
+      btn(t("⤶ SIGN OUT"), async () => {
+        await adminReq("logout");
+        location.href = "/";
+      }),
+      btn(t("⌂ HOME"), () => void go({ name: "title" })),
+    ]);
+    const tabs = h("div", { class: "admin-tabs" }, []);
+    TABS.forEach((name) =>
+      tabs.appendChild(
+        btn(t(name), () => {
+          active = name;
+          void renderTab(name);
+        }, name === active ? "active" : ""),
+      ),
+    );
+    const content = card();
+    content.classList.add("admin-content");
+    body().append(head, tabs, content);
+    await renderTab(active);
+  };
+
+  const renderTab = async (name: (typeof TABS)[number]) => {
+    const content = body().querySelector<HTMLElement>(".admin-content")!;
+    clear(content);
+    content.appendChild(h("div", { class: "admin-note" }, [t("Loading…")]));
+    const load = async () => {
+      try {
+        if (name === "Users") return await tabUsers();
+        if (name === "Classes") return await tabClasses();
+        if (name === "Quizzes") return await tabList("quizzes.list", "quizzes", "Quizzes");
+        if (name === "Results") return await tabList("results.list", "results", "Results");
+        if (name === "Sessions") return await tabList("sessions.list", "sessions", "Sessions");
+        if (name === "Audit") return await tabList("audit.list", "audit", "Audit");
+        return await tabSystem();
+      } catch (e) {
+        return card();
+      }
+    };
+    const c = await load();
+    clear(content);
+    content.classList.remove("admin-content");
+    // content may be a fresh card; splice its children
+    while (c.firstChild) content.appendChild(c.firstChild);
+  };
+
+  const listCard = (title: string, items: Record<string, unknown>[], render: (it: Record<string, unknown>) => Node) => {
+    const c = card();
+    c.appendChild(h("h3", {}, [t(title)]));
+    if (!items.length) c.appendChild(h("div", { class: "admin-note" }, [t("Nothing here.")]));
+    items.forEach((it) => c.appendChild(render(it)));
+    return c;
+  };
+
+  const tabUsers = async () => {
+    const r = await adminReq("users.list", { limit: 100 });
+    if (!r.ok) return cardWith(err(r));
+    const users = (r.data.users as Record<string, unknown>[]) ?? [];
+    return listCard("Users", users, (u) => {
+      const id = String(u.id);
+      return row([
+        h("span", { class: "grow" }, [`${u.username}${u.is_admin ? "  ★admin" : ""}  ·  ${u.email ?? "—"}  ·  ${u.classes} classes`]),
+        btn(t("Reset pw"), async () => {
+          const res = await guarded("users.resetPassword", { id });
+          if (res.ok) await showSecret(t("Temporary password"), String(res.data.temporaryPassword ?? ""));
+        }),
+        btn(t("Revoke"), () => void guarded("users.revokeSessions", { id })),
+        btn(t(u.is_admin ? "Demote" : "Promote"), () => void guarded("users.setAdmin", { id, isAdmin: !u.is_admin })),
+        btn(t("Impersonate"), async () => {
+          const res = await guarded("impersonate.start", { userId: id });
+          if (res.ok) location.href = "/";
+        }),
+        btn(t("Delete"), async () => {
+          if (!(await askConfirm(t("Delete {name}? This cascades their quizzes and results.", { name: String(u.username) })))) return;
+          await guarded("users.delete", { id });
+          void renderTab(active);
+        }, "accent"),
+      ]);
+    });
+  };
+
+  const tabClasses = async () => {
+    const r = await adminReq("classes.list", { limit: 100 });
+    if (!r.ok) return cardWith(err(r));
+    const classes = (r.data.classes as Record<string, unknown>[]) ?? [];
+    return listCard("Classes", classes, (c) => {
+      const id = String(c.id);
+      return row([
+        h("span", { class: "grow" }, [`${c.name}  ·  code ${c.code}  ·  owner ${c.owner}  ·  ${c.members} members  ·  ${c.quizzes} quizzes`]),
+        btn(t("Clear results"), () => void guarded("results.clear", { classId: id })),
+        btn(t("Delete"), async () => {
+          if (!(await askConfirm(t("Delete class {name}? This removes its quizzes and results.", { name: String(c.name) })))) return;
+          await guarded("classes.delete", { id });
+          void renderTab(active);
+        }, "accent"),
+      ]);
+    });
+  };
+
+  const tabList = async (action: string, key: string, title: string) => {
+    const r = await adminReq(action, { limit: 100 });
+    if (!r.ok) return cardWith(err(r));
+    const items = (r.data[key] as Record<string, unknown>[]) ?? [];
+    return listCard(title, items, (it) => {
+      const summary = Object.entries(it)
+        .filter(([k]) => k !== "id")
+        .map(([k, v]) => `${k}: ${v === null ? "—" : typeof v === "object" ? JSON.stringify(v) : String(v)}`)
+        .join("  ·  ");
+      const actions: Node[] = [];
+      if (key === "quizzes") actions.push(btn(t("Delete"), () => void guarded("quizzes.delete", { id: String(it.id) }), "accent"));
+      if (key === "results") actions.push(btn(t("Delete"), () => void guarded("results.delete", { id: String(it.id) }), "accent"));
+      if (key === "sessions") actions.push(btn(t("Revoke user"), () => void guarded("sessions.revoke", { userId: String(it.user_id ?? "") })));
+      return row([h("span", { class: "grow" }, [summary]), ...actions]);
+    });
+  };
+
+  const tabSystem = async () => {
+    const r = await adminReq("stats");
+    if (!r.ok) return cardWith(err(r));
+    const s = (r.data.stats as Record<string, unknown>) ?? {};
+    const c = card();
+    c.appendChild(h("h3", {}, [t("System")]));
+    Object.entries(s).forEach(([k, v]) => c.appendChild(row([h("span", { class: "grow" }, [`${k}: ${String(v)}`])])));
+    return c;
+  };
+
+  const cardWith = (message: string) => {
+    const c = card();
+    c.appendChild(h("div", { class: "admin-note" }, [message]));
+    return c;
+  };
+
+  const boot = async () => {
+    const me = await adminReq("me");
+    if (me.ok && me.data.mustChangePassword) {
+      renderChange();
+      return;
+    }
+    if (me.ok) {
+      await renderImpersonationBanner();
+      await renderPanel();
+    } else {
+      renderLogin();
+    }
+  };
+
+  void boot();
+  return () => {
+    /* nothing to clean up (listeners are scoped to removed nodes) */
+  };
+});

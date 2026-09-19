@@ -12,7 +12,7 @@ import { t, applyLocale } from "../core/i18n";
 
 export const app = {
   settings: loadSettings(),
-  currentQuiz: null as (Quiz & { savedId?: string; source?: string }) | null,
+  currentQuiz: null as (Quiz & { savedId?: string; source?: string; quizId?: string }) | null,
   lastResult: null as QuizResult | null,
   profile: null as string | null,
 };
@@ -45,7 +45,8 @@ export type Route =
   | { name: "leaderboard" }
   | { name: "prompts" }
   | { name: "entry" }
-  | { name: "dashboard" };
+  | { name: "dashboard" }
+  | { name: "admin" };
 
 type MountFn = (root: HTMLElement) => () => void;
 
@@ -69,6 +70,7 @@ const loaders: Record<Route["name"], () => Promise<unknown>> = {
   prompts: () => import("./prompts"),
   entry: () => import("./entry"),
   dashboard: () => import("./dashboard"),
+  admin: () => import("./admin"),
 };
 
 /* A route chunk can 404 when a tab outlives a deploy: its hashed filename is
@@ -203,12 +205,12 @@ export function initClassBadge() {
   updateClassBadge();
 }
 
-export async function startQuiz(quiz: Quiz & { savedId?: string; source?: string }) {
+export async function startQuiz(quiz: Quiz & { savedId?: string; source?: string; quizId?: string }) {
   // ALWAYS normalize through the validator — raw JSON (samples, old saves,
   // resume) lacks derived fields like correctText that the engine needs.
   const v = validateQuiz(quiz);
   if (v.ok) {
-    app.currentQuiz = { ...v.quiz, savedId: quiz.savedId, source: quiz.source };
+    app.currentQuiz = { ...v.quiz, savedId: quiz.savedId, source: quiz.source, quizId: quiz.quizId };
   } else {
     toast(t("Quiz has problems — reload the JSON"), "error");
     app.currentQuiz = quiz;
@@ -229,6 +231,7 @@ export function hashToRoute(h: string): Route | null {
     prompts: { name: "prompts" },
     entry: { name: "entry" },
     dashboard: { name: "dashboard" },
+    admin: { name: "admin" },
   };
   const key = h.replace(/^#\/?/, "") as keyof typeof map;
   return map[key] ?? null;

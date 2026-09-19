@@ -4,7 +4,7 @@ import { registerScreen, go, app, applyGlobalSettings } from "./screens";
 import { h, toast } from "./dom";
 import { audio } from "../core/audio";
 import { RM } from "../fx/transitions";
-import { THEMES, contrastRatio } from "../core/theme";
+import { THEMES, contrastRatio, isHexColor } from "../core/theme";
 import { t, LOCALES, detectLocale } from "../core/i18n";
 
 registerScreen("settings", (root) => {
@@ -83,7 +83,7 @@ registerScreen("settings", (root) => {
   const swatchRow = (colors: string[]) =>
     h("div", { class: "theme-swatches" }, colors.map((c) => {
       const sw = h("span", { class: "theme-sw" });
-      sw.style.background = c;
+      sw.style.background = isHexColor(c) ? c : "#000";
       return sw;
     }));
 
@@ -184,7 +184,7 @@ registerScreen("settings", (root) => {
       customCard.textContent = "";
       [s.customTheme.accent, s.customTheme.ink, s.customTheme.paper].forEach((c) => {
         const sw = h("span", { class: "theme-sw" });
-        sw.style.background = c;
+        sw.style.background = isHexColor(c) ? c : "#000";
         customCard.appendChild(sw);
       });
     }

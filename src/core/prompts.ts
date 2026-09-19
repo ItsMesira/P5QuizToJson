@@ -1,6 +1,19 @@
 /* ============ P5 QUIZ — MASTER PROMPT ENGINE + PRESETS ============ */
 import type { QuestionType, QuizMode } from "./types";
 
+/* Strip own __proto__/constructor/prototype keys from untrusted objects before
+   Object.assign (which would otherwise hit the __proto__ setter → prototype
+   pollution from a crafted preset / ?prompt= link / tampered storage). */
+export function stripUnsafe<T>(obj: T): T {
+  if (!obj || typeof obj !== "object") return obj;
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
+    if (k === "__proto__" || k === "constructor" || k === "prototype") continue;
+    out[k] = v;
+  }
+  return out as T;
+}
+
 export type Audience = "kids" | "teens" | "adults" | "experts";
 export type DifficultyMix = "chill" | "balanced" | "brutal";
 export type Tone = "fun" | "serious" | "dramatic";
@@ -86,7 +99,7 @@ const SCHEMA_REF = `THE JSON SCHEMA (follow exactly, no extra fields that aren't
     "shuffle": true — shuffle question order,
     "shuffleAnswers": true — shuffle answer order,
     "negativeMarking": false — wrong answers lose half points,
-    "feedback": "instant" | "end"
+    "feedback": "instant" — explanation shows right after each answer (DEFAULT; omit this field unless you truly need "end"); "end" hides every per-question explanation until the final review, so use it ONLY for strict exams
   },
   "sections": [
     { "name": "Section Name", "questions": [ QUESTION, QUESTION, ... ] },

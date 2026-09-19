@@ -154,7 +154,7 @@ registerScreen("dashboard", (root) => {
               const v = validateQuiz(r.data.quiz);
               if (v.ok) {
                 saveQuiz(v.quiz, `class:${c.name}`);
-                await startQuiz({ ...v.quiz, source: `class:${c.name}` });
+                await startQuiz({ ...v.quiz, source: `class:${c.name}`, quizId: b.getAttribute("data-qid")! });
               } else {
                 toast(t("That quiz is broken"), "error");
               }

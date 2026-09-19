@@ -8,7 +8,7 @@ import { build } from "esbuild";
 import { createServer } from "node:http";
 import { createReadStream } from "node:fs";
 import { readFile, readdir, stat } from "node:fs/promises";
-import { join, extname, dirname } from "node:path";
+import { join, extname, dirname, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = dirname(fileURLToPath(import.meta.url));
@@ -23,6 +23,18 @@ try {
   }
 } catch {
   /* no .env — rely on the environment */
+}
+
+/* Local dev/tests run as the least-privilege role when .env.approle exists
+   (set P5Q_OWNER_DB=1 to use the owner connection instead, e.g. for debugging). */
+if (process.env.P5Q_OWNER_DB !== "1") {
+  try {
+    const appEnv = await readFile(join(root, ".env.approle"), "utf8");
+    const m = /^DATABASE_URL=(.*)$/m.exec(appEnv);
+    if (m) process.env.DATABASE_URL = m[1].replace(/^["']|["']$/g, "");
+  } catch {
+    /* no app-role file — use DATABASE_URL as configured */
+  }
 }
 
 /* ---------- bundle api/ handlers (esbuild handles extensionless TS imports) ---------- */
@@ -187,14 +199,20 @@ const server = createServer(async (nodeReq, nodeRes) => {
   }
 
   /* static app from dist/ with SPA fallback */
-  const rel = url.pathname === "/" ? "/index.html" : url.pathname;
-  const file = join(dist, decodeURIComponent(rel));
-  if (file.startsWith(dist) && (await sendFile(nodeReq, nodeRes, file))) return;
+  let rel = url.pathname === "/" ? "/index.html" : url.pathname;
+  try {
+    rel = decodeURIComponent(rel);
+  } catch {
+    rel = "/index.html";
+  }
+  const file = join(dist, rel);
+  const contained = file === dist || file.startsWith(dist + sep);
+  if (contained && (await sendFile(nodeReq, nodeRes, file))) return;
   if (await sendFile(nodeReq, nodeRes, join(dist, "index.html"))) return;
   nodeRes.writeHead(404, { "content-type": "text/plain" });
   nodeRes.end("dist/ not found — run `npm run build` first");
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, "127.0.0.1", () => {
   console.log(`[devapi] app + API on http://localhost:${PORT}  (DATABASE_URL ${process.env.DATABASE_URL ? "set" : "MISSING"})`);
 });

@@ -515,6 +515,7 @@ export class QuizRunner {
         return {
           section: played.section,
           question: played.q.question,
+          qIndex: this.order[i],
           correct: this.wasCorrect(i),
           points: this.earned[i] ?? 0,
           ms: this.times[i] ?? 0,

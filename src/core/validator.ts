@@ -18,6 +18,15 @@ function isObj(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
+/* Only https or inline images may reach an <img src> — blocks http/privacy
+   leaks and non-image schemes from untrusted quiz JSON. */
+const IMG_RE = /^(https:\/\/|data:image\/)/i;
+function safeImage(v: unknown): string | undefined {
+  if (typeof v !== "string") return undefined;
+  const s = v.trim();
+  return IMG_RE.test(s) ? s : undefined;
+}
+
 /* Accepts loose formats: `{options: [{text, correct}]}`, `{choices: [...]}`, plain answer strings. */
 function normalizeAnswer(a: unknown): Answer | null {
   if (typeof a === "string") return { text: a, correct: false };
@@ -75,7 +84,7 @@ function normalizeQuestion(raw: unknown, path: string): { q?: Question; errors: 
     question: String(raw.question ?? "").trim(),
     explanation: typeof raw.explanation === "string" ? raw.explanation : undefined,
     hint: typeof raw.hint === "string" ? raw.hint : undefined,
-    image: typeof raw.image === "string" ? raw.image : undefined,
+    image: safeImage(raw.image),
     difficulty: raw.difficulty === 2 ? 2 : raw.difficulty === 3 ? 3 : 1,
     points: typeof raw.points === "number" && raw.points > 0 ? raw.points : 100,
     tolerance: typeof raw.tolerance === "number" ? raw.tolerance : 0.5,
@@ -204,7 +213,7 @@ export function validateQuiz(raw: unknown): Validation {
     title: String(raw.title).trim(),
     description: typeof raw.description === "string" ? raw.description : undefined,
     accent: typeof raw.accent === "string" && /^#[0-9a-f]{6}$/i.test(raw.accent) ? raw.accent : "#e60012",
-    cover: typeof raw.cover === "string" ? raw.cover : undefined,
+    cover: safeImage(raw.cover),
     author: typeof raw.author === "string" ? raw.author : undefined,
     passScore: typeof raw.passScore === "number" ? Math.max(0, Math.min(100, raw.passScore)) : 70,
     settings: { ...DEFAULT_QUIZ_SETTINGS, ...userSettings },

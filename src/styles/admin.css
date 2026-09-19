@@ -1,0 +1,71 @@
+/* ============ P5 QUIZ — ADMIN PANEL ============ */
+.admin-screen {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+  gap: 14px;
+}
+.admin-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.admin-head .screen-title { margin: 0; }
+.admin-head .spacer { flex: 1; }
+.admin-body { display: flex; flex-direction: column; gap: 14px; }
+.admin-card {
+  background: var(--ink-3);
+  border-left: 6px solid var(--red);
+  clip-path: var(--clip-tab);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.admin-card.hidden { display: none; }
+.admin-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.admin-tabs .sticker-btn { font-size: 13px; padding: 6px 12px; }
+.admin-tabs .sticker-btn.active { background: var(--red); color: var(--paper); }
+.admin-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--paper-dim);
+  padding: 6px 0;
+  border-bottom: 1px dashed rgba(246, 244, 240, 0.12);
+}
+.admin-row .grow { flex: 1; min-width: 160px; overflow-wrap: anywhere; }
+.admin-row .sticker-btn { font-size: 11px; padding: 4px 8px; }
+.admin-field { display: flex; flex-direction: column; gap: 6px; }
+.admin-field input {
+  font-family: var(--font-mono);
+  padding: 10px 12px;
+  background: var(--ink-2);
+  color: var(--paper);
+  border: 2px solid rgba(246, 244, 240, 0.2);
+}
+.admin-note { color: var(--smoke); font-size: 12px; font-family: var(--font-mono); }
+.admin-impersonation-banner {
+  position: fixed;
+  left: 0; right: 0; top: 0;
+  z-index: 80;
+  background: var(--gold);
+  color: #111;
+  font-weight: 700;
+  padding: 8px 14px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+}
+.admin-modal {
+  position: fixed; inset: 0; z-index: 90;
+  background: rgba(12, 12, 14, 0.85);
+  display: grid; place-items: center; padding: 24px;
+}
+.admin-modal.hidden { display: none; }
+.admin-modal .admin-card { width: min(420px, 100%); }

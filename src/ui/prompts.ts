@@ -8,7 +8,7 @@ import { fx } from "../fx/particles";
 import { RM } from "../fx/transitions";
 import {
   BUILTIN_PRESETS, FIXER_PROMPT, type Preset, type PromptFields, type Audience, type DifficultyMix, type Tone, type Blooms,
-  defaultFields, buildPrompt, buildFollowUpPrompt, buildMissPrompt, mergeFields,
+  defaultFields, buildPrompt, buildFollowUpPrompt, buildMissPrompt, mergeFields, stripUnsafe,
   estimatePlayTime, estimateXp, vagueTopics, DIFF_SPLIT,
 } from "../core/prompts";
 import {
@@ -601,7 +601,7 @@ registerScreen("prompts", (root) => {
       card.querySelector(".prompt-load")!.addEventListener("click", (e) => {
         e.stopPropagation();
         audio.sfx("select");
-        Object.assign(fields, { ...defaultFields(), ...p.fields });
+        Object.assign(fields, { ...defaultFields(), ...stripUnsafe(p.fields) });
         setTab("builder");
         toast(t("Loaded “{title}” into the builder", { title: p.title }), "info");
       });
@@ -640,7 +640,7 @@ registerScreen("prompts", (root) => {
         const a = all2.find((x) => x.id === mergeTargets[0]);
         const b = all2.find((x) => x.id === mergeTargets[1]);
         if (a && b) {
-          Object.assign(fields, mergeFields({ ...a.fields }, { ...b.fields }));
+          Object.assign(fields, mergeFields(stripUnsafe({ ...a.fields }), stripUnsafe({ ...b.fields })));
           mergeTargets = [];
           mergeArmed = false;
           audio.sfx("rankup");
