@@ -242,17 +242,22 @@ registerScreen("admin", (root) => {
     await renderTab(active);
   };
 
-  /* A slower earlier render must never paint over a newer one (e.g. the panel's
-   boot render resolving after a tab was already clicked, or after an action
-   updated a row). Each render takes a ticket; only the newest ticket may paint. */
+  /* Concurrency rules for the panel:
+   - a render must not clear the panel until it has data (atomic paint), so a
+     superseded render can never strand "Loading…";
+   - only the newest render may paint (ticket guard);
+   - a render waits for any pending action first, so a tab switch during an
+     action always reads post-action state. */
   let renderSeq = 0;
+  let pendingAction: Promise<unknown> | null = null;
 
   const renderTab = async (name: (typeof TABS)[number]) => {
+    if (pendingAction) {
+      try { await pendingAction; } catch { /* the action reports its own error */ }
+    }
     const seq = ++renderSeq;
     const content = body().querySelector<HTMLElement>(".admin-content");
     if (!content) return;
-    clear(content);
-    content.appendChild(h("div", { class: "admin-note" }, [t("Loading…")]));
     let c: HTMLElement;
     try {
       if (name === "Users") c = await tabUsers();
@@ -292,9 +297,11 @@ registerScreen("admin", (root) => {
   ): Promise<boolean> => {
     if (opts.confirm && !(await askConfirm(opts.confirm))) return false;
     opts.removeRow?.remove();
-    const r = await guarded(action, payload);
+    const actionPromise = guarded(action, payload);
+    pendingAction = actionPromise;
+    const r = await actionPromise;
+    if (pendingAction === actionPromise) pendingAction = null;
     if (r.ok) {
-      renderSeq++; // invalidate any in-flight tab render so it can't undo this
       opts.onOk?.();
       if (opts.success) notify(opts.success);
       return true;

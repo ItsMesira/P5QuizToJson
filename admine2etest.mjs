@@ -335,7 +335,6 @@ async function runUI() {
   await goTab("Users");
   const beforeDel = await page.$$eval(".admin-notice", (els) => els.map((e) => e.textContent)).catch(() => []);
   await setAdminDelay(1500);
-  const reqStart = adminRequests.length;
   const hit = await clickRowButton(studentName, "Delete");
   for (let i = 0; i < 40 && !(await modalOpen()); i++) await sleep(50);
   const labels = await page.$$eval(".admin-modal .sticker-btn", (els) => els.map((e) => e.textContent.trim())).catch(() => []);
@@ -349,6 +348,11 @@ async function runUI() {
     await sleep(20);
   }
   check("G7 optimistic row removal before reply (API delayed 1500ms)", hit.found && goneMs >= 0 && goneMs < 250, `gone=${goneMs}ms`);
+  // switch tabs while the delete is still in flight: the panel must not strand
+  // "Loading…" and must render the newly selected tab once the action settles
+  const classesTab = await page.$$eval(".admin-tabs .sticker-btn", (els) => els.map((e) => e.textContent.trim()));
+  const tabBtns = await page.$$(".admin-tabs .sticker-btn");
+  await tabBtns[classesTab.indexOf("Classes")].click();
   let delNotice = "";
   let noticeMs = -1;
   for (let i = 0; i < 80; i++) {
@@ -358,11 +362,17 @@ async function runUI() {
     if (fresh.some((x) => /deleted/i.test(x))) { delNotice = fresh.join(" | "); noticeMs = Date.now() - t0; break; }
   }
   await setAdminDelay(0);
-  // recompute AFTER the (delayed) reply so a hypothetical post-reply request
-  // cannot escape the round-trip count
-  const sentReqs = adminRequests.length - reqStart;
+  let classTabShown = false;
+  for (let i = 0; i < 40; i++) {
+    classTabShown = await page.$eval(".admin-content", (e) => e.textContent.includes("Classes") && !e.textContent.includes("Loading…")).catch(() => false);
+    if (classTabShown) break;
+    await sleep(250);
+  }
+  check("tab switch during a pending action still renders (no stranded Loading…)", classTabShown);
+  // count only this action's requests so the extra list fetch can't skew G6
+  const deleteReqs = adminLog.filter((x) => x.dir === "req" && x.action === "users.delete").length;
   check("G7 reply really was delayed (notice arrived after the optimistic update)", noticeMs > 1000, `notice=${noticeMs}ms`);
-  check("G6 Users.Delete is a single round-trip", sentReqs === 1, `reqs=${sentReqs}`);
+  check("G6 Users.Delete is a single round-trip", deleteReqs === 1, `reqs=${deleteReqs}`);
   const users = (await adminC.admin("users.list", { query: studentName })).json?.users ?? [];
   check("Users.Delete persisted (gone)", users.length === 0);
   check("Users.Delete showed a notice", delNotice.length > 0, delNotice);
