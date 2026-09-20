@@ -137,19 +137,22 @@ page.on("response", async (r) => {
    app scripts run. */
 await page.evaluateOnNewDocument(() => {
   const orig = window.fetch.bind(window);
-  window.__adminDelay = 0;
+  window.__adminDelays = {};
   window.fetch = (input, init) => {
     const url = typeof input === "string" ? input : input.url;
     const p = orig(input, init);
     // delay only the RESPONSE so the request still leaves immediately and the
-    // app's promise stays pending (i.e. a slow server)
-    if (window.__adminDelay && url.includes("/api/admin")) {
-      return p.then((res) => new Promise((r) => setTimeout(() => r(res), window.__adminDelay)));
+    // app's promise stays pending (i.e. a slow server). Delays are per action.
+    if (url.includes("/api/admin")) {
+      let action = "";
+      try { action = JSON.parse((init && init.body) || "{}").action || ""; } catch { /* */ }
+      const ms = window.__adminDelays[action] || 0;
+      if (ms) return p.then((res) => new Promise((r) => setTimeout(() => r(res), ms)));
     }
     return p;
   };
 });
-const setAdminDelay = (ms) => page.evaluate((d) => { window.__adminDelay = d; }, ms);
+const setAdminDelays = (map) => page.evaluate((m) => { window.__adminDelays = m; }, map);
 
 const modalOpen = () => page.$eval(".admin-modal", (e) => !e.classList.contains("hidden")).catch(() => false);
 const noticeText = async () => (await page.$$eval(".admin-notice", (els) => els.map((e) => e.textContent)).catch(() => [])).join(" | ");
@@ -334,7 +337,7 @@ async function runUI() {
   /* ---- Users: Delete + G6 single round-trip + G7 optimistic removal ---- */
   await goTab("Users");
   const beforeDel = await page.$$eval(".admin-notice", (els) => els.map((e) => e.textContent)).catch(() => []);
-  await setAdminDelay(1500);
+  await setAdminDelays({ "users.delete": 1500 });
   const hit = await clickRowButton(studentName, "Delete");
   for (let i = 0; i < 40 && !(await modalOpen()); i++) await sleep(50);
   const labels = await page.$$eval(".admin-modal .sticker-btn", (els) => els.map((e) => e.textContent.trim())).catch(() => []);
@@ -361,14 +364,18 @@ async function runUI() {
     const fresh = now.filter((x) => !beforeDel.includes(x));
     if (fresh.some((x) => /deleted/i.test(x))) { delNotice = fresh.join(" | "); noticeMs = Date.now() - t0; break; }
   }
-  await setAdminDelay(0);
+  await setAdminDelays({});
   let classTabShown = false;
   for (let i = 0; i < 40; i++) {
-    classTabShown = await page.$eval(".admin-content", (e) => e.textContent.includes("Classes") && !e.textContent.includes("Loading…")).catch(() => false);
+    classTabShown = await page.evaluate(() => {
+      const content = document.querySelector(".admin-content");
+      const active = [...document.querySelectorAll(".admin-tabs .sticker-btn")].find((b) => b.classList.contains("active"));
+      return !!content && content.textContent.includes("Classes") && !content.textContent.includes("Loading…") && !!active && active.textContent.trim() === "Classes";
+    }).catch(() => false);
     if (classTabShown) break;
     await sleep(250);
   }
-  check("tab switch during a pending action still renders (no stranded Loading…)", classTabShown);
+  check("tab switch during a pending action still renders the selected tab", classTabShown);
   // count only this action's requests so the extra list fetch can't skew G6
   const deleteReqs = adminLog.filter((x) => x.dir === "req" && x.action === "users.delete").length;
   check("G7 reply really was delayed (notice arrived after the optimistic update)", noticeMs > 1000, `notice=${noticeMs}ms`);
@@ -377,6 +384,31 @@ async function runUI() {
   check("Users.Delete persisted (gone)", users.length === 0);
   check("Users.Delete showed a notice", delNotice.length > 0, delNotice);
   studentId = null;
+
+  /* ---- stale-render race: a list fetch that predates an action must never
+     repaint the deleted row afterwards (REFRESH delayed 3s, delete 400ms) ---- */
+  await goTab("Users");
+  await setAdminDelays({ "users.list": 3000, "users.delete": 400 });
+  const tRefresh = Date.now();
+  const refreshBtns = await page.$$eval(".admin-head .sticker-btn", (els) => els.map((e) => e.textContent.trim()));
+  const headBtns = await page.$$(".admin-head .sticker-btn");
+  await headBtns[refreshBtns.findIndex((x) => x.includes("REFRESH"))].click();
+  await sleep(200); // the REFRESH list fetch is now in flight and stale
+  const ownerHit = await clickRowButton(ownerName, "Delete");
+  for (let i = 0; i < 40 && !(await modalOpen()); i++) await sleep(50);
+  const delLabels = await page.$$eval(".admin-modal .sticker-btn", (els) => els.map((e) => e.textContent.trim())).catch(() => []);
+  const delBtns = await page.$$(".admin-modal .sticker-btn");
+  await delBtns[delLabels.indexOf("CONFIRM")].click();
+  const ownerRowShown = () => page.evaluate((n) => [...document.querySelectorAll(".admin-content .admin-row")].some((r) => r.textContent.includes(n)), ownerName).catch(() => true);
+  await sleep(Math.max(0, tRefresh + 4000 - Date.now()));
+  const phantomAt4s = await ownerRowShown();
+  await sleep(Math.max(0, tRefresh + 8000 - Date.now()));
+  const phantomAt8s = await ownerRowShown();
+  check("stale list render cannot resurrect a deleted row", ownerHit.found && !phantomAt4s && !phantomAt8s, `found=${ownerHit.found} at4s=${phantomAt4s} at8s=${phantomAt8s}`);
+  await setAdminDelays({});
+  const ownerRows = (await adminC.admin("users.list", { query: ownerName })).json?.users ?? [];
+  check("owner delete persisted (gone)", ownerRows.length === 0);
+  ownerId = null;
 
   // first destructive action legitimately includes the step-up exchange; every
   // action after it must be exactly one /api/admin round-trip

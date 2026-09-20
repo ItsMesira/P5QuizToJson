@@ -297,6 +297,10 @@ registerScreen("admin", (root) => {
   ): Promise<boolean> => {
     if (opts.confirm && !(await askConfirm(opts.confirm))) return false;
     opts.removeRow?.remove();
+    // any render whose fetch started before this action must never paint: bump
+    // the ticket so it is superseded. Renders started after this point take a
+    // newer ticket and wait for the action, so they read post-action state.
+    renderSeq++;
     const actionPromise = guarded(action, payload);
     pendingAction = actionPromise;
     const r = await actionPromise;
