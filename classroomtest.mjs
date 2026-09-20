@@ -72,6 +72,27 @@ await page.waitForSelector(".dash-quiz", { timeout: 15000 }).catch(() => undefin
 const count = () => page.$$eval(".dash-quiz", (els) => els.length);
 const pagerText = () => page.$eval(".dash-pager", (el) => el.textContent ?? "").catch(() => "");
 
+/* heal: a valid session with NO CSRF cookie (accounts older than the cookie)
+   must still be able to add — the server re-issues it on session restore */
+await page.deleteCookie({ name: "p5q_csrf", domain: new URL(BASE).hostname });
+await page.reload({ waitUntil: "domcontentloaded" });
+await page.waitForSelector(".dash-quiz", { timeout: 15000 }).catch(() => undefined);
+await page.click(".dash-add");
+await page.waitForSelector(".dash-add-modal:not(.hidden)", { timeout: 5000 });
+const healed = { ...quizJson(97), title: `Heal Probe ${tag}` };
+await page.$eval(".dash-add-area", (el, json) => { el.value = json; }, JSON.stringify(healed));
+await page.click(".dash-add-submit");
+await page.waitForFunction(() => document.querySelector(".dash-add-modal")?.classList.contains("hidden"), { timeout: 20000 }).catch(() => undefined);
+const healList = (await owner.req("GET", `/api/classes/${cls.id}/quizzes`)).json?.quizzes ?? [];
+const healRow = healList.find((q) => q.title === healed.title);
+check("heal: add works without a CSRF cookie", !!healRow, `server has ${healList.length}`);
+if (healRow) await owner.req("DELETE", `/api/classes/${cls.id}/quizzes?qid=${healRow.id}`);
+for (const [name, value] of Object.entries(owner.cookies)) {
+  await page.setCookie({ name, value, domain: new URL(BASE).hostname, path: "/" });
+}
+await page.reload({ waitUntil: "domcontentloaded" });
+await page.waitForSelector(".dash-quiz", { timeout: 15000 }).catch(() => undefined);
+
 check("shelf: first page shows 12 of 15", (await count()) === 12, `cards=${await count()}`);
 check("shelf: pager announces 1–12 of 15", (await pagerText()).includes("1–12 of 15"), await pagerText());
 

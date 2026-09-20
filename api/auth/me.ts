@@ -2,7 +2,7 @@
    (logout was merged here to stay within the 12-function limit.) */
 import type { ApiRequest, ApiResponse } from "../_lib/types.js";
 import { sql, ensureSchema } from "../_lib/db.js";
-import { sessionInfo, parseCookies, destroySession, clearCookieHeaders, csrfValid, getUserByToken, COOKIE } from "../_lib/auth.js";
+import { sessionInfo, parseCookies, destroySession, clearCookieHeaders, csrfValid, getUserByToken, COOKIE, randomToken, csrfCookieHeader, SESSION_DAYS } from "../_lib/auth.js";
 import { ok, unauthorized, fail, serverError } from "../_lib/http.js";
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
@@ -14,6 +14,10 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     if (req.method === "GET") {
       const session = await sessionInfo(token);
       if (!session) return unauthorized(res);
+      // Session restore also hands out a fresh CSRF token. Sessions created
+      // before the CSRF cookie existed (or browsers that dropped it) would
+      // otherwise fail every write forever with "Missing CSRF token".
+      res.setHeader("Set-Cookie", csrfCookieHeader(randomToken(), SESSION_DAYS * 86_400));
       return ok(res, { ok: true, session });
     }
 

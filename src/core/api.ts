@@ -22,10 +22,17 @@ export interface CloudSession {
 }
 
 function csrfToken(): string {
-  return document.cookie.split("; ").find((c) => c.startsWith("p5q_csrf="))?.slice(9) ?? "";
+  // last occurrence wins, matching the server's cookie parser
+  const hit = [...document.cookie.split("; ")].reverse().find((c) => c.startsWith("p5q_csrf="));
+  if (!hit) return "";
+  try {
+    return decodeURIComponent(hit.slice(9));
+  } catch {
+    return hit.slice(9);
+  }
 }
 
-async function req(path: string, opts: { method?: string; body?: unknown } = {}): Promise<{ ok: boolean; status: number; data: Record<string, unknown> }> {
+async function req(path: string, opts: { method?: string; body?: unknown } = {}, retried = false): Promise<{ ok: boolean; status: number; data: Record<string, unknown> }> {
   const headers: Record<string, string> = {};
   if (opts.body !== undefined) headers["Content-Type"] = "application/json";
   const csrf = csrfToken();
@@ -46,6 +53,12 @@ async function req(path: string, opts: { method?: string; body?: unknown } = {})
     data = (await res.json()) as Record<string, unknown>;
   } catch {
     /* empty */
+  }
+  // stale/missing CSRF cookie (e.g. a session restored from before it existed):
+  // /auth/me re-issues it, then retry the write exactly once.
+  if (!res.ok && !retried && (opts.method ?? "GET") !== "GET" && /csrf/i.test(String(data.error ?? ""))) {
+    await req("/auth/me", {}, true);
+    return req(path, opts, true);
   }
   return { ok: res.ok, status: res.status, data };
 }
