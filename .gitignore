@@ -6,3 +6,4 @@ dist
 .env.*
 !.env.example
 .admin-bootstrap.txt
+.gauntlet/
