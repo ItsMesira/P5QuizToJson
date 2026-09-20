@@ -27,6 +27,7 @@ const LABEL = opt("--label", "candidate");
 const OUT = opt("--out", `.gauntlet/artifacts/${LABEL}.json`);
 const BASELINE = opt("--baseline", "");
 const DELAY_MS = Number(opt("--api-delay", "3000"));
+const CSS_BUDGET = Number(opt("--css-budget", "0.85"));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const MUSIC = "public/audio/background.mp3";
@@ -148,7 +149,7 @@ if (BASELINE) {
   report.pass = {
     G1_boot_under_1200ms: bootMs >= 0 && bootMs < 1200,
     G2_bytes_no_growth: eagerBytes <= b.g2_eager_bytes,
-    G2_css_le_85pct: b.g2_bytes?.Stylesheet ? bytes.Stylesheet <= Math.floor(b.g2_bytes.Stylesheet * 0.85) : false,
+    G2_css_within_budget: b.g2_bytes?.Stylesheet ? bytes.Stylesheet <= Math.floor(b.g2_bytes.Stylesheet * CSS_BUDGET) : false,
     G3_music_le_1_5MB: musicBytes > 0 && musicBytes <= 1_500_000,
     G4_only_intended_fonts: report.g4_unintended_fonts.length === 0,
   };

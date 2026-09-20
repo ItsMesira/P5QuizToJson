@@ -191,39 +191,70 @@ for (const vp of VIEWPORTS) {
     }
   }
 
-  /* optional: modal usability (prompt modal) */
+  /* optional: modal usability — prompt, goal and pause modals. Each must
+     actually open (wrong opener selectors made an earlier version vacuous) and
+     its card must fit the viewport with every button hit-testable. */
   if (has("--modals") && vp.orient === "portrait") {
-    await page.goto(`${BASE}/?s=modal&m=${vp.n}#prompts`, { waitUntil: "load" }).catch(() => {});
-    await sleep(1500);
-    // the prompt cards live under the PRESETS tab, not the default BUILDER tab
-    await page.evaluate(() => {
-      const presets = [...document.querySelectorAll(".prompts-tabs button, .seg-btn")].find((b) => b.textContent.includes("PRESETS"));
-      presets?.click();
-    });
-    await sleep(900);
-    const opened = await page.evaluate(() => {
-      const card = document.querySelector(".prompt-card");
-      if (!card) return false;
-      card.click();
-      return true;
-    });
-    await sleep(900);
-    if (opened) {
-      const r = await scanPersistent(page);
-      const badHits = await page.evaluate(() => {
-        const bad = [];
-        for (const b of document.querySelectorAll(".pm-overlay button, .pm-actions button, .pm-close")) {
-          const bb = b.getBoundingClientRect();
-          if (bb.width === 0 || bb.height === 0) continue;
-          const top = document.elementFromPoint(bb.left + bb.width / 2, bb.top + bb.height / 2);
-          if (top !== b && !b.contains(top)) bad.push((b.textContent || "").trim().slice(0, 24));
-        }
-        return bad;
-      });
+    const modals = [
+      {
+        name: "prompt-modal", root: ".prompt-modal:not(.goal-modal)",
+        open: async () => {
+          await page.goto(`${BASE}/?s=pm&m=${vp.n}#prompts`, { waitUntil: "load" }).catch(() => {});
+          await sleep(1500);
+          await page.evaluate(() => {
+            const presets = [...document.querySelectorAll(".prompts-tabs button, .seg-btn")].find((b) => b.textContent.includes("PRESETS"));
+            presets?.click();
+          });
+          await sleep(900);
+          await page.evaluate(() => document.querySelector(".prompt-view")?.click());
+        },
+      },
+      {
+        name: "goal-modal", root: ".goal-modal",
+        open: async () => {
+          await page.goto(`${BASE}/?s=gm&m=${vp.n}#library`, { waitUntil: "load" }).catch(() => {});
+          await sleep(1500);
+          await page.evaluate(() => document.querySelector(".goal-btn")?.click());
+        },
+      },
+      {
+        name: "pause-modal", root: ".pause-overlay",
+        open: async () => {
+          await page.goto(`${BASE}/?s=qm&m=${vp.n}&quiz=/sample-quizzes/persona5.json`, { waitUntil: "load" }).catch(() => {});
+          await sleep(2500);
+          await page.evaluate(() => document.querySelector(".quit-btn")?.click());
+        },
+      },
+    ];
+    for (const m of modals) {
+      await m.open();
+      await sleep(900);
+      const isOpen = await page.$eval(m.root, (e) => !e.classList.contains("hidden") && getComputedStyle(e).display !== "none").catch(() => false);
+      let r = { oversize: [], clipped: [], overflowRight: [], overflowLeft: [], small: [], docScroll: false, count: 0 };
+      let badHits = [];
+      if (isOpen) {
+        r = await scanPersistent(page);
+        badHits = await page.evaluate((sel) => {
+          const bad = [];
+          for (const b of document.querySelectorAll(sel + " button")) {
+            const bb = b.getBoundingClientRect();
+            if (bb.width === 0 || bb.height === 0) continue;
+            const top = document.elementFromPoint(bb.left + bb.width / 2, bb.top + bb.height / 2);
+            if (top !== b && !b.contains(top)) bad.push((b.textContent || "").trim().slice(0, 24));
+          }
+          return bad;
+        }, m.root).catch(() => []);
+      }
       report.checks++;
-      const bad = r.count + badHits.length;
+      const bad = (isOpen ? r.count : 1) + badHits.length;
       if (bad) report.failures++;
-      report.details.push({ key: `${vp.n}/modal`, ...r, badHits });
+      report.details.push({ key: `${vp.n}/${m.name}`, open: isOpen, ...r, badHits });
+      await page.evaluate((sel) => {
+        const modal = document.querySelector(sel);
+        const close = modal && modal.querySelector(".pm-close, .resume-btn");
+        if (close) close.click();
+      }, m.root).catch(() => {});
+      await sleep(400);
     }
   }
 

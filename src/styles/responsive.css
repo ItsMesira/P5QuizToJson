@@ -164,6 +164,29 @@ label,
   }
 }
 
+/* prompts modal: 94vw ignored the overlay's own 24px padding, so the card hung
+   a few px past the viewport on 320px screens. 100% is the padded content box,
+   identical to the current 820px cap on desktop. */
+.prompt-modal-card {
+  width: min(820px, 100%);
+}
+/* goal rank tiles and the pause card must fit the smallest phone */
+.goal-ranks {
+  flex-wrap: wrap;
+}
+@media (max-width: 480px) {
+  .pause-card {
+    padding: 24px 20px;
+  }
+  .pause-card h3 {
+    font-size: clamp(24px, 10vw, 40px);
+  }
+  .goal-rank {
+    padding: 8px 14px;
+    font-size: 22px;
+  }
+}
+
 /* ---------------- master-prompt builder: shrink, never overflow ----------------
    Grid/flex children default to min-width:auto, so a text input's intrinsic
    width drags .builder-grid wider than the viewport; .screen{overflow-x:hidden}
