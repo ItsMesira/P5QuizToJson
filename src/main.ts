@@ -108,7 +108,7 @@ applyGlobalSettings();
    the class badge updates itself via the "p5q-session" event. The 2.5s cap is a
    guard for slow/cold APIs so the account screens can't hang forever. */
 const sessionReady = Promise.race([
-  import("./core/api").then(({ cloud }) => cloud.me().catch(() => undefined)),
+  import("./core/api").then(({ cloudReady }) => cloudReady()),
   new Promise((r) => setTimeout(r, 2500)),
 ]);
 

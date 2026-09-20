@@ -8,7 +8,7 @@ import { cardSlam, RM } from "../fx/transitions";
 import { validateQuiz } from "../core/validator";
 import { repairQuiz } from "../core/repair";
 import { saveQuiz, loadProgress, savedQuizzes } from "../core/store";
-import { cloud } from "../core/api";
+import { cloud, cloudError } from "../core/api";
 import { fetchRemoteQuiz } from "../core/share";
 import type { Quiz } from "../core/types";
 import { t } from "../core/i18n";
@@ -22,14 +22,12 @@ registerScreen("load", (root) => {
     saveQuiz(quiz, source);
     audio.sfx("paper");
     toast(t("“{title}” loaded", { title: quiz.title }), "info");
-    // classroom sync: any member can add a quiz to their class shelf
-    if (cloud.session?.cls) {
-      cloud.saveQuiz(cloud.session.cls.id, quiz)
-        .then((r) => {
-          if (r.ok) toast(t("Added to class “{name}”", { name: cloud.session!.cls!.name }), "info");
-        })
-        .catch(() => undefined);
-    }
+    // classroom sync: any member can add a quiz to their class shelf.
+    // saveQuizToClass awaits the restored session, so this works even when the
+    // screen is opened directly (boot no longer blocks on /auth/me).
+    const r = await cloud.saveQuizToClass(quiz).catch(() => null);
+    if (r && r.ok) toast(t("Added to class “{name}”", { name: cloud.session!.cls!.name }), "info");
+    else if (r) toast(t("Couldn't add to class — {msg}", { msg: cloudError(r) }), "error");
     return quiz;
   };
 
@@ -192,7 +190,7 @@ registerScreen("load", (root) => {
   ]);
 
   /* ---- wire events ---- */
-  el.querySelector(".back-btn")!.addEventListener("click", () => void go({ name: "title" }));
+  el.querySelector(".back-btn")!.addEventListener("click", () => void go({ name: cloud.session?.cls ? "dashboard" : "title" }));
   el.querySelector(".back-btn")!.addEventListener("mouseenter", () => audio.sfx("hover"));
 
   const dz = el.querySelector<HTMLElement>(".drop-zone")!;
@@ -329,7 +327,7 @@ registerScreen("load", (root) => {
       audio.sfx("paper");
       const res = await fetch(`./sample-quizzes/${name}.json`);
       const quiz = (await res.json()) as Quiz;
-      saveQuiz(quiz, `sample:${name}`);
+      void commit(quiz, `sample:${name}`);
       void startQuiz({ ...quiz, source: `sample:${name}` });
     });
     grid.appendChild(card);

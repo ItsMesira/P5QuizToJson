@@ -56,6 +56,16 @@ export interface ApiResult<T = Record<string, unknown>> {
   data: T & { error?: string };
 }
 
+/* Resolves after the first /auth/me attempt (success or failure). Boot kicks
+   this off in the background; screens that need a restored session must await
+   it instead of racing a possibly-null cloud.session. Dedupes its own calls. */
+let readyPromise: Promise<void> | null = null;
+
+export function cloudReady(): Promise<void> {
+  if (!readyPromise) readyPromise = cloud.me().then(() => undefined, () => undefined);
+  return readyPromise;
+}
+
 export const cloud = {
   session: null as CloudSession | null,
 
@@ -65,6 +75,14 @@ export const cloud = {
       this.setSession(r.data.session as CloudSession);
     }
     return r as never;
+  },
+
+  /* Class sync for the load screen. null = not in a classroom (nothing to do). */
+  async saveQuizToClass(quiz: unknown): Promise<ApiResult | null> {
+    await cloudReady();
+    const cls = this.session?.cls;
+    if (!cls) return null;
+    return this.saveQuiz(cls.id, quiz);
   },
 
   async register(username: string, password: string, email: string, classCode?: string): Promise<ApiResult<{ session?: CloudSession }>> {
