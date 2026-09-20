@@ -273,25 +273,30 @@ registerScreen("admin", (root) => {
     return c;
   };
 
-  /* perform an action, optionally confirm first; on success show a notice and
-     re-render the active tab so the state change is visible. Without this,
-     successful destructive actions (Revoke/Promote/Clear/delete in list tabs)
-     changed the DB but left the row and button untouched — i.e. they looked
-     like "nothing happened". */
+  /* perform an action once, reflect it optimistically, and do NOT refetch the
+     tab afterwards — the second list request was what made every action feel
+     slow. On success the optimistic change stands (and the row is removed for
+     deletes); on failure the tab is re-rendered from the server so the UI never
+     lies. A step-up is the only case that legitimately adds a request. */
   const runAction = async (
     action: string,
     payload: Record<string, unknown>,
-    opts: { confirm?: string; success?: string } = {},
+    opts: { confirm?: string; success?: string; removeRow?: HTMLElement; onOk?: () => void } = {},
   ): Promise<boolean> => {
     if (opts.confirm && !(await askConfirm(opts.confirm))) return false;
+    opts.removeRow?.remove();
     const r = await guarded(action, payload);
     if (r.ok) {
+      opts.onOk?.();
       if (opts.success) notify(opts.success);
-      await renderTab(active);
       return true;
     }
+    await renderTab(active);
     return false;
   };
+
+  const userLine = (u: Record<string, unknown>) =>
+    `${u.username}${u.is_admin ? "  ★admin" : ""}  ·  ${u.email ?? "—"}  ·  ${u.classes} classes`;
 
   const tabUsers = async () => {
     const r = await adminReq("users.list", { limit: 100 });
@@ -299,20 +304,27 @@ registerScreen("admin", (root) => {
     const users = (r.data.users as Record<string, unknown>[]) ?? [];
     return listCard("Users", users, (u) => {
       const id = String(u.id);
-      return row([
-        h("span", { class: "grow" }, [`${u.username}${u.is_admin ? "  ★admin" : ""}  ·  ${u.email ?? "—"}  ·  ${u.classes} classes`]),
+      let adminNow = !!u.is_admin;
+      const label = h("span", { class: "grow" }, [userLine(u)]);
+      const promoteBtn = btn(t(adminNow ? "Demote" : "Promote"), () => {
+        const next = !adminNow;
+        void runAction("users.setAdmin", { id, isAdmin: next }, {
+          success: next ? t("Admin access granted") : t("Admin access revoked"),
+          onOk: () => {
+            adminNow = next;
+            promoteBtn.textContent = t(adminNow ? "Demote" : "Promote");
+            label.textContent = userLine({ ...u, is_admin: adminNow });
+          },
+        });
+      });
+      const rowEl = row([
+        label,
         btn(t("Reset pw"), async () => {
           const res = await guarded("users.resetPassword", { id });
-          if (res.ok) {
-            await showSecret(t("Temporary password"), String(res.data.temporaryPassword ?? ""));
-            await renderTab(active);
-          }
+          if (res.ok) await showSecret(t("Temporary password"), String(res.data.temporaryPassword ?? ""));
         }),
         btn(t("Revoke"), () => void runAction("users.revokeSessions", { id }, { success: t("Sessions revoked") })),
-        btn(t(u.is_admin ? "Demote" : "Promote"), () =>
-          void runAction("users.setAdmin", { id, isAdmin: !u.is_admin }, {
-            success: u.is_admin ? t("Admin access revoked") : t("Admin access granted"),
-          })),
+        promoteBtn,
         btn(t("Impersonate"), async () => {
           const res = await guarded("impersonate.start", { userId: id });
           if (res.ok) location.href = "/";
@@ -321,8 +333,10 @@ registerScreen("admin", (root) => {
           void runAction("users.delete", { id }, {
             confirm: t("Delete {name}? This cascades their quizzes and results.", { name: String(u.username) }),
             success: t("User deleted"),
+            removeRow: rowEl,
           }), "accent"),
       ]);
+      return rowEl;
     });
   };
 
@@ -332,7 +346,7 @@ registerScreen("admin", (root) => {
     const classes = (r.data.classes as Record<string, unknown>[]) ?? [];
     return listCard("Classes", classes, (c) => {
       const id = String(c.id);
-      return row([
+      const rowEl = row([
         h("span", { class: "grow" }, [`${c.name}  ·  code ${c.code}  ·  owner ${c.owner}  ·  ${c.members} members  ·  ${c.quizzes} quizzes`]),
         btn(t("Clear results"), () =>
           void runAction("results.clear", { classId: id }, {
@@ -343,8 +357,10 @@ registerScreen("admin", (root) => {
           void runAction("classes.delete", { id }, {
             confirm: t("Delete class {name}? This removes its quizzes and results.", { name: String(c.name) }),
             success: t("Class deleted"),
+            removeRow: rowEl,
           }), "accent"),
       ]);
+      return rowEl;
     });
   };
 
@@ -357,11 +373,11 @@ registerScreen("admin", (root) => {
         .filter(([k]) => k !== "id")
         .map(([k, v]) => `${k}: ${v === null ? "—" : typeof v === "object" ? JSON.stringify(v) : String(v)}`)
         .join("  ·  ");
-      const actions: Node[] = [];
-      if (key === "quizzes") actions.push(btn(t("Delete"), () => void runAction("quizzes.delete", { id: String(it.id) }, { confirm: t("Delete this quiz?"), success: t("Quiz deleted") }), "accent"));
-      if (key === "results") actions.push(btn(t("Delete"), () => void runAction("results.delete", { id: String(it.id) }, { confirm: t("Delete this result?"), success: t("Result deleted") }), "accent"));
-      if (key === "sessions") actions.push(btn(t("Revoke user"), () => void runAction("sessions.revoke", { userId: String(it.user_id ?? "") }, { success: t("Sessions revoked") })));
-      return row([h("span", { class: "grow" }, [summary]), ...actions]);
+      const rowEl = row([h("span", { class: "grow" }, [summary])]);
+      if (key === "quizzes") rowEl.appendChild(btn(t("Delete"), () => void runAction("quizzes.delete", { id: String(it.id) }, { confirm: t("Delete this quiz?"), success: t("Quiz deleted"), removeRow: rowEl }), "accent"));
+      if (key === "results") rowEl.appendChild(btn(t("Delete"), () => void runAction("results.delete", { id: String(it.id) }, { confirm: t("Delete this result?"), success: t("Result deleted"), removeRow: rowEl }), "accent"));
+      if (key === "sessions") rowEl.appendChild(btn(t("Revoke user"), () => void runAction("sessions.revoke", { userId: String(it.user_id ?? "") }, { success: t("Sessions revoked") })));
+      return rowEl;
     });
   };
 

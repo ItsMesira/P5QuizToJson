@@ -1,12 +1,16 @@
 /* ============ P5 QUIZ — BOOT ============ */
-import "@fontsource/archivo-black";
+/* Font subsets: latin-only for the display/body/mono faces; Kanit keeps its
+   full package CSS because fontsource's per-subset files carry no
+   unicode-range (which would make the browser download Thai glyphs for English
+   text). The combined Kanit CSS has proper unicode-range, so Thai loads only
+   when Thai text is actually rendered. */
+import "@fontsource/archivo-black/latin.css";
 import "@fontsource/kanit/400.css";
-import "@fontsource/kanit/600.css";
 import "@fontsource/kanit/700.css";
-import "@fontsource/barlow-condensed/400.css";
-import "@fontsource/barlow-condensed/600.css";
-import "@fontsource/barlow-condensed/700.css";
-import "@fontsource/jetbrains-mono/400.css";
+import "@fontsource/barlow-condensed/latin-400.css";
+import "@fontsource/barlow-condensed/latin-600.css";
+import "@fontsource/barlow-condensed/latin-700.css";
+import "@fontsource/jetbrains-mono/latin-400.css";
 import "./styles/tokens.css";
 import "./styles/themes.css";
 import "./styles/p5.css";
@@ -99,8 +103,10 @@ initCursor();
 initClassBadge();
 applyGlobalSettings();
 
-/* restore the cloud session (cookie-based) BEFORE routing so a refresh on
-   #dashboard/#entry lands on the right screen instead of bouncing to entry */
+/* restore the cloud session (cookie-based) in the background — it must never
+   block first paint. Only the account screens (#dashboard/#entry) wait for it;
+   the class badge updates itself via the "p5q-session" event. The 2.5s cap is a
+   guard for slow/cold APIs so the account screens can't hang forever. */
 const sessionReady = Promise.race([
   import("./core/api").then(({ cloud }) => cloud.me().catch(() => undefined)),
   new Promise((r) => setTimeout(r, 2500)),
@@ -187,10 +193,13 @@ async function handleParams() {
 
   const hashRoute = hashToRoute(location.hash);
   if (hashRoute) {
+    // account screens need the restored session before they render; everything
+    // else paints immediately.
+    if (hashRoute.name === "dashboard" || hashRoute.name === "entry") await sessionReady;
     await go(hashRoute, { instant: true });
     return;
   }
   await go({ name: "title" }, { instant: true });
 }
 
-void sessionReady.then(() => handleParams());
+void handleParams();

@@ -107,6 +107,46 @@ let loggedIn = false;
 page.on("pageerror", (e) => pageErrors.push(String(e).slice(0, 160)));
 page.on("console", (m) => { if (m.type() === "error" && loggedIn) consoleErrors.push(m.text().slice(0, 160)); });
 
+/* count admin round-trips (G6). G7 injects latency via CDP (below) so the
+   optimistic UI can be observed before the server replies. */
+const adminRequests = [];
+page.on("request", (r) => {
+  if (!r.url().includes("/api/admin")) return;
+  adminRequests.push(Date.now());
+  if (process.env.P5Q_DEBUG) {
+    let body = "";
+    try { const j = JSON.parse(r.postData() ?? "{}"); body = `${j.action}${j.isAdmin !== undefined ? " isAdmin=" + j.isAdmin : ""}`; } catch { /* */ }
+    console.log(`   [req] ${body}`);
+  }
+});
+page.on("response", async (r) => {
+  if (process.env.P5Q_DEBUG && r.url().includes("/api/admin")) {
+    let act = "";
+    try { act = JSON.parse(r.request().postData() ?? "{}").action ?? ""; } catch { /* */ }
+    let txt = ""; try { txt = (await r.text()).slice(0, 80); } catch { /* */ }
+    console.log(`   [res] ${act} -> ${r.status()} ${txt}`);
+  }
+});
+
+/* G7: a switchable client-side delay on /api/admin makes the server "slow" so
+   the optimistic UI can be observed before the reply arrives. Installed before
+   app scripts run. */
+await page.evaluateOnNewDocument(() => {
+  const orig = window.fetch.bind(window);
+  window.__adminDelay = 0;
+  window.fetch = (input, init) => {
+    const url = typeof input === "string" ? input : input.url;
+    const p = orig(input, init);
+    // delay only the RESPONSE so the request still leaves immediately and the
+    // app's promise stays pending (i.e. a slow server)
+    if (window.__adminDelay && url.includes("/api/admin")) {
+      return p.then((res) => new Promise((r) => setTimeout(() => r(res), window.__adminDelay)));
+    }
+    return p;
+  };
+});
+const setAdminDelay = (ms) => page.evaluate((d) => { window.__adminDelay = d; }, ms);
+
 const modalOpen = () => page.$eval(".admin-modal", (e) => !e.classList.contains("hidden")).catch(() => false);
 const noticeText = async () => (await page.$$eval(".admin-notice", (els) => els.map((e) => e.textContent)).catch(() => [])).join(" | ");
 const contentHas = (s) => page.$eval(".admin-content", (e, s) => e.textContent.includes(s), s).catch(() => false);
@@ -183,8 +223,9 @@ async function clickRowButton(rowText, btnText) {
 
 /* click an action button, resolve any confirm/step-up/secret modal, then wait
    for the NEW feedback notice (proves the action finished, not just started) */
-async function act(rowText, btnText) {
+async function actRaw(rowText, btnText) {
   const before = await page.$$eval(".admin-notice", (els) => els.map((e) => e.textContent)).catch(() => []);
+  const reqStart = adminRequests.length;
   const r = await clickRowButton(rowText, btnText);
   await settleModals(creds.password);
   let notice = "";
@@ -197,7 +238,16 @@ async function act(rowText, btnText) {
   // wait for the post-action tab re-render to settle before returning
   for (let i = 0; i < 20; i++) { const c = await page.$eval(".admin-content", (e) => e.textContent).catch(() => ""); if (c && !c.includes("Loading…")) break; await sleep(200); }
   await sleep(200);
-  return { ...r, notice };
+  return { ...r, notice, reqs: adminRequests.length - reqStart };
+}
+
+/* record round-trips per action so a single summary check can assert one-trip
+   behaviour for every action after the stop-up exchange */
+const actReqs = [];
+async function act(rowText, btnText) {
+  const a = await actRaw(rowText, btnText);
+  actReqs.push({ btnText, reqs: a.reqs });
+  return a;
 }
 
 async function runUI() {
@@ -268,13 +318,48 @@ async function runUI() {
   check("Classes.Delete showed a notice", a.notice.length > 0, a.notice);
   cls = null; // already gone
 
-  /* ---- Users: Delete ---- */
+  /* ---- Users: Delete + G6 single round-trip + G7 optimistic removal ---- */
   await goTab("Users");
-  a = await act(studentName, "Delete");
+  const beforeDel = await page.$$eval(".admin-notice", (els) => els.map((e) => e.textContent)).catch(() => []);
+  await setAdminDelay(1500);
+  const reqStart = adminRequests.length;
+  const hit = await clickRowButton(studentName, "Delete");
+  for (let i = 0; i < 40 && !(await modalOpen()); i++) await sleep(50);
+  const labels = await page.$$eval(".admin-modal .sticker-btn", (els) => els.map((e) => e.textContent.trim())).catch(() => []);
+  const t0 = Date.now();
+  const btns = await page.$$(".admin-modal .sticker-btn");
+  await btns[labels.indexOf("CONFIRM")].click();
+  let goneMs = -1;
+  for (let i = 0; i < 60; i++) {
+    const present = await page.evaluate((n) => [...document.querySelectorAll(".admin-content .admin-row")].some((r) => r.textContent.includes(n)), studentName);
+    if (!present) { goneMs = Date.now() - t0; break; }
+    await sleep(20);
+  }
+  check("G7 optimistic row removal before reply (API delayed 1500ms)", hit.found && goneMs >= 0 && goneMs < 350, `gone=${goneMs}ms`);
+  const sentReqs = adminRequests.length - reqStart;
+  let delNotice = "";
+  let noticeMs = -1;
+  for (let i = 0; i < 80; i++) {
+    await sleep(250);
+    const now = await page.$$eval(".admin-notice", (els) => els.map((e) => e.textContent)).catch(() => []);
+    const fresh = now.filter((x) => !beforeDel.includes(x));
+    if (fresh.some((x) => /deleted/i.test(x))) { delNotice = fresh.join(" | "); noticeMs = Date.now() - t0; break; }
+  }
+  await setAdminDelay(0);
+  check("G7 reply really was delayed (notice arrived after the optimistic update)", noticeMs > 1000, `notice=${noticeMs}ms`);
+  check("G6 Users.Delete is a single round-trip", sentReqs === 1, `reqs=${sentReqs}`);
   const users = (await adminC.admin("users.list", { query: studentName })).json?.users ?? [];
   check("Users.Delete persisted (gone)", users.length === 0);
-  check("Users.Delete showed a notice", a.notice.length > 0, a.notice);
+  check("Users.Delete showed a notice", delNotice.length > 0, delNotice);
   studentId = null;
+
+  // first destructive action legitimately includes the step-up exchange; every
+  // action after it must be exactly one /api/admin round-trip
+  check(
+    "G6 every post-step-up action is one round-trip",
+    actReqs.slice(1).every((x) => x.reqs === 1),
+    actReqs.map((x) => `${x.btnText}=${x.reqs}`).join(","),
+  );
 
   // a 403 on /api/admin is the expected step-up challenge, not an app fault
   const expectedChallenge = (s) => /Failed to load resource/.test(s) && /(401|403)/.test(s);
