@@ -64,7 +64,7 @@ const pageErrors = [];
 page.on("pageerror", (e) => pageErrors.push(String(e).slice(0, 200)));
 
 for (const [name, value] of Object.entries(owner.cookies)) {
-  await page.setCookie({ name, value, domain: "localhost", path: "/" });
+  await page.setCookie({ name, value, domain: new URL(BASE).hostname, path: "/" });
 }
 await page.goto(`${BASE}/#dashboard`, { waitUntil: "domcontentloaded" });
 await page.waitForSelector(".dash-quiz", { timeout: 15000 }).catch(() => undefined);
@@ -105,8 +105,9 @@ check("add: invalid JSON shows an error", await page.$eval(".dash-add-error", (e
 const added = { ...quizJson(99), title: `Probe 99 ${tag}` };
 await page.$eval(".dash-add-area", (el, json) => { el.value = json; }, JSON.stringify(added));
 await page.click(".dash-add-submit");
-await sleep(600);
+await page.waitForFunction(() => document.querySelector(".dash-add-modal")?.classList.contains("hidden"), { timeout: 20000 }).catch(() => undefined);
 check("add: dialog closes on success", await page.$eval(".dash-add-modal", (el) => el.classList.contains("hidden")));
+await page.waitForFunction(() => document.querySelector(".dash-pager")?.textContent?.includes("of 16"), { timeout: 20000 }).catch(() => undefined);
 check("add: shelf count grows to 16", (await pagerText()).includes("of 16"), await pagerText());
 
 const after = (await owner.req("GET", `/api/classes/${cls.id}/quizzes`)).json?.quizzes ?? [];
@@ -114,7 +115,7 @@ check("add: persisted server-side", after.some((q) => q.title === added.title), 
 
 /* student may also add (server rule unchanged, UI reachable) */
 for (const [name, value] of Object.entries(student.cookies)) {
-  await page.setCookie({ name, value, domain: "localhost", path: "/" });
+  await page.setCookie({ name, value, domain: new URL(BASE).hostname, path: "/" });
 }
 await page.reload({ waitUntil: "domcontentloaded" });
 await page.waitForSelector(".dash-quiz", { timeout: 15000 }).catch(() => undefined);
@@ -125,18 +126,26 @@ await page.waitForSelector(".dash-add-modal:not(.hidden)", { timeout: 5000 });
 const sAdded = { ...quizJson(98), title: `Probe 98 ${tag}` };
 await page.$eval(".dash-add-area", (el, json) => { el.value = json; }, JSON.stringify(sAdded));
 await page.click(".dash-add-submit");
-await sleep(600);
+for (let i = 0; i < 40; i++) {
+  const n = (await student.req("GET", `/api/classes/${cls.id}/quizzes`)).json?.quizzes?.length ?? 0;
+  if (n === 17) break;
+  await sleep(500);
+}
 const afterStudent = (await student.req("GET", `/api/classes/${cls.id}/quizzes`)).json?.quizzes ?? [];
 check("permissions: student add persisted", afterStudent.some((q) => q.title === sAdded.title), `server has ${afterStudent.length}`);
 
 /* teacher delete removes a card and the row */
 for (const [name, value] of Object.entries(owner.cookies)) {
-  await page.setCookie({ name, value, domain: "localhost", path: "/" });
+  await page.setCookie({ name, value, domain: new URL(BASE).hostname, path: "/" });
 }
 await page.reload({ waitUntil: "domcontentloaded" });
 await page.waitForSelector(".dash-quiz-del", { timeout: 15000 }).catch(() => undefined);
 await page.click(".dash-quiz-del");
-await sleep(600);
+for (let i = 0; i < 40; i++) {
+  const n = (await owner.req("GET", `/api/classes/${cls.id}/quizzes`)).json?.quizzes?.length ?? 0;
+  if (n === 16) break;
+  await sleep(500);
+}
 const afterDelete = (await owner.req("GET", `/api/classes/${cls.id}/quizzes`)).json?.quizzes ?? [];
 check("delete: teacher removes a quiz", afterDelete.length === afterStudent.length - 1, `server has ${afterDelete.length}`);
 

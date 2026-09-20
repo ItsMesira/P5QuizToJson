@@ -368,11 +368,14 @@ registerScreen("dashboard", (root) => {
   };
   document.addEventListener("keydown", onKey);
 
-  el.querySelector(".dash-add-submit")!.addEventListener("click", async () => {
+  const submitBtn = el.querySelector<HTMLButtonElement>(".dash-add-submit")!;
+  submitBtn.addEventListener("click", async () => {
     if (!addArea.value.trim()) {
       showAddError(t("Paste quiz JSON first."));
       return;
     }
+    submitBtn.disabled = true;
+    submitBtn.textContent = t("SAVING…");
     try {
       await addToClass(JSON.parse(addArea.value));
       if (modal.classList.contains("hidden")) addArea.value = "";
@@ -380,6 +383,9 @@ registerScreen("dashboard", (root) => {
       audio.sfx("wrong");
       fx.shake(10);
       showAddError(t("Not valid JSON — check commas and quotes."));
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = t("ADD TO CLASS");
     }
   });
   el.querySelector(".dash-add-browse")!.addEventListener("click", () => fileInput.click());
