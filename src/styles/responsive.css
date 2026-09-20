@@ -93,6 +93,77 @@ label,
   }
 }
 
+/* ---------------- narrow screens: nothing may be clipped off-viewport ----------------
+   Every rule below is a no-op wherever the content already fits (desktop), so
+   the designed appearance is preserved; it only lets rows wrap/shrink instead
+   of overflowing past `overflow-x:hidden`. */
+
+/* settings: a label + control row (FX segment, toggles) must wrap, not push
+   the segment past the right edge */
+.toggle-row {
+  flex-wrap: wrap;
+}
+.toggle-text {
+  min-width: 0;
+}
+.fx-seg {
+  flex-shrink: 1;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.fx-seg-btn {
+  flex: 1 1 auto;
+}
+
+/* inline input + button rows (quiz answer, profile create) must not let the
+   input's intrinsic width push the button off-screen */
+.fill-row,
+.profile-new,
+.open-actions,
+.settings-actions {
+  flex-wrap: wrap;
+}
+.fill-input,
+.profile-input,
+.num-input,
+.open-area {
+  min-width: 0;
+}
+
+/* profiles: the two-column thief layout collapses on narrow screens; the stat
+   grid also shrinks its fixed tag column so its text cannot overflow */
+@media (max-width: 720px) {
+  .thief-body {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 16px 16px 90px;
+  }
+  .thief-stat {
+    grid-template-columns: 74px minmax(0, 1fr) auto;
+  }
+  .thief-stat-sub {
+    min-width: 0;
+    text-align: right;
+  }
+}
+
+/* touch/narrow screens have no keyboard: the per-item keycap hints sit left of
+   the menu text and were being clipped off-screen on phones. */
+@media (max-width: 900px) {
+  .menu-item .menu-key {
+    display: none;
+  }
+}
+/* the selected-item cursor mark sits past the item's right edge; on the
+   narrowest screens that pushed it a few px outside the clipped title screen */
+@media (max-width: 480px) {
+  .menu-item {
+    padding-right: 28px;
+  }
+  .cursor-mark {
+    right: 0;
+  }
+}
+
 /* ---------------- master-prompt builder: shrink, never overflow ----------------
    Grid/flex children default to min-width:auto, so a text input's intrinsic
    width drags .builder-grid wider than the viewport; .screen{overflow-x:hidden}
