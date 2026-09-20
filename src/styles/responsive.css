@@ -187,6 +187,18 @@ label,
   }
 }
 
+/* quiz question card: as a shrinkable column-flex item it collapsed below its
+   content on short/small viewports, and its clip-path then hid the lower
+   answers and the submit button (unreachable even after scrolling).
+   flex-shrink:0 + letting the stage scroll keeps every control reachable.
+   No-op on desktop where the card already has room. */
+.quiz-stage {
+  min-height: 0;
+}
+.question-card {
+  flex-shrink: 0;
+}
+
 /* ---------------- master-prompt builder: shrink, never overflow ----------------
    Grid/flex children default to min-width:auto, so a text input's intrinsic
    width drags .builder-grid wider than the viewport; .screen{overflow-x:hidden}

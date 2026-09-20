@@ -45,7 +45,7 @@ const SCREENS = [
   { n: "leaderboard", url: "?s=leaderboard#leaderboard" },
   { n: "prompts", url: "?s=prompts#prompts" },
   { n: "entry", url: "?s=entry#entry" },
-  { n: "quiz", url: "?s=quiz&quiz=/sample-quizzes/persona5.json" },
+  { n: "quiz", url: "?s=quiz&quiz=/sample-quizzes/math.json" },
 ];
 
 /* visible, user-facing content only — decorative bleed is allowed off-screen */
@@ -119,6 +119,86 @@ async function scan(page, decorAllowed = true) {
   }, DECOR.source, decorAllowed);
 }
 
+
+/* ---------------- quiz: every control must be reachable after scrolling ----------------
+   The width sweep could not see vertical clipping: on short/landscape phones the
+   question card shrank below its content and its clip-path hid answers and the
+   submit button. This probe loads one question of each type and hit-tests every
+   control after scrolling it into view. */
+const QUIZ_VPS = [
+  { n: "q320x568", w: 320, h: 568 },
+  { n: "q320x448", w: 320, h: 448 }, // iPhone SE with Safari chrome showing
+  { n: "q568x320", w: 568, h: 320 }, // landscape
+];
+
+function sampleQuestions() {
+  const first = {};
+  for (const f of ["persona5", "math", "general", "code"]) {
+    try {
+      const d = JSON.parse(readFileSync(`public/sample-quizzes/${f}.json`, "utf8"));
+      for (const sec of d.sections ?? []) for (const q of sec.questions ?? []) if (!first[q.type]) first[q.type] = q;
+    } catch { /* */ }
+  }
+  return first;
+}
+
+async function runQuizProbe(browser) {
+  const first = sampleQuestions();
+  const types = ["multiple", "boolean", "multi", "fill", "numeric", "order", "match"].filter((t) => first[t]);
+  for (const vp of QUIZ_VPS) {
+    const page = await browser.newPage();
+    await page.emulate({ userAgent: ANDROID_UA, viewport: { width: vp.w, height: vp.h, deviceScaleFactor: 2, isMobile: true, hasTouch: true } });
+    for (const t of types) {
+      const quiz = {
+        title: `audit-${t}`,
+        settings: { mode: "standard", timeLimit: null, shuffle: false, shuffleAnswers: false },
+        sections: [{ name: "S", questions: [first[t]] }],
+      };
+      try {
+        await page.goto(`${BASE}/?s=qz&t=${t}&v=${vp.n}#load`, { waitUntil: "load", timeout: 30000 }).catch(() => {});
+        await sleep(1000);
+        await page.evaluate(() => document.querySelectorAll(".load-actions .sticker-btn")[1]?.click());
+        await sleep(350);
+        await page.evaluate((json) => {
+          const ta = document.querySelector(".paste-area");
+          if (!ta) return;
+          ta.value = json;
+          ta.dispatchEvent(new Event("input", { bubbles: true }));
+        }, JSON.stringify(quiz));
+        await page.evaluate(() => document.querySelectorAll(".load-paste .paste-actions button")[0]?.click());
+        await sleep(2000);
+        const r = await page.evaluate(() => {
+          const stage = document.querySelector(".quiz-stage");
+          if (stage) stage.scrollTop = stage.scrollHeight;
+          const fails = [];
+          const btns = [...document.querySelectorAll(".question-card button")].filter((b) => {
+            const rr = b.getBoundingClientRect();
+            return rr.width > 0 && rr.height > 0;
+          });
+          for (const b of btns) {
+            b.scrollIntoView({ block: "center" });
+            const rr = b.getBoundingClientRect();
+            const top = document.elementFromPoint(rr.left + rr.width / 2, rr.top + rr.height / 2);
+            if (top !== b && !b.contains(top)) fails.push(`${(b.className || b.tagName).split(" ")[0]}@${Math.round(rr.top)}-${Math.round(rr.bottom)}`);
+          }
+          return { controls: btns.length, fails, onQuiz: !!stage, scroll: stage ? [stage.scrollHeight, stage.clientHeight] : null };
+        });
+        report.checks++;
+        const bad = !r.onQuiz || r.controls === 0 || r.fails.length;
+        if (bad) report.failures++;
+        report.details.push({ key: `${vp.n}/quiz-${t}`, ...r, count: r.fails.length });
+        if (bad) console.log(`  ${vp.n}/quiz-${t}: controls=${r.controls} fails=${r.fails.join(",")}`);
+      } catch (e) {
+        report.checks++;
+        report.failures++;
+        report.details.push({ key: `${vp.n}/quiz-${t}`, count: 1, error: String(e).slice(0, 120), fails: ["probe-error"] });
+        console.log(`  ${vp.n}/quiz-${t}: ERROR ${String(e).slice(0, 100)}`);
+      }
+    }
+    await page.close();
+  }
+}
+
 const report = { label: LABEL, base: BASE, at: new Date().toISOString(), viewports: {}, failures: 0, checks: 0, details: [] };
 
 async function scanPersistent(page) {
@@ -165,6 +245,8 @@ async function runScreen(page, vp, screen) {
 
 for (const vp of VIEWPORTS) {
   const page = await browser.newPage();
+  // deterministic question order for the sweep (the probe covers every type)
+  await page.evaluateOnNewDocument(() => { try { localStorage.setItem("p5q.settings", JSON.stringify({ alwaysShuffle: false })); } catch { /* */ } });
   await page.emulate({ userAgent: vp.ua, viewport: { width: vp.w, height: vp.h, deviceScaleFactor: vp.dpr, isMobile: true, hasTouch: true } });
   report.viewports[vp.n] = { orient: vp.orient, screens: {} };
   for (const screen of SCREENS) {
@@ -287,6 +369,8 @@ for (const vp of VIEWPORTS) {
   }
   await page.close();
 }
+
+if (has("--quiz")) await runQuizProbe(browser);
 
 await browser.close();
 writeFileSync(join(OUTDIR, `${LABEL}.json`), JSON.stringify(report, null, 2) + "\n");
