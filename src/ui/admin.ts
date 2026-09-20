@@ -242,7 +242,13 @@ registerScreen("admin", (root) => {
     await renderTab(active);
   };
 
+  /* A slower earlier render must never paint over a newer one (e.g. the panel's
+   boot render resolving after a tab was already clicked, or after an action
+   updated a row). Each render takes a ticket; only the newest ticket may paint. */
+  let renderSeq = 0;
+
   const renderTab = async (name: (typeof TABS)[number]) => {
+    const seq = ++renderSeq;
     const content = body().querySelector<HTMLElement>(".admin-content");
     if (!content) return;
     clear(content);
@@ -259,6 +265,7 @@ registerScreen("admin", (root) => {
     } catch (e) {
       c = cardWith(String((e as Error)?.message ?? e));
     }
+    if (seq !== renderSeq) return; // superseded by a newer render
     clear(content);
     // NOTE: keep the .admin-content class on `content` — it is the anchor that
     // every later renderTab call looks up (removing it bricked the panel).
@@ -287,6 +294,7 @@ registerScreen("admin", (root) => {
     opts.removeRow?.remove();
     const r = await guarded(action, payload);
     if (r.ok) {
+      renderSeq++; // invalidate any in-flight tab render so it can't undo this
       opts.onOk?.();
       if (opts.success) notify(opts.success);
       return true;

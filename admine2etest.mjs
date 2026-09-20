@@ -1,4 +1,6 @@
-/* admine2etest.mjs — Gauntlet gates G3 + G4 + G5.
+/* admine2etest.mjs — Gauntlet admin gates: G6 (one round-trip per action),
+   G7 (optimistic UI before the reply) and G8 (step-up still enforced), plus the
+   real-input E2E for every admin action.
    Creates its own throwaway fixtures, drives the REAL admin panel with REAL
    (hit-tested) mouse clicks, and proves every action persists by re-reading.
    Cleans up everything it created. Safe against production (only own fixtures).
@@ -107,24 +109,26 @@ let loggedIn = false;
 page.on("pageerror", (e) => pageErrors.push(String(e).slice(0, 160)));
 page.on("console", (m) => { if (m.type() === "error" && loggedIn) consoleErrors.push(m.text().slice(0, 160)); });
 
-/* count admin round-trips (G6). G7 injects latency via CDP (below) so the
-   optimistic UI can be observed before the server replies. */
+/* count admin round-trips (G6) and log the request/response sequence so G8 can
+   assert the real 403 -> stepUp -> 200 exchange. G7 injects a response delay. */
 const adminRequests = [];
+const adminLog = [];
 page.on("request", (r) => {
   if (!r.url().includes("/api/admin")) return;
   adminRequests.push(Date.now());
-  if (process.env.P5Q_DEBUG) {
-    let body = "";
-    try { const j = JSON.parse(r.postData() ?? "{}"); body = `${j.action}${j.isAdmin !== undefined ? " isAdmin=" + j.isAdmin : ""}`; } catch { /* */ }
-    console.log(`   [req] ${body}`);
-  }
+  let action = "";
+  try { action = JSON.parse(r.postData() ?? "{}").action ?? ""; } catch { /* */ }
+  adminLog.push({ dir: "req", action });
+  if (process.env.P5Q_DEBUG) console.log(`   [req] ${action}`);
 });
 page.on("response", async (r) => {
-  if (process.env.P5Q_DEBUG && r.url().includes("/api/admin")) {
-    let act = "";
-    try { act = JSON.parse(r.request().postData() ?? "{}").action ?? ""; } catch { /* */ }
+  if (!r.url().includes("/api/admin")) return;
+  let action = "";
+  try { action = JSON.parse(r.request().postData() ?? "{}").action ?? ""; } catch { /* */ }
+  adminLog.push({ dir: "res", action, status: r.status() });
+  if (process.env.P5Q_DEBUG) {
     let txt = ""; try { txt = (await r.text()).slice(0, 80); } catch { /* */ }
-    console.log(`   [res] ${act} -> ${r.status()} ${txt}`);
+    console.log(`   [res] ${action} -> ${r.status()} ${txt}`);
   }
 });
 
@@ -272,6 +276,15 @@ async function runUI() {
   check("Users.Promote refreshed row (now shows Demote)", hasDemote);
   check("Users.Promote showed a notice", a.notice.length > 0, a.notice);
 
+  /* G8: the first destructive action must really have been challenged and
+     re-run after a step-up — 403, then stepUp 200, then the action 200. */
+  const setAdminRes = adminLog.filter((x) => x.dir === "res" && x.action === "users.setAdmin").map((x) => x.status);
+  check(
+    "G8 destructive action required step-up (403 -> stepUp 200 -> action 200)",
+    setAdminRes[0] === 403 && adminLog.some((x) => x.dir === "res" && x.action === "stepUp" && x.status === 200) && setAdminRes[setAdminRes.length - 1] === 200,
+    `setAdmin statuses=${setAdminRes.join(",")} stepUp=${adminLog.some((x) => x.action === "stepUp")}`,
+  );
+
   a = await act(studentName, "Demote");
   prom = (await adminC.admin("users.get", { id: studentId })).json?.user?.is_admin;
   check("Users.Demote persisted (is_admin=false)", prom === false);
@@ -335,8 +348,7 @@ async function runUI() {
     if (!present) { goneMs = Date.now() - t0; break; }
     await sleep(20);
   }
-  check("G7 optimistic row removal before reply (API delayed 1500ms)", hit.found && goneMs >= 0 && goneMs < 350, `gone=${goneMs}ms`);
-  const sentReqs = adminRequests.length - reqStart;
+  check("G7 optimistic row removal before reply (API delayed 1500ms)", hit.found && goneMs >= 0 && goneMs < 250, `gone=${goneMs}ms`);
   let delNotice = "";
   let noticeMs = -1;
   for (let i = 0; i < 80; i++) {
@@ -346,6 +358,9 @@ async function runUI() {
     if (fresh.some((x) => /deleted/i.test(x))) { delNotice = fresh.join(" | "); noticeMs = Date.now() - t0; break; }
   }
   await setAdminDelay(0);
+  // recompute AFTER the (delayed) reply so a hypothetical post-reply request
+  // cannot escape the round-trip count
+  const sentReqs = adminRequests.length - reqStart;
   check("G7 reply really was delayed (notice arrived after the optimistic update)", noticeMs > 1000, `notice=${noticeMs}ms`);
   check("G6 Users.Delete is a single round-trip", sentReqs === 1, `reqs=${sentReqs}`);
   const users = (await adminC.admin("users.list", { query: studentName })).json?.users ?? [];
