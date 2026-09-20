@@ -167,11 +167,11 @@ async function runQuizProbe(browser) {
         }, JSON.stringify(quiz));
         await page.evaluate(() => document.querySelectorAll(".load-paste .paste-actions button")[0]?.click());
         await sleep(2000);
-        const r = await page.evaluate(() => {
+        const hitTest = () => page.evaluate(() => {
           const stage = document.querySelector(".quiz-stage");
           if (stage) stage.scrollTop = stage.scrollHeight;
           const fails = [];
-          const btns = [...document.querySelectorAll(".question-card button")].filter((b) => {
+          const btns = [...document.querySelectorAll(".question-card button, .quiz-bottom button")].filter((b) => {
             const rr = b.getBoundingClientRect();
             return rr.width > 0 && rr.height > 0;
           });
@@ -181,13 +181,47 @@ async function runQuizProbe(browser) {
             const top = document.elementFromPoint(rr.left + rr.width / 2, rr.top + rr.height / 2);
             if (top !== b && !b.contains(top)) fails.push(`${(b.className || b.tagName).split(" ")[0]}@${Math.round(rr.top)}-${Math.round(rr.bottom)}`);
           }
-          return { controls: btns.length, fails, onQuiz: !!stage, scroll: stage ? [stage.scrollHeight, stage.clientHeight] : null };
+          return { n: btns.length, fails, onQuiz: !!stage, scroll: stage ? [stage.scrollHeight, stage.clientHeight] : null };
         });
+        const r = await hitTest();
+        // match questions keep CONFIRM hidden until every pair is made: pair
+        // left[i] with right[i], let the animation settle, then re-hit-test
+        const matchPairs = first[t].pairs ?? [];
+        const isMatch = await page.evaluate((pairs) => {
+          const all = [...document.querySelectorAll(".match-btn")];
+          if (!all.length) return false;
+          const L = [...document.querySelectorAll(".match-col")][0]?.querySelectorAll(".match-btn") ?? [];
+          const R = [...document.querySelectorAll(".match-col")][1]?.querySelectorAll(".match-btn.right") ?? [];
+          for (const pr of pairs) {
+            const l = [...L].find((b) => b.textContent.trim() === String(pr.left));
+            const r = [...R].find((b) => b.textContent.trim() === String(pr.right));
+            if (l) l.click();
+            if (r) r.click();
+          }
+          return true;
+        }, matchPairs);
+        let rAll = { controls: r.n, fails: r.fails, onQuiz: r.onQuiz, scroll: r.scroll };
+        if (isMatch) {
+          await sleep(700);
+          // only the newly revealed submit button needs a second look; the match
+          // buttons themselves were already covered before pairing
+          const r2 = await page.evaluate(() => {
+            const btn = document.querySelector(".question-card .confirm-btn");
+            if (!btn) return { n: 0, fails: ["confirm-missing"] };
+            const rr = btn.getBoundingClientRect();
+            if (rr.width === 0 || rr.height === 0) return { n: 1, fails: ["confirm-hidden"] };
+            btn.scrollIntoView({ block: "center" });
+            const r3 = btn.getBoundingClientRect();
+            const top = document.elementFromPoint(r3.left + r3.width / 2, r3.top + r3.height / 2);
+            return { n: 1, fails: (top === btn || btn.contains(top)) ? [] : [`confirm@${Math.round(r3.top)}-${Math.round(r3.bottom)}`] };
+          });
+          rAll = { controls: rAll.controls + r2.n, fails: [...new Set([...rAll.fails, ...r2.fails])], onQuiz: r.onQuiz, scroll: r.scroll };
+        }
         report.checks++;
-        const bad = !r.onQuiz || r.controls === 0 || r.fails.length;
+        const bad = !rAll.onQuiz || rAll.controls === 0 || rAll.fails.length;
         if (bad) report.failures++;
-        report.details.push({ key: `${vp.n}/quiz-${t}`, ...r, count: r.fails.length });
-        if (bad) console.log(`  ${vp.n}/quiz-${t}: controls=${r.controls} fails=${r.fails.join(",")}`);
+        report.details.push({ key: `${vp.n}/quiz-${t}`, ...rAll, count: rAll.fails.length });
+        if (bad) console.log(`  ${vp.n}/quiz-${t}: controls=${rAll.controls} fails=${rAll.fails.join(",")}`);
       } catch (e) {
         report.checks++;
         report.failures++;
