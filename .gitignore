@@ -7,3 +7,11 @@ dist
 !.env.example
 .admin-bootstrap.txt
 .gauntlet/
+
+# bugledger: the probe scripts are tracked (they are the regression guard and
+# run-suite.mjs references them by relative path). Their outputs and the
+# one-off audit prose are not — the screenshots are regenerated on every run,
+# and the prose describes findings that have since been fixed.
+bugledger/shots/
+bugledger/suite-results*.json
+bugledger/*.md
