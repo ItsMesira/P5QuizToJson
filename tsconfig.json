@@ -12,7 +12,12 @@
     "isolatedModules": true,
     "noEmit": true,
     "useDefineForClassFields": true,
-    "types": ["node"]
+    "types": ["node"],
+
+    /* React island (loading screen only — the app itself stays vanilla TS) */
+    "jsx": "react-jsx",
+    "baseUrl": ".",
+    "paths": { "@/*": ["src/*"] }
   },
   "include": ["src", "api"]
 }

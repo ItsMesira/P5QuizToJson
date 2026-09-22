@@ -380,18 +380,26 @@ export async function go(route: Route, opts: { instant?: boolean } = {}) {
 
   /* The loader fills the wipe window (~600-800ms) with a named progress card
      instead of dead air. A skipped transition (reduced motion / instant) never
-     shows it, and the 140ms delay means fast routes stay flicker-free. */
+     shows it, and the 140ms delay means fast routes stay flicker-free.
+
+     Each setLoaderPhase below marks a milestone this function GENUINELY reaches,
+     in order — the deck advances on real progress, never on a timer. Routes with
+     no phase table ignore all of this (the handle clamps to a single card). */
   if (!opts.instant) nav.loader = showLoader(route.name);
+  nav.loader?.setPhase(0);
 
   await ensureScreen(route.name);
   if (!isCurrent(nav)) return; // superseded during the chunk import
+  nav.loader?.setPhase(1); // the screen's chunk is in memory
 
   if (!opts.instant) await slashWipe(veil, "in");
   if (!isCurrent(nav)) return; // superseded during the wipe
+  nav.loader?.setPhase(2); // the transition itself is done
 
   try {
     await commit(nav);
     if (!isCurrent(nav)) return;
+    nav.loader?.setPhase(3); // the screen is mounted
     /* The loader rides the veil's own fade, so retiring it here cannot leave a
        dead tail after the new screen is already up. */
     if (!opts.instant) {

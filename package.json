@@ -18,17 +18,28 @@
     "@fontsource/jetbrains-mono": "^5.2.5",
     "@fontsource/kanit": "^5.3.0",
     "@node-rs/argon2": "^2.2.1",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "framer-motion": "^13.4.0",
     "gsap": "^3.13.0",
     "jsonrepair": "^3.15.0",
     "katex": "^0.16.22",
+    "lucide-react": "^1.47.0",
     "pg": "^8.23.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "tailwind-merge": "^3.7.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^26.5.1",
     "@types/pg": "^8.23.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "esbuild": "^0.28.2",
     "puppeteer-core": "^25.10.0",
+    "tailwindcss": "^4.3.3",
     "typescript": "^5.8.3",
     "vite": "^6.3.5"
   }

@@ -19,6 +19,7 @@ import "./styles/screens.css";
 import "./styles/responsive.css";
 
 import { fx } from "./fx/particles";
+import { warmLoader } from "./fx/loader";
 import { perf } from "./core/perf";
 import { initCursor } from "./fx/cursor";
 import { h } from "./ui/dom";
@@ -121,11 +122,39 @@ const unlockAudio = () => {
 window.addEventListener("pointerdown", unlockAudio);
 window.addEventListener("keydown", unlockAudio);
 
+/* ---------- boot shell + loader island ---------- */
+
+/* The static shell in index.html covers the window before any of this JS has
+   run. It lives inside #app, so the router's first clear(stage) removes it for
+   free — this only makes the handoff a crossfade rather than a hard cut. Not
+   awaited: on a fast boot the card has not faded in yet, so there is nothing to
+   fade out and waiting would add latency to every single boot. */
+function dismissBootShell() {
+  const boot = document.getElementById("boot");
+  if (!boot || boot.classList.contains("boot-out")) return;
+  boot.classList.add("boot-out");
+  window.setTimeout(() => boot.remove(), 220);
+}
+
+/* Warm the React loader island once the first screen is up, so the first in-app
+   wait (starting a quiz) already has it rather than downloading React inside the
+   transition it is supposed to be covering. loader.ts owns that dynamic import,
+   which is what keeps React, framer-motion and Tailwind's CSS out of the eager
+   bundle — this only decides when to pay for it. */
+function warmLoaderIsland() {
+  void warmLoader();
+}
+
 /* ---------- URL params: ?q= (share link), ?raw=, ?quiz= (url) ---------- */
 async function handleParams() {
   /* Boot is not a user-initiated navigation: clear any lock state so the first
      route is never refused. */
   resetNavigationLock();
+  dismissBootShell();
+  /* Off the critical path, after the first screen has had a chance to paint.
+     requestIdleCallback would be marginally more precise, but it is Safari 18+
+     and the support branch costs more than the precision is worth here. */
+  window.setTimeout(warmLoaderIsland, 1200);
   /* The active dictionary must be in memory before the first screen renders, or
      every label paints in English and swaps a frame later. */
   await ensureLocale(app.settings.lang);

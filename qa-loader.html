@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>QA — calling-card deck</title>
+    <style>
+      /* Stands in for #veil: the island renders transparent so the app's own
+         stripe wipe stays visible under the deck, so this harness has to supply
+         the ground the veil would otherwise provide. */
+      body {
+        margin: 0;
+        background-color: #0c0c0e;
+        background-image: radial-gradient(rgba(246, 244, 240, 0.07) 1px, transparent 1px),
+          linear-gradient(104deg, transparent 0 66%, #a3000d 66% 72%, #f6f4f0 72% 73.5%, transparent 73.5%);
+        background-size: 18px 18px, 100% 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Deterministic harness for the loader island: renders the deck directly so
+         it can be inspected without racing a real screen transition. Served by the
+         vite dev server only; not part of the built app. -->
+    <div id="qa"></div>
+    <script type="module">
+      import { renderDeck } from "/src/fx/loader-island.tsx";
+
+      const PHASES = [
+        { id: "briefcase", tag: "PHASE 01", title: "Opening the Briefcase" },
+        { id: "card", tag: "PHASE 02", title: "Forging the Calling Card" },
+        { id: "palace", tag: "PHASE 03", title: "Infiltrating the Palace" },
+        { id: "heart", tag: "PHASE 04", title: "Taking Your Heart" },
+      ];
+
+      const params = new URLSearchParams(location.search);
+      renderDeck(document.getElementById("qa"), {
+        phases: PHASES,
+        activeIndex: Number(params.get("i") ?? 1),
+        progress: params.get("p") === "null" ? null : Number(params.get("p") ?? 50),
+        status: params.get("status") ?? "PROCESSING ASSETS…",
+      });
+    </script>
+  </body>
+</html>

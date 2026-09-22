@@ -1,0 +1,78 @@
+/* ============ TAILWIND — utilities only, deliberately WITHOUT preflight ============
+   This project already ships ~91KB of hand-written Persona-5 CSS in src/styles/,
+   written against its own tokens, clip-paths and component language. Tailwind's
+   preflight is a global reset: importing it would restyle every existing screen
+   and quietly break layouts that the whole puppeteer suite depends on.
+
+   So we import only `theme` + `utilities`. Tailwind adds capability next to the
+   existing system instead of replacing it.
+
+   This file is imported by the React loader island ALONE (src/fx/loader-island.tsx),
+   never by src/main.ts, so it lands in the island's lazy CSS chunk rather than the
+   eager one. */
+
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+/* P5 palette mirrored from src/styles/tokens.css. Every name is p5-prefixed so it
+   cannot collide with the existing custom properties on :root. */
+@theme {
+  --color-p5-red: #e60012;
+  --color-p5-red-deep: #a3000d;
+  --color-p5-red-hot: #ff2a2a;
+  --color-p5-ink: #0c0c0e;
+  --color-p5-ink-2: #141419;
+  --color-p5-ink-3: #1d1d24;
+  --color-p5-paper: #f6f4f0;
+  --color-p5-paper-dim: #cfcac1;
+  --color-p5-gold: #e8b93b;
+  --color-p5-gold-hot: #ffd76a;
+  --color-p5-smoke: #8a8a93;
+  --color-p5-steel: #55555f;
+  --color-p5-cyan: #0dd9ff;
+
+  /* Prefixed so `font-p5-display` does not shadow tokens.css's --font-display. */
+  --font-p5-display: "Archivo Black", "Kanit", "Arial Black", sans-serif;
+  --font-p5-ui: "Barlow Condensed", "Kanit", "Arial Narrow", sans-serif;
+  --font-p5-mono: "JetBrains Mono", "SF Mono", monospace;
+}
+
+/* ---- border-box, re-established for the island ONLY ---------------------
+   Tailwind's utilities assume `box-sizing: border-box`, and normally preflight
+   supplies it. We omit preflight on purpose (above) so Tailwind cannot restyle
+   the vanilla app — but that left the island rendering as content-box, where
+   `w-64` + `p-5` + a 3px border computes to 302px wide and `h-80` to 366px tall.
+   Every card overflowed its container and the status bar landed on top of the
+   deck.
+
+   Scoping the reset to the island's own subtree restores the assumption without
+   reintroducing a global reset: `.p5-loader-island *` cannot reach any element
+   the app renders. */
+.p5-loader-island,
+.p5-loader-island *,
+.p5-loader-island *::before,
+.p5-loader-island *::after {
+  box-sizing: border-box;
+}
+
+/* ---- calling-card deck: fit on short viewports --------------------------
+   The deck is composed at a fixed ~400px tall (card + gap + status bar). On a
+   landscape phone the viewport is shorter than that, so it is scaled to fit
+   rather than reflowed — reflowing would turn the card into a different shape.
+   Scaling the whole composition keeps the card's proportions and the type
+   relationships intact, which is what makes it still read as a calling card. */
+.p5-deck {
+  --p5-deck-scale: 1;
+  transform-origin: center center;
+}
+@media (max-height: 460px) {
+  .p5-deck {
+    --p5-deck-scale: 0.62;
+  }
+}
+@media (max-height: 380px) {
+  .p5-deck {
+    --p5-deck-scale: 0.52;
+  }
+}
