@@ -1,9 +1,8 @@
 /* ============ P5 QUIZ — QUIZ SCREEN (the heist itself) ============ */
 import gsap from "gsap";
-import katex from "katex";
-import "katex/dist/katex.min.css";
 import { registerScreen, go, app } from "./screens";
 import { h, clear, toast } from "./dom";
+import { scopedTimeout } from "../core/runtime";
 import { t } from "../core/i18n";
 import { audio } from "../core/audio";
 import { fx } from "../fx/particles";
@@ -23,7 +22,7 @@ interface QuizScreenState {
   heartbeatSec: number;
 }
 
-registerScreen("quiz", (root) => {
+registerScreen("quiz", (root, screenScope) => {
   const quiz = app.currentQuiz;
   if (!quiz) {
     void go({ name: "load" }, { instant: true });
@@ -107,6 +106,37 @@ registerScreen("quiz", (root) => {
 
   /* ---------- helpers ---------- */
 
+  /* KaTeX is 88.7% of this screen's chunk (~258 kB of ~294 kB) and only renders
+     inline $…$ math. Importing it eagerly meant every quiz start — including
+     quizzes with no math at all — waited on that download before the first
+     question could paint. It is now fetched on first actual use, and the raw
+     $…$ is shown until it lands. */
+  type MathRenderer = { render(src: string, el: HTMLElement, opts: { throwOnError: boolean }): void };
+  let mathMod: Promise<MathRenderer | null> | null = null;
+  const loadMath = (): Promise<MathRenderer | null> => {
+    if (!mathMod) {
+      mathMod = Promise.all([import("katex"), import("katex/dist/katex.min.css")])
+        .then((mods) => (mods[0] as unknown as { default: MathRenderer }).default)
+        .catch((err) => {
+          mathMod = null;
+          console.warn("[p5q] KaTeX failed to load — showing raw math", err);
+          return null;
+        });
+    }
+    return mathMod;
+  };
+
+  const renderMath = (source: string, span: HTMLElement) => {
+    void loadMath().then((k) => {
+      if (!k || !span.isConnected) return;
+      try {
+        k.render(source, span, { throwOnError: false });
+      } catch {
+        /* keep the raw $…$ text */
+      }
+    });
+  };
+
   const renderMarkdown = (text: string): Node[] => {
     const nodes: Node[] = [];
     const parts = text.split(/(\$[^$]+\$)/g);
@@ -114,11 +144,8 @@ registerScreen("quiz", (root) => {
       if (part.startsWith("$") && part.endsWith("$") && part.length > 2) {
         const span = document.createElement("span");
         span.className = "katex-inline";
-        try {
-          katex.render(part.slice(1, -1), span, { throwOnError: false });
-        } catch {
-          span.textContent = part;
-        }
+        span.textContent = part; // placeholder until (and unless) KaTeX loads
+        renderMath(part.slice(1, -1), span);
         nodes.push(span);
       } else {
         // **bold**, *italic*, `code`
@@ -694,7 +721,8 @@ registerScreen("quiz", (root) => {
     }
 
     if (o.gameOver) {
-      window.setTimeout(() => void finishQuiz(), 1600);
+      // owned by the screen: never fires into a screen the player already left
+      scopedTimeout(() => void finishQuiz(), 1600, screenScope);
       return;
     }
 
@@ -756,14 +784,26 @@ registerScreen("quiz", (root) => {
     }
   };
 
+  /* The finale cut-in is an awaited GSAP timeline and cannot be cancelled. The
+     player can quit during it (ABANDON HEIST / pause-LOG OUT destroy the runner
+     and route away), and before this guard the continuation still ran to
+     `go({ name: "results" })` — so quitting during the finale landed on the
+     results screen anyway. `finishing` also makes a double finish idempotent
+     (the game-over timer and the last-answer path can both reach here). */
+  let finishing = false;
   const finishQuiz = async () => {
+    if (finishing) return;
+    finishing = true;
     clearProgress();
     const result = runner.finish();
     audio.setIntensity(0);
     // finale cut-in with a real party portrait
-    const scope = root;
     const p = randomPortrait();
-    await cutIn(scope, { letter: result.rank, color: result.accent, name: p.name, img: p.src });
+    await cutIn(root, { letter: result.rank, color: result.accent, name: p.name, img: p.src });
+    if (!screenScope.alive()) {
+      finishing = false;
+      return;
+    }
     void import("../ui/results");
     app.lastResult = result;
     void go({ name: "results" });
@@ -887,6 +927,7 @@ registerScreen("quiz", (root) => {
   pause.querySelector(".resume-btn")!.addEventListener("click", closePause);
   pause.querySelector(".quit2-btn")!.addEventListener("click", () => {
     audio.sfx("click");
+    finishing = true; // a finale cut-in must not route us to results after quitting
     runner.destroy();
     clearProgress();
     void go({ name: "title" });
@@ -895,6 +936,7 @@ registerScreen("quiz", (root) => {
   if (pauseLogout) {
     pauseLogout.addEventListener("click", async () => {
       audio.sfx("click");
+      finishing = true;
       runner.destroy();
       clearProgress();
       await cloud.logout().catch(() => undefined);
@@ -907,7 +949,7 @@ registerScreen("quiz", (root) => {
       else openPause();
     }
   };
-  window.addEventListener("keydown", escHandler);
+  window.addEventListener("keydown", escHandler, { signal: screenScope.signal });
 
   /* ---------- timer + heartbeat ---------- */
 
@@ -955,7 +997,7 @@ registerScreen("quiz", (root) => {
       }
     }
   };
-  window.addEventListener("keydown", shortcutHandler);
+  window.addEventListener("keydown", shortcutHandler, { signal: screenScope.signal });
 
   /* ---------- resume state ---------- */
 
@@ -1024,8 +1066,7 @@ registerScreen("quiz", (root) => {
   return () => {
     runner.destroy();
     runner.offTick(state.tickCb);
-    window.removeEventListener("keydown", escHandler);
-    window.removeEventListener("keydown", shortcutHandler);
+    // keydown listeners are removed by the scope's AbortSignal
     if (pendingAdvance !== null) clearTimeout(pendingAdvance);
   };
 });

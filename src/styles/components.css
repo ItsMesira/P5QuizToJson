@@ -261,27 +261,6 @@
   border-right: 5px solid var(--red);
 }
 
-/* ---------- shine sweep on hover ---------- */
-.shine {
-  position: relative;
-  overflow: hidden;
-}
-.shine::after {
-  content: "";
-  position: absolute;
-  top: -60%;
-  left: -80%;
-  width: 45%;
-  height: 220%;
-  background: linear-gradient(100deg, transparent 20%, rgba(255, 255, 255, 0.35) 50%, transparent 80%);
-  transform: skewX(-18deg);
-  transition: left 0.5s ease;
-  pointer-events: none;
-}
-.shine:hover::after {
-  left: 130%;
-}
-
 /* ---------- quiz HUD ---------- */
 .hearts {
   display: flex;
@@ -2140,60 +2119,6 @@
   letter-spacing: 2px;
   color: rgba(255, 255, 255, 0.3);
 }
-.profile-card {
-  position: relative;
-  text-align: center;
-  font-family: var(--font-ui);
-  color: var(--paper);
-  background: var(--ink-2);
-  border: 2px solid rgba(246, 244, 240, 0.2);
-  clip-path: var(--clip-card);
-  cursor: pointer;
-  padding: 20px;
-  transition: all var(--dur-fast) var(--ease-pop);
-}
-.profile-card:hover {
-  border-color: var(--red);
-  transform: translateY(-4px);
-}
-.profile-card.active {
-  border-color: var(--gold);
-  box-shadow: 0 0 18px rgba(232, 185, 59, 0.3);
-}
-.profile-mask {
-  width: 76px;
-  height: 76px;
-  margin: 0 auto 12px;
-  background:
-    linear-gradient(90deg, transparent 0 12%, var(--red) 12% 88%, transparent 88%),
-    linear-gradient(90deg, transparent 0 22%, var(--paper) 22% 78%, transparent 78%);
-  clip-path: polygon(18% 0, 82% 0, 100% 32%, 92% 84%, 60% 100%, 40% 100%, 8% 84%, 0 32%);
-  transition: transform 0.3s var(--ease-pop);
-}
-.profile-card:hover .profile-mask {
-  transform: rotate(-8deg) scale(1.1);
-}
-.profile-eyes {
-  position: relative;
-  top: 55%;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 34px;
-  height: 8px;
-  background: var(--ink);
-  clip-path: polygon(0 40%, 28% 40%, 34% 0, 66% 0, 72% 40%, 100% 40%, 100% 100%, 0 100%);
-}
-.profile-name {
-  font-weight: 700;
-  font-size: 19px;
-  letter-spacing: 0.1em;
-}
-.profile-xp {
-  font-size: 13px;
-  color: var(--gold);
-  letter-spacing: 0.16em;
-  margin-top: 4px;
-}
 .profile-badge {
   position: absolute;
   top: 10px;
@@ -2652,9 +2577,6 @@
   color: var(--ink);
   padding: 3px 8px;
   transform: rotate(-4deg);
-}
-.prompt-card.prompt-fix {
-  border-color: var(--p5-cyan);
 }
 
 /* ---- history ---- */
@@ -3631,21 +3553,6 @@
 /* ============ MASTER PROMPTS SCREEN ============ */
 .prompts-screen {
   background: radial-gradient(ellipse at top, #141419 0%, var(--ink) 60%);
-}
-.prompts-intro {
-  max-width: 900px;
-  margin: 26px auto 0;
-  padding: 0 26px;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.prompts-intro p {
-  font-size: 19px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  color: var(--paper);
 }
 .prompts-intro-sub {
   font-size: 15px !important;

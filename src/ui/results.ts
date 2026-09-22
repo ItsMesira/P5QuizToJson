@@ -1,6 +1,7 @@
 /* ============ P5 QUIZ — ALL-OUT ATTACK RESULTS ============ */
 import gsap from "gsap";
 import { registerScreen, go, app } from "./screens";
+import { scopedTimeout } from "../core/runtime";
 import { h, toast } from "./dom";
 import { audio } from "../core/audio";
 import { fx } from "../fx/particles";
@@ -12,7 +13,7 @@ import type { QuizResult } from "../core/types";
 import { RANKS } from "../core/types";
 import { t } from "../core/i18n";
 
-registerScreen("results", (root) => {
+registerScreen("results", (root, screenScope) => {
   const result = app.lastResult;
   if (!result) {
     void go({ name: "title" }, { instant: true });
@@ -27,18 +28,62 @@ registerScreen("results", (root) => {
   addProfileXp(gained);
   const unlocked = checkAchievements(result).filter((a) => unlockAchievement(a.id));
 
-  /* classroom sync: the server re-grades from the raw answers, so only quizzes
-     that came from the class shelf (have a quizId) can post a score */
-  void import("../core/api").then(({ cloud }) => {
-    const quizId = app.currentQuiz?.quizId;
-    if (cloud.session?.cls && quizId) {
-      void cloud.submitResult(cloud.session.cls.id, {
-        quizId,
-        quizTitle: result.quizTitle,
-        answers: result.perQuestion.map((p) => ({ q: p.qIndex, a: p.answer ?? null })),
-      });
+  /* Classroom sync: the server re-grades from the raw answers, so only quizzes
+     that came from the class shelf (have a quizId) can post a score.
+
+     This used to be fire-and-forget with no error check, which meant a failed
+     submit was completely invisible: the player saw ALL-OUT ATTACK while the
+     teacher's leaderboard silently never received the score. It now reports
+     failure (and retries) instead of pretending it worked. */
+  const syncState: { status: "idle" | "sending" | "sent" | "failed"; detail: string } = { status: "idle", detail: "" };
+  let syncBanner: HTMLElement | null = null;
+
+  const paintSync = () => {
+    if (!syncBanner) return;
+    if (syncState.status === "sent" || syncState.status === "idle") {
+      syncBanner.classList.add("hidden");
+      syncBanner.textContent = "";
+      return;
     }
-  });
+    syncBanner.classList.remove("hidden");
+    syncBanner.textContent = "";
+    if (syncState.status === "sending") {
+      syncBanner.append(t("Posting your score to the class…"));
+      return;
+    }
+    // failed
+    syncBanner.append(
+      h("span", { class: "sync-fail-text" }, [t("Your score was NOT saved to the class")]),
+      ...(syncState.detail ? [h("span", { class: "sync-fail-detail" }, [syncState.detail])] : []),
+      h("button", {
+        class: "sticker-btn accent sync-retry",
+        type: "button",
+        onclick: () => void postScore(),
+      }, [t("TRY AGAIN")]),
+    );
+  };
+
+  const postScore = async () => {
+    const { cloud } = await import("../core/api");
+    const quizId = app.currentQuiz?.quizId;
+    if (!cloud.session?.cls || !quizId) return;
+    syncState.status = "sending";
+    paintSync();
+    const r = await cloud.submitResult(cloud.session.cls.id, {
+      quizId,
+      quizTitle: result.quizTitle,
+      answers: result.perQuestion.map((p) => ({ q: p.qIndex, a: p.answer ?? null })),
+    });
+    if (r.cancelled) return; // the player navigated away — not a failure to report
+    if (r.ok) {
+      syncState.status = "sent";
+    } else {
+      syncState.status = "failed";
+      syncState.detail = String(r.data?.error ?? (r.status === 0 ? t("Cannot reach the server") : t("Server error ({code})", { code: r.status })));
+      toast(t("Score not saved to the class"), "error");
+    }
+    paintSync();
+  };
 
   const pct = result.total ? Math.round((result.correct / result.total) * 100) : 0;
   const mins = Math.floor(result.timeMs / 60000);
@@ -51,11 +96,11 @@ registerScreen("results", (root) => {
   const goalHit = goal && ["S", "A", "B", "C", "D", "F"].indexOf(result.rank) <= ["S", "A", "B", "C", "D", "F"].indexOf(goal.targetRank);
   if (goalHit) {
     clearGoal(result.quizTitle);
-    window.setTimeout(() => {
+    scopedTimeout(() => {
       toast(t("GOAL REACHED — {rank} rank in “{title}”!", { rank: goal.targetRank, title: result.quizTitle }), "info");
       audio.sfx("rankup");
       fx.starRain(2);
-    }, 5400);
+    }, 5400, screenScope);
   }
 
   const el = h("div", { class: "screen results-screen" }, [
@@ -331,6 +376,15 @@ registerScreen("results", (root) => {
   }
 
   root.appendChild(el);
+
+  /* classroom-sync banner lives above the results body so a failure cannot be
+     missed (it used to not exist at all) */
+  const body = el.querySelector<HTMLElement>(".results-body");
+  if (body) {
+    syncBanner = h("div", { class: "sync-banner hidden", role: "status", "aria-live": "polite" }, []);
+    body.prepend(syncBanner);
+  }
+  void postScore();
 
   /* ---------- entrance choreography ---------- */
 

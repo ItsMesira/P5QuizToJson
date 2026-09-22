@@ -22,7 +22,7 @@ import { fx } from "./fx/particles";
 import { perf } from "./core/perf";
 import { initCursor } from "./fx/cursor";
 import { h } from "./ui/dom";
-import { go, hashToRoute, applyGlobalSettings, initClassBadge, app } from "./ui/screens";
+import { go, hashToRoute, applyGlobalSettings, initClassBadge, app, resetNavigationLock } from "./ui/screens";
 import { audio } from "./core/audio";
 import { validateQuiz } from "./core/validator";
 import { saveQuiz } from "./core/store";
@@ -123,6 +123,9 @@ window.addEventListener("keydown", unlockAudio);
 
 /* ---------- URL params: ?q= (share link), ?raw=, ?quiz= (url) ---------- */
 async function handleParams() {
+  /* Boot is not a user-initiated navigation: clear any lock state so the first
+     route is never refused. */
+  resetNavigationLock();
   const params = new URLSearchParams(location.search);
 
   /* ?lang=es / ?theme=vapor — share links can pin language + theme */

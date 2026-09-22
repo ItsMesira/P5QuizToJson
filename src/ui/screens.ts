@@ -5,9 +5,11 @@ import { validateQuiz } from "../core/validator";
 import { audio } from "../core/audio";
 import { fx } from "../fx/particles";
 import { slashWipe } from "../fx/transitions";
+import { showLoader, hideLoader } from "../fx/loader";
 import { ransomizeAll } from "../fx/ransom";
 import { clear, toast } from "./dom";
 import { applyTheme } from "../core/theme";
+import { routeScope, resetRouteScope, type Scope } from "../core/runtime";
 import { t, applyLocale } from "../core/i18n";
 
 export const app = {
@@ -48,7 +50,10 @@ export type Route =
   | { name: "dashboard" }
   | { name: "admin" };
 
-type MountFn = (root: HTMLElement) => () => void;
+/* Mount functions receive a scope describing the screen's lifetime. Cleanup is
+   called BEFORE the scope is cancelled, so teardown may still use the DOM; the
+   cancel then aborts every in-flight request and owned timer the screen made. */
+type MountFn = (root: HTMLElement, scope: Scope) => () => void;
 
 const mounts: Record<Route["name"], MountFn> = {} as Record<Route["name"], MountFn>;
 
@@ -120,10 +125,88 @@ let current: Route = { name: "title" };
 const stage = document.getElementById("app")!;
 const veil = document.getElementById("veil")!;
 
+/* ---------- navigation lock ----------
+   Every "start" action (PLAY, LOAD, sample, class quiz) funnels through go().
+   A transition takes ~600-800ms, and with no lock a second click ran the whole
+   handler again: a second dynamic import, a second mount, and two competing
+   wipes. That is the "spam clicking breaks the UI" report. One lock here covers
+   all 11 startQuiz call sites without touching each handler. */
+let navigating = false;
+let lockRoute: string | null = null;
+let navLockWatchdog: number | null = null;
+
+/* Navigation must never be able to lock the app out: if a screen mount throws
+   in a way the guards below do not cover, this releases the lock anyway. */
+const NAV_LOCK_MAX_MS = 4000;
+
+function armNavWatchdog() {
+  if (navLockWatchdog !== null) window.clearTimeout(navLockWatchdog);
+  navLockWatchdog = window.setTimeout(() => {
+    navLockWatchdog = null;
+    if (navigating) {
+      console.warn("[p5q] navigation lock timed out — releasing");
+      resetNavigationLock();
+    }
+  }, NAV_LOCK_MAX_MS);
+}
+
+/** True while a navigation is in flight — handlers use it to no-op on re-entry. */
+export function isNavigating(): boolean {
+  return navigating;
+}
+
+/** Marks the control under the finger the moment it is pressed, so the tap is
+ *  visibly acknowledged in the same frame instead of ~600ms later when the new
+ *  screen arrives. This is the whole cure for "I thought I missed it".
+ *
+ *  pointerdown (not click) because it fires BEFORE activation, so marking the
+ *  control cannot suppress the action the user is performing. The class is
+ *  deliberately inert: no `disabled`, which would swallow the in-flight click. */
+let lastPointerTarget: Element | null = null;
+document.addEventListener(
+  "pointerdown",
+  (e) => {
+    const el = e.target as Element | null;
+    lastPointerTarget = el;
+    const control = el?.closest?.("button, .sticker-btn, .lib-btn, .entry-row") as HTMLElement | null;
+    if (control && !control.classList.contains("hidden")) control.classList.add("is-busy");
+  },
+  { capture: true, passive: true },
+);
+
+function acknowledgeClick() {
+  const el = (document.activeElement as Element | null) ?? lastPointerTarget;
+  const control = el?.closest?.("button, .sticker-btn, .lib-btn, .entry-row") as HTMLElement | null;
+  control?.classList.add("is-busy");
+}
+
+export function resetNavigationLock() {
+  navigating = false;
+  lockRoute = null;
+  if (navLockWatchdog !== null) {
+    window.clearTimeout(navLockWatchdog);
+    navLockWatchdog = null;
+  }
+  document.querySelectorAll(".is-busy").forEach((el) => el.classList.remove("is-busy"));
+}
+
 export async function go(route: Route, opts: { instant?: boolean } = {}) {
+  if (navigating && !opts.instant && route.name === lockRoute) {
+    /* Repeat tap on the control the user already hit: acknowledge it so the
+       click is never silently dropped, and ignore the duplicate. */
+    acknowledgeClick();
+    return;
+  }
+  navigating = true;
+  lockRoute = route.name;
+  armNavWatchdog();
   current = route;
   location.hash = route.name;
   document.body.dataset.screen = route.name === "title" ? "home" : route.name;
+  /* The loader fills the wipe window (~600-800ms) with a named progress card
+     instead of dead air. A skipped transition (reduced motion / instant) never
+     shows it, and the 140ms delay means fast routes stay flicker-free. */
+  if (!opts.instant) showLoader(route.name);
   await ensureScreen(route.name);
   if (!opts.instant) await slashWipe(veil, "in");
   try {
@@ -133,10 +216,25 @@ export async function go(route: Route, opts: { instant?: boolean } = {}) {
   }
   cleanup = null;
   clear(stage);
+  /* Everything the previous screen started (fetches, timers, listeners, rAF
+     loops) is cancelled here. Without this, a late continuation wrote into a
+     detached tree and failed silently. */
+  resetRouteScope();
+  let cancelled = false;
+  routeScope().onCancel(() => {
+    cancelled = true;
+  });
+  const scope: Scope = {
+    get signal() {
+      return routeScope().signal;
+    },
+    alive: () => !cancelled && routeScope().alive(),
+    onCancel: (fn) => routeScope().onCancel(fn),
+  };
   try {
     const mount = mounts[route.name];
     if (mount) {
-      cleanup = mount(stage);
+      cleanup = mount(stage, scope);
     }
     ransomizeAll([".screen-title"]);
   } catch (err) {
@@ -149,13 +247,20 @@ export async function go(route: Route, opts: { instant?: boolean } = {}) {
         location.hash = "title";
         document.body.dataset.screen = "home";
         await ensureScreen("title");
-        cleanup = mounts.title(stage);
+        cleanup = mounts.title(stage, scope);
         ransomizeAll([".screen-title"]);
       } catch (err2) {
         console.error("[p5q] title fallback failed:", err2);
       }
     }
   } finally {
+    /* The new screen is mounted, so navigation is available again immediately.
+       Holding the lock through the wipe-out dropped legitimate navigations made
+       in that window (the hash had already changed, leaving URL and screen out
+       of sync). Repeat taps on the SAME route are still absorbed by the route
+       check below, which is what spam protection actually needs. */
+    resetNavigationLock();
+    hideLoader();
     if (!opts.instant) await slashWipe(veil, "out");
   }
 }

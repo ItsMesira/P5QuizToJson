@@ -26,6 +26,10 @@ export interface SavedQuiz {
   source: string; // file name / url / "sample"
 }
 
+/* Every localStorage touch goes through these two. Bare localStorage calls throw
+   in storage-restricted contexts (Safari private mode, embedded webviews, a full
+   quota), and an uncaught throw at the top of a screen mount used to replace the
+   whole screen with "Something broke on that screen". */
 function read<T>(key: string, fallback: T): T {
   try {
     const v = localStorage.getItem(key);
@@ -38,7 +42,28 @@ function write(key: string, value: unknown) {
   try {
     localStorage.setItem(key, JSON.stringify(value));
   } catch {
-    /* quota — ignore */
+    /* quota / storage unavailable — ignore */
+  }
+}
+function readRaw(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+function writeRaw(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    /* storage unavailable — ignore */
+  }
+}
+function removeRaw(key: string) {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    /* storage unavailable — ignore */
   }
 }
 
@@ -119,7 +144,7 @@ export function profiles(): Profile[] {
   return read<Profile[]>(K.profiles, []);
 }
 export function currentProfile(): Profile | null {
-  const id = localStorage.getItem(K.profile);
+  const id = readRaw(K.profile);
   if (!id) return null;
   return profiles().find((p) => p.id === id) ?? null;
 }
@@ -128,11 +153,11 @@ export function createProfile(name: string): Profile {
   const list = profiles();
   list.push(p);
   write(K.profiles, list);
-  localStorage.setItem(K.profile, p.id);
+  writeRaw(K.profile, p.id);
   return p;
 }
 export function switchProfile(id: string) {
-  localStorage.setItem(K.profile, id);
+  writeRaw(K.profile, id);
 }
 export function addProfileXp(n: number) {
   const p = currentProfile();
@@ -168,7 +193,7 @@ export function loadProgress(): Progress | null {
   return read<Progress | null>(K.progress, null);
 }
 export function clearProgress() {
-  localStorage.removeItem(K.progress);
+  removeRaw(K.progress);
 }
 
 /* ---------- prompt history / favorites / custom presets ---------- */

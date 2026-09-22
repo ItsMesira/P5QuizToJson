@@ -137,11 +137,15 @@ registerScreen("dashboard", (root) => {
     void go({ name: "entry" });
   });
 
-  /* ---- shelf ---- */
-  const listBox = el.querySelector<HTMLElement>(".dash-quiz-list")!;
-  const pagerBox = el.querySelector<HTMLElement>(".dash-pager")!;
-  const searchInput = el.querySelector<HTMLInputElement>(".dash-search")!;
-  const sortSelect = el.querySelector<HTMLSelectElement>(".dash-sort")!;
+  /* ---- shelf ----
+     These four exist only when the user HAS a class: the shelf column is built
+     conditionally. They used to be non-null asserted, so a signed-in user with
+     no class got a thrown dashboard mount ("Cannot read properties of null") and
+     the router replaced the screen with the title menu. */
+  const listBox = el.querySelector<HTMLElement>(".dash-quiz-list");
+  const pagerBox = el.querySelector<HTMLElement>(".dash-pager");
+  const searchInput = el.querySelector<HTMLInputElement>(".dash-search");
+  const sortSelect = el.querySelector<HTMLSelectElement>(".dash-sort");
 
   function filtered(): ShelfQuiz[] {
     const q = shelfQ.trim().toLowerCase();
@@ -153,12 +157,13 @@ registerScreen("dashboard", (root) => {
   }
 
   function renderShelf(highlightId?: string) {
-    if (!shelfLoaded) return;
+    if (!shelfLoaded || !listBox || !pagerBox) return;
     const list = filtered();
     const pages = Math.max(1, Math.ceil(list.length / PER_PAGE));
     shelfPage = Math.min(Math.max(1, shelfPage), pages);
     const start = (shelfPage - 1) * PER_PAGE;
     const slice = list.slice(start, start + PER_PAGE);
+    if (!listBox) return;
     listBox.textContent = "";
     if (!list.length) {
       listBox.appendChild(
@@ -231,12 +236,12 @@ registerScreen("dashboard", (root) => {
     return row;
   }
 
-  searchInput.addEventListener("input", () => {
+  searchInput?.addEventListener("input", () => {
     shelfQ = searchInput.value;
     shelfPage = 1;
     renderShelf();
   });
-  sortSelect.addEventListener("change", () => {
+  sortSelect?.addEventListener("change", () => {
     shelfSort = sortSelect.value === "title" ? "title" : "newest";
     shelfPage = 1;
     renderShelf();
@@ -299,8 +304,8 @@ registerScreen("dashboard", (root) => {
     shelfQ = "";
     shelfSort = "newest";
     shelfPage = 1;
-    searchInput.value = "";
-    sortSelect.value = "newest";
+    if (searchInput) searchInput.value = "";
+    if (sortSelect) sortSelect.value = "newest";
     shelfLoaded = true;
     renderShelf(row.id);
     toast(t("“{title}” added to {name}", { title: v.quiz.title, name: cls.name }), "info");
@@ -399,7 +404,12 @@ registerScreen("dashboard", (root) => {
       showAddError(t("Not valid JSON — check commas and quotes."));
     }
   });
-  el.querySelector(".dash-add")!.addEventListener("click", openAdd);
+  /* .dash-add is rendered inside the class-only shelf column, so a signed-in
+     user with no class has no such button. This assertion used to throw during
+     the mount, and the router's catch replaced the whole dashboard with the
+     title menu — which is why a brand-new account could never reach the
+     "NO CLASSROOM YET" screen. */
+  el.querySelector(".dash-add")?.addEventListener("click", openAdd);
 
   let loading = false;
 
@@ -452,7 +462,7 @@ registerScreen("dashboard", (root) => {
         }
       } else {
         shelfLoaded = true;
-        fail(listBox, quizzes?.data?.error ? cloudError(quizzes) : t("Couldn't load quizzes"));
+        if (listBox) fail(listBox, quizzes?.data?.error ? cloudError(quizzes) : t("Couldn't load quizzes"));
       }
 
       const results = resultsR.status === "fulfilled" ? resultsR.value : null;
@@ -481,7 +491,7 @@ registerScreen("dashboard", (root) => {
         fail(box, t("Couldn't load — check your connection and try again."));
       }
       shelfLoaded = true;
-      fail(listBox, t("Couldn't load — check your connection and try again."));
+      if (listBox) fail(listBox, t("Couldn't load — check your connection and try again."));
     } finally {
       loading = false;
     }

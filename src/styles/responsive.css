@@ -77,9 +77,6 @@ label,
 .history-grid {
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr));
 }
-.profile-grid {
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr));
-}
 .ach-grid {
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
 }

@@ -94,7 +94,119 @@ body {
   transform: skewX(-16deg);
 }
 
-/* ambient background layer — P5 Best layers: stripes, halftone, stars, slash */
+/* ---------- tap acknowledgement ----------
+   The transition is ~600ms, so the control under the finger is marked on
+   pointerdown (pre-activation, so it cannot swallow the click). Purely
+   cosmetic: duplicate taps are absorbed by the router's navigation lock. */
+.is-busy {
+  opacity: 0.8;
+  filter: saturate(0.7);
+  transform: translate(2px, 2px) scale(0.985);
+}
+
+/* ---------- heist loader (inside the veil, fills the dead air) ----------
+   Without it the user watched a dark screen for ~600ms, read that as a missed
+   tap, and clicked again. */
+#veil .p5-loader {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center start;
+  padding-left: clamp(20px, 9vw, 132px);
+  opacity: 0;
+  transition: opacity 130ms var(--ease-snap);
+}
+#veil .p5-loader.visible {
+  opacity: 1;
+}
+#veil .p5-loader-stripes {
+  position: absolute;
+  inset: -30%;
+  transform: skewX(-16deg);
+  opacity: 0.075;
+  background: repeating-linear-gradient(-45deg, transparent 0 68px, var(--red) 68px 96px, transparent 96px 260px);
+  animation: p5-loader-drift 1.4s linear infinite;
+}
+@keyframes p5-loader-drift {
+  from { background-position: 0 0; }
+  to { background-position: 184px 0; }
+}
+#veil .p5-loader-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  min-width: min(80vw, 400px);
+  max-width: 440px;
+  padding: 18px 22px 16px;
+  background: #0a0a0c;
+  clip-path: var(--clip-slant);
+  border-left: 8px solid var(--red);
+  box-shadow: 0 0 0 1px rgba(230, 0, 18, 0.35), 12px 12px 0 rgba(0, 0, 0, 0.6);
+  animation: p5-loader-slam 180ms var(--ease-snap) both;
+}
+@keyframes p5-loader-slam {
+  from { transform: translateX(-16px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+#veil .p5-loader-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 46px;
+  height: 46px;
+  background: var(--red);
+  clip-path: polygon(100% 0, 100% 100%, 0 0);
+}
+#veil .p5-loader-kicker {
+  font-family: var(--font-display);
+  font-size: clamp(24px, 4.4vw, 40px);
+  line-height: 0.94;
+  letter-spacing: -0.02em;
+  color: var(--paper);
+  text-transform: uppercase;
+  transform: skewX(-7deg);
+}
+#veil .p5-loader-title {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: clamp(12px, 1.5vw, 15px);
+  letter-spacing: 0.22em;
+  color: var(--red-hot);
+  text-transform: uppercase;
+}
+#veil .p5-loader-bar {
+  height: 6px;
+  background: #26262e;
+  overflow: hidden;
+}
+#veil .p5-loader-bar > i {
+  display: block;
+  height: 100%;
+  transform-origin: left center;
+  background: linear-gradient(90deg, var(--red-deep), var(--red) 45%, var(--gold-hot));
+  animation: p5-loader-fill 520ms var(--ease-slam) both;
+}
+@keyframes p5-loader-fill {
+  from { transform: scaleX(0.04); }
+  to { transform: scaleX(0.86); }
+}
+#veil .p5-loader-meta {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: var(--smoke);
+}
+#veil .p5-loader-dots {
+  animation: p5-loader-blink 900ms steps(1, end) infinite;
+}
+@keyframes p5-loader-blink {
+  0%, 60% { opacity: 1; }
+  61%, 100% { opacity: 0.25; }
+}
 #ambient {
   position: fixed;
   inset: -6vmax;
@@ -195,30 +307,8 @@ body {
 body[data-screen]:not([data-screen="home"]) #ambient #bg-slash {
   clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 0 62%, 0 60%, 0 24%, 0 22%);
 }
-
-/* per-screen menu artwork slot (drop art/menu-home.jpg etc. in) */
-#ambient .menu-art {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  opacity: 0;
-  transition: opacity 0.55s ease;
-}
 body[data-screen="home"] #art-home {
   opacity: 1;
-}
-body.has-art-home #ambient #bg-slash {
-  display: none;
-}
-body.has-art-home #ambient #bg-halftone {
-  opacity: 0.5;
-}
-body.has-art-home #ambient #bg-vignette {
-  background:
-    linear-gradient(100deg, rgba(0, 0, 0, 0.42) 0%, rgba(0, 0, 0, 0.12) 36%, transparent 58%),
-    radial-gradient(ellipse at 32% 40%, transparent 30%, rgba(0, 0, 0, 0.55) 100%);
 }
 
 /* toasts */
@@ -254,6 +344,36 @@ body.has-art-home #ambient #bg-vignette {
 .toast .toast-icon {
   font-family: var(--font-mono);
   font-size: 12px;
+}
+/* The container stays pointer-events:none so toasts never block the UI, but each
+   toast must still be individually dismissable. */
+.toast {
+  pointer-events: auto;
+}
+.toast .toast-text {
+  min-width: 0;
+}
+.toast .toast-close {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  padding: 4px 2px 4px 8px;
+  margin-left: 2px;
+  cursor: pointer;
+  opacity: 0.75;
+}
+.toast .toast-close:hover,
+.toast .toast-close:focus-visible {
+  opacity: 1;
+}
+.toast.toast-out {
+  opacity: 0;
+  transform: translateX(120px);
+  transition: opacity 0.18s linear, transform 0.18s ease-in;
 }
 
 /* CRT scanlines — a static composited overlay (used to be hundreds of
