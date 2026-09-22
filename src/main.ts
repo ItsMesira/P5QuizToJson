@@ -29,7 +29,7 @@ import { saveQuiz } from "./core/store";
 import { decodeQuizLink, fetchRemoteQuiz, decodePayload } from "./core/share";
 import { toast } from "./ui/dom";
 import type { Quiz } from "./core/types";
-import { t, detectLocale } from "./core/i18n";
+import { t, detectLocale, ensureLocale } from "./core/i18n";
 import { isValidTheme } from "./core/theme";
 
 // UI screens are code-split by the router (see ui/screens.ts) — not imported here.
@@ -126,12 +126,17 @@ async function handleParams() {
   /* Boot is not a user-initiated navigation: clear any lock state so the first
      route is never refused. */
   resetNavigationLock();
+  /* The active dictionary must be in memory before the first screen renders, or
+     every label paints in English and swaps a frame later. */
+  await ensureLocale(app.settings.lang);
+  applyGlobalSettings();
   const params = new URLSearchParams(location.search);
 
   /* ?lang=es / ?theme=vapor — share links can pin language + theme */
   const langP = params.get("lang");
   if (langP) {
     app.settings.lang = detectLocale(langP);
+    await ensureLocale(app.settings.lang);
     applyGlobalSettings();
   }
   const themeP = params.get("theme");

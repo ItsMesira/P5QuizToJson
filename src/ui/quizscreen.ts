@@ -395,7 +395,7 @@ registerScreen("quiz", (root, screenScope) => {
       if (e.key === "Enter") submit();
     });
     if (!RM()) gsap.fromTo(".fill-row", { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.35, ease: "back.out(1.5)", delay: 0.1 });
-    window.setTimeout(() => input.focus(), 350);
+    scopedTimeout(() => input.focus(), 350, screenScope);
   };
 
   const renderNumeric = (box: HTMLElement, _ref: QuestionRef) => {
@@ -413,7 +413,7 @@ registerScreen("quiz", (root, screenScope) => {
     input.addEventListener("keydown", (e) => {
       if (e.key === "Enter") submit();
     });
-    window.setTimeout(() => input.focus(), 350);
+    scopedTimeout(() => input.focus(), 350, screenScope);
     if (!RM()) gsap.fromTo(".fill-row", { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.35, ease: "back.out(1.5)", delay: 0.1 });
   };
 
@@ -578,7 +578,7 @@ registerScreen("quiz", (root, screenScope) => {
         answerWith(null, b as HTMLElement, () => runner.submitOpen(b.textContent?.includes("GOT") ?? false));
       });
     });
-    window.setTimeout(() => area.focus(), 350);
+    scopedTimeout(() => area.focus(), 350, screenScope);
     if (!RM()) gsap.fromTo(".open-wrap", { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.35, ease: "back.out(1.5)", delay: 0.1 });
   };
 

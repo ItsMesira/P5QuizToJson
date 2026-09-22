@@ -100,8 +100,33 @@ export async function hitStop(ms = 120) {
   await new Promise((r) => setTimeout(r, ms));
 }
 
-/* ---- slashWipe: the signature P5 stripe sweep transition ---- */
-export function slashWipe(veil: HTMLElement, dir: "in" | "out" = "in"): Promise<void> {
+/* The wipe that is currently in flight, if any. A superseded navigation must be
+   able to stop its own transition, but a killed GSAP timeline never fires
+   `onComplete` — so abortWipe() resolves the promise itself. Without that, the
+   loser's `await slashWipe(...)` would hang forever and retain its closure. */
+let activeWipe: { tl: gsap.core.Timeline; finish: () => void; veil: HTMLElement } | null = null;
+
+export function abortWipe(): void {
+  const w = activeWipe;
+  if (!w) return;
+  activeWipe = null;
+  w.tl.kill();
+  /* Killing a wipe-in strands the veil at opacity 1. The next transition sets
+     it back to 1 itself, so clearing it here is safe, and it means a cancelled
+     transition can never leave a black screen behind. */
+  w.veil.style.opacity = "0";
+  w.finish();
+}
+
+/* ---- slashWipe: the signature P5 stripe sweep transition ----
+   `opts.fadeOut` elements are faded inside the same timeline as `.veil-bg`, so
+   anything riding on the veil (the heist loader) leaves exactly when the veil
+   does instead of on a parallel timer that drifts out of sync with it. */
+export function slashWipe(
+  veil: HTMLElement,
+  dir: "in" | "out" = "in",
+  opts: { fadeOut?: HTMLElement[] } = {},
+): Promise<void> {
   return new Promise((resolve) => {
     if (RM()) {
       resolve();
@@ -118,9 +143,11 @@ export function slashWipe(veil: HTMLElement, dir: "in" | "out" = "in"): Promise<
       if (done) return;
       done = true;
       window.clearTimeout(failsafe);
+      if (activeWipe?.tl === tl) activeWipe = null;
       resolve();
     };
     const tl = gsap.timeline({ onComplete: finish });
+    activeWipe = { tl, finish, veil };
     // watchdog: backgrounded tabs pause rAF and can strand a wipe mid-flight,
     // leaving the black veil up — force-clear instead of hanging forever
     failsafe = window.setTimeout(() => {
@@ -152,6 +179,11 @@ export function slashWipe(veil: HTMLElement, dir: "in" | "out" = "in"): Promise<
       tl.to(slash, { yPercent: 130, duration: 0.4, ease: "power2.in" }, 0.04)
         .to(bg, { opacity: 0, duration: 0.22 }, 0.05)
         .set(veil, { opacity: 0 });
+      /* ride the veil's own fade exactly — same start, same duration */
+      for (const el of opts.fadeOut ?? []) {
+        el.style.transition = "none"; // GSAP owns this tween, not the CSS transition
+        tl.to(el, { opacity: 0, duration: 0.22 }, 0.05);
+      }
     }
   });
 }

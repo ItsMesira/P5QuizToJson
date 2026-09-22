@@ -95,13 +95,23 @@ body {
 }
 
 /* ---------- tap acknowledgement ----------
-   The transition is ~600ms, so the control under the finger is marked on
-   pointerdown (pre-activation, so it cannot swallow the click). Purely
-   cosmetic: duplicate taps are absorbed by the router's navigation lock. */
+   The control under the finger is marked on pointerdown (pre-activation, so it
+   cannot swallow the click) and unmarked on release. Purely cosmetic: duplicate
+   taps are absorbed by the router.
+
+   All three declarations are forced, for two different reasons. `transform` is
+   contested by roughly thirty :hover/:active rules at (0,2,0) that outrank a
+   bare class — and a pointerdown is always accompanied by hover, so without
+   !important the press reads as a dim with no travel. `opacity` and `filter`
+   are contested by GSAP, which leaves `opacity: 1; transform: translate(0,0)`
+   inline on these controls after its entrance tweens; an inline style outranks
+   any non-important author rule, so the dim never rendered either. No GSAP
+   tween targets a marked control during the ~200ms the mark is up, so forcing
+   all three is safe. */
 .is-busy {
-  opacity: 0.8;
-  filter: saturate(0.7);
-  transform: translate(2px, 2px) scale(0.985);
+  opacity: 0.8 !important;
+  filter: saturate(0.7) !important;
+  transform: translate(2px, 2px) scale(0.985) !important;
 }
 
 /* ---------- heist loader (inside the veil, fills the dead air) ----------
@@ -186,11 +196,15 @@ body {
   height: 100%;
   transform-origin: left center;
   background: linear-gradient(90deg, var(--red-deep), var(--red) 45%, var(--gold-hot));
-  animation: p5-loader-fill 520ms var(--ease-slam) both;
+  /* Indeterminate: the router cannot know real progress, and the card now lives
+     for the whole transition, so a one-shot fill would sit frozen at 86% while
+     the user is still waiting. Same bar, same palette — it just never stops. */
+  animation: p5-loader-fill 1.1s var(--ease-slam) infinite;
 }
 @keyframes p5-loader-fill {
-  from { transform: scaleX(0.04); }
-  to { transform: scaleX(0.86); }
+  0% { transform: scaleX(0.04); }
+  60% { transform: scaleX(0.86); }
+  100% { transform: scaleX(0.04); }
 }
 #veil .p5-loader-meta {
   display: flex;

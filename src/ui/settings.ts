@@ -5,7 +5,7 @@ import { h, toast } from "./dom";
 import { audio } from "../core/audio";
 import { RM } from "../fx/transitions";
 import { THEMES, contrastRatio, isHexColor } from "../core/theme";
-import { t, LOCALES, detectLocale } from "../core/i18n";
+import { t, LOCALES, detectLocale, ensureLocale } from "../core/i18n";
 
 registerScreen("settings", (root) => {
   const s = app.settings;
@@ -73,8 +73,13 @@ registerScreen("settings", (root) => {
     b.addEventListener("click", () => {
       s.lang = l.id;
       audio.sfx("select");
-      applyGlobalSettings();
-      void go({ name: "settings" }, { instant: true });
+      /* The dictionary is a separate chunk now, so it must be in memory BEFORE
+         the re-mount below — otherwise this screen repaints in the old language
+         and, since nothing listens for "p5q-locale", never catches up. */
+      void ensureLocale(s.lang).then(() => {
+        applyGlobalSettings();
+        void go({ name: "settings" }, { instant: true });
+      });
     });
     return b;
   }));

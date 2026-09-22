@@ -7,6 +7,7 @@ import { fx } from "../fx/particles";
 import { RM } from "../fx/transitions";
 import { ransomize } from "../fx/ransom";
 import { loadProgress } from "../core/store";
+import { scopedTimeout } from "../core/runtime";
 import { cloud } from "../core/api";
 import { t } from "../core/i18n";
 
@@ -28,7 +29,7 @@ const ITEMS: MenuEntry[] = [
   { label: "PROFILES",       route: "profiles",  size: "clamp(27px,3.8vw,49px)", icon: "🃏", tilt: 0.6, target: () => void go({ name: "profiles" }) },
 ];
 
-registerScreen("title", (root) => {
+registerScreen("title", (root, scope) => {
   applyGlobalSettings();
 
   let active = -1;
@@ -192,7 +193,7 @@ registerScreen("title", (root) => {
     itemEls.forEach((item, i) => {
       gsap.fromTo(item, { x: -60, opacity: 0 }, { x: 0, opacity: 0.62, duration: 0.55, delay: 0.65 + i * 0.1, ease: "back.out(1.2)", onComplete: () => gsap.set(item, { clearProps: "transform" }) });
     });
-    window.setTimeout(() => activate(0, true), 1400);
+    scopedTimeout(() => activate(0, true), 1400, scope);
   } else {
     activate(0, true);
   }

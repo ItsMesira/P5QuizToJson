@@ -6,7 +6,14 @@
    This draws a Persona-5-styled progress card INSIDE the existing veil, so it
    needs no new timing logic — it appears with the wipe and dies with it. It also
    reports what is actually happening (route name), because a specific label
-   reads as faster and more trustworthy than a generic spinner. */
+   reads as faster and more trustworthy than a generic spinner.
+
+   OWNERSHIP: every call to showLoader() returns a handle, and the caller — the
+   navigation that asked for it — owns that handle. There is deliberately no
+   module-level "current loader": with shared state, a superseded navigation's
+   teardown used to retire the *newer* navigation's card. The exit fade is not a
+   timer here at all; the router hands `el` to slashWipe()'s fadeOut list so the
+   card leaves with the veil it belongs to. */
 
 const ROUTE_LABEL: Record<string, string> = {
   title: "RETURNING TO THE HIDEOUT",
@@ -24,9 +31,6 @@ const ROUTE_LABEL: Record<string, string> = {
 };
 
 const SHOW_DELAY_MS = 140;
-
-let host: HTMLElement | null = null;
-let timer: number | null = null;
 
 function build(): HTMLElement | null {
   const veil = document.getElementById("veil");
@@ -70,36 +74,47 @@ function build(): HTMLElement | null {
   return el;
 }
 
-/** Show the loader for a navigation to `route`. Safe to call when a transition
- *  is skipped (reduced motion) — it simply never becomes visible. */
-export function showLoader(route: string): void {
+export interface Loader {
+  /** The card node, or null while the 140ms build delay is still pending. */
+  readonly el: HTMLElement | null;
+  /** Remove the card once its fade has been handled by the wipe timeline. */
+  retire(): void;
+  /** This navigation was superseded — cancel the build and drop the card now. */
+  abort(): void;
+}
+
+/** Build a loader for a navigation to `route` and hand the caller its handle.
+ *  Nothing appears for SHOW_DELAY_MS, so a fast route stays flicker-free. */
+export function showLoader(route: string): Loader {
   const text = ROUTE_LABEL[route] ?? "WORKING";
-  hideLoader();
-  timer = window.setTimeout(() => {
-    timer = null;
-    host = build();
-    if (!host) return;
-    host.querySelector(".p5-loader-title")!.textContent = text;
-    // rAF so the transition runs from the initial state
-    requestAnimationFrame(() => host?.classList.add("visible"));
+  let node: HTMLElement | null = null;
+  let buildTimer: number | null = null;
+
+  buildTimer = window.setTimeout(() => {
+    buildTimer = null;
+    node = build();
+    if (!node) return;
+    node.querySelector(".p5-loader-title")!.textContent = text;
+    // rAF so the reveal transition runs from the initial state. It closes over
+    // `node`, so a stale frame can never mark a *newer* card visible.
+    requestAnimationFrame(() => node?.classList.add("visible"));
   }, SHOW_DELAY_MS);
-}
 
-/** Retire the loader. The wipe lasts ~600ms and the bar fills over ~500ms, so
- *  the card is held briefly to avoid a jarring cut, then fully removed. */
-export function hideLoader(): void {
-  if (timer !== null) {
-    window.clearTimeout(timer);
-    timer = null;
-  }
-  const el = host;
-  host = null;
-  if (!el) return;
-  el.classList.remove("visible");
-  window.setTimeout(() => el.remove(), 220);
-}
-
-/** Kept for parity with the router's transition watchdog. */
-export function loaderActive(): boolean {
-  return host !== null;
+  return {
+    get el() {
+      return node;
+    },
+    retire() {
+      node?.remove();
+      node = null;
+    },
+    abort() {
+      if (buildTimer !== null) {
+        window.clearTimeout(buildTimer);
+        buildTimer = null;
+      }
+      node?.remove();
+      node = null;
+    },
+  };
 }

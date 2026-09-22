@@ -6,6 +6,7 @@ import { registerScreen, go } from "./screens";
 import { h, clear } from "./dom";
 import { t } from "../core/i18n";
 import { audio } from "../core/audio";
+import { scopedTimeout } from "../core/runtime";
 import "../styles/admin.css";
 
 interface ApiResp {
@@ -39,7 +40,7 @@ async function adminReq(action: string, payload: Record<string, unknown> = {}): 
 
 const err = (r: ApiResp): string => String(r.data.error ?? `HTTP ${r.status}`);
 
-registerScreen("admin", (root) => {
+registerScreen("admin", (root, scope) => {
   const el = h("div", { class: "screen admin-screen" }, [
     h("div", { class: "admin-body" }, []),
   ]);
@@ -92,7 +93,7 @@ registerScreen("admin", (root) => {
   const notify = (msg: string) => {
     const n = h("div", { class: "admin-note admin-notice" }, [msg]);
     body().prepend(n);
-    window.setTimeout(() => n.remove(), 4000);
+    scopedTimeout(() => n.remove(), 4000, scope);
   };
 
   const askConfirm = (title: string): Promise<boolean> =>

@@ -16,13 +16,41 @@ export const LOCALES: LocaleDef[] = [
   { id: "ja", name: "日本語" },
 ];
 
-import th from "../i18n/th";
-import es from "../i18n/es";
-import fr from "../i18n/fr";
-import de from "../i18n/de";
-import ja from "../i18n/ja";
+/* Dictionaries are code-split. Statically importing all five put 143kB of source
+   — roughly 40% of the eager bundle — on the critical path to serve exactly one
+   locale. `t()` stays synchronous and is never allowed to run against a locale
+   whose dictionary is missing: setLocale() loads first, then applies. */
+const LOADERS: Record<string, () => Promise<Record<string, string>>> = {
+  th: () => import("../i18n/th").then((m) => m.default),
+  es: () => import("../i18n/es").then((m) => m.default),
+  fr: () => import("../i18n/fr").then((m) => m.default),
+  de: () => import("../i18n/de").then((m) => m.default),
+  ja: () => import("../i18n/ja").then((m) => m.default),
+};
 
-const DICTS: Record<string, Record<string, string>> = { th, es, fr, de, ja };
+const DICTS: Record<string, Record<string, string>> = {};
+const pending = new Map<string, Promise<void>>();
+
+/** Load `id`'s dictionary into the cache. `en` needs none — the keys ARE the
+ *  English strings. Safe to call repeatedly; concurrent calls share one import. */
+export function ensureLocale(id: string): Promise<void> {
+  if (id === "en" || DICTS[id]) return Promise.resolve();
+  const load = LOADERS[id];
+  if (!load) return Promise.resolve();
+  let p = pending.get(id);
+  if (!p) {
+    p = load()
+      .then((dict) => {
+        DICTS[id] = dict;
+      })
+      .catch(() => undefined) // fall back to English keys rather than throwing
+      .then(() => {
+        pending.delete(id);
+      });
+    pending.set(id, p);
+  }
+  return p;
+}
 
 let current = "en";
 const missing = new Set<string>();
@@ -37,6 +65,12 @@ export function detectLocale(tag?: string): string {
 export function setLocale(id: string) {
   const next = id || detectLocale();
   if (next === current) return;
+  if (next !== "en" && !DICTS[next]) {
+    /* Not in memory yet: load it, then apply. Callers that cannot tolerate the
+       frame of English should `await ensureLocale(next)` before calling. */
+    void ensureLocale(next).then(() => setLocale(next));
+    return;
+  }
   current = next;
   if (typeof document !== "undefined") document.documentElement.lang = next;
   window.dispatchEvent(new CustomEvent("p5q-locale", { detail: next }));

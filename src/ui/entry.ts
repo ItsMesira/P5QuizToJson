@@ -6,6 +6,7 @@ import { audio } from "../core/audio";
 import { fx } from "../fx/particles";
 import { RM } from "../fx/transitions";
 import { ransomize } from "../fx/ransom";
+import { scopedTimeout } from "../core/runtime";
 import { cloud, cloudError, type ApiResult } from "../core/api";
 import { t } from "../core/i18n";
 
@@ -20,7 +21,7 @@ function apiErrorText(r: ApiResult): string {
   return cloudError(r);
 }
 
-registerScreen("entry", (root) => {
+registerScreen("entry", (root, scope) => {
   let mode: Mode = "root";
   let pendingClass: string | null = null; // code entered in the join step
   let pendingMake = false;
@@ -312,7 +313,7 @@ registerScreen("entry", (root) => {
         showError(err, apiErrorText(r));
         if (r.status === 404) {
           mode = "join";
-          window.setTimeout(() => render(), 900);
+          scopedTimeout(() => render(), 900, scope);
         }
       });
 

@@ -6,6 +6,7 @@ import { t } from "../core/i18n";
 import { audio } from "../core/audio";
 import { fx } from "../fx/particles";
 import { RM } from "../fx/transitions";
+import { scopedTimeout, scopedInterval } from "../core/runtime";
 import {
   BUILTIN_PRESETS, FIXER_PROMPT, type Preset, type PromptFields, type Audience, type DifficultyMix, type Tone, type Blooms,
   defaultFields, buildPrompt, buildFollowUpPrompt, buildMissPrompt, mergeFields, stripUnsafe,
@@ -42,7 +43,7 @@ const TONES: Tone[] = ["fun", "serious", "dramatic"];
 const BLOOMS: Blooms[] = ["mix", "recall", "apply", "analyze"];
 const AUDIENCES: Audience[] = ["kids", "teens", "adults", "experts"];
 
-registerScreen("prompts", (root) => {
+registerScreen("prompts", (root, scope) => {
   const fields: PromptFields = { ...defaultFields(), ...builderPrefill.fields };
   builderPrefill.fields = undefined;
   let tab: "builder" | "presets" | "history" = "builder";
@@ -100,7 +101,7 @@ registerScreen("prompts", (root) => {
     const orig = btn.textContent;
     btn.textContent = t("✓ COPIED");
     gsap.fromTo(btn, { scale: 1 }, { scale: 1.15, duration: 0.12, yoyo: true, repeat: 1, ease: "power2.out" });
-    window.setTimeout(() => (btn.textContent = orig), 1400);
+    scopedTimeout(() => (btn.textContent = orig), 1400, scope);
     toast(t("Prompt copied — paste it into your AI"), "info");
   }
 
@@ -378,7 +379,7 @@ registerScreen("prompts", (root) => {
       const rect = btn.getBoundingClientRect();
       const topicInput = form.querySelector<HTMLInputElement>(".builder-input")!;
       let n = 0;
-      const id = window.setInterval(() => {
+      const id = scopedInterval(() => {
         fields.topic = topics[Math.floor(Math.random() * topics.length)];
         fields.count = 5 + Math.floor(Math.random() * 12);
         fields.difficulty = DIFFS[Math.floor(Math.random() * DIFFS.length)];

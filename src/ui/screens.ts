@@ -4,8 +4,8 @@ import { loadSettings, storeSettings } from "../core/store";
 import { validateQuiz } from "../core/validator";
 import { audio } from "../core/audio";
 import { fx } from "../fx/particles";
-import { slashWipe } from "../fx/transitions";
-import { showLoader, hideLoader } from "../fx/loader";
+import { slashWipe, abortWipe } from "../fx/transitions";
+import { showLoader, type Loader } from "../fx/loader";
 import { ransomizeAll } from "../fx/ransom";
 import { clear, toast } from "./dom";
 import { applyTheme } from "../core/theme";
@@ -125,90 +125,159 @@ let current: Route = { name: "title" };
 const stage = document.getElementById("app")!;
 const veil = document.getElementById("veil")!;
 
-/* ---------- navigation lock ----------
+/* ---------- navigation model ----------
    Every "start" action (PLAY, LOAD, sample, class quiz) funnels through go().
-   A transition takes ~600-800ms, and with no lock a second click ran the whole
-   handler again: a second dynamic import, a second mount, and two competing
-   wipes. That is the "spam clicking breaks the UI" report. One lock here covers
-   all 11 startQuiz call sites without touching each handler. */
-let navigating = false;
-let lockRoute: string | null = null;
-let navLockWatchdog: number | null = null;
+   A transition takes ~600-800ms, so two clicks used to run the whole handler
+   twice: two dynamic imports, two mounts, two wipes fighting over the same
+   veil, and two writers racing on the single `cleanup` slot.
 
-/* Navigation must never be able to lock the app out: if a screen mount throws
-   in a way the guards below do not cover, this releases the lock anyway. */
+   Exactly one navigation is in flight, held in `active`. A new navigation
+   aborts the old one synchronously, before its first await, so the loser
+   returns at its next checkpoint having touched no shared state. The previous
+   booleans could only absorb a repeat tap on the SAME route, which is why the
+   browser Back button (a different route) corrupted the screen: it released the
+   newer navigation's lock and retired its loader. */
+interface Nav {
+  gen: number;
+  route: Route;
+  instant: boolean;
+  loader: Loader | null;
+  aborted: boolean;
+}
+
+let navGen = 0;
+let active: Nav | null = null;
+let navWatchdog: number | null = null;
+
+const isCurrent = (n: Nav) => active === n && !n.aborted;
+
+function clearWatchdog() {
+  if (navWatchdog !== null) {
+    window.clearTimeout(navWatchdog);
+    navWatchdog = null;
+  }
+}
+
+/** Cancel a navigation. It will not commit, and it tears down only its OWN
+ *  loader and its own in-flight wipe — never those of whatever superseded it. */
+function abortNav(n: Nav) {
+  if (n.aborted) return;
+  n.aborted = true;
+  n.loader?.abort();
+  n.loader = null;
+  abortWipe();
+  if (active === n) active = null;
+}
+
+/* Navigation must never lock the app out: if a mount hangs in a way the
+   checkpoints do not cover, the watchdog genuinely cancels it. It must ABORT
+   rather than merely clear flags — a stalled navigation that kept running used
+   to clobber whatever came after it. */
 const NAV_LOCK_MAX_MS = 4000;
 
-function armNavWatchdog() {
-  if (navLockWatchdog !== null) window.clearTimeout(navLockWatchdog);
-  navLockWatchdog = window.setTimeout(() => {
-    navLockWatchdog = null;
-    if (navigating) {
-      console.warn("[p5q] navigation lock timed out — releasing");
-      resetNavigationLock();
-    }
+function armNavWatchdog(nav: Nav) {
+  clearWatchdog();
+  navWatchdog = window.setTimeout(() => {
+    navWatchdog = null;
+    if (!isCurrent(nav)) return;
+    console.warn("[p5q] navigation timed out — aborting");
+    abortNav(nav);
   }, NAV_LOCK_MAX_MS);
 }
 
-/** True while a navigation is in flight — handlers use it to no-op on re-entry. */
+/** True while a navigation is in flight. */
 export function isNavigating(): boolean {
-  return navigating;
+  return active !== null;
 }
 
-/** Marks the control under the finger the moment it is pressed, so the tap is
- *  visibly acknowledged in the same frame instead of ~600ms later when the new
- *  screen arrives. This is the whole cure for "I thought I missed it".
- *
- *  pointerdown (not click) because it fires BEFORE activation, so marking the
- *  control cannot suppress the action the user is performing. The class is
- *  deliberately inert: no `disabled`, which would swallow the in-flight click. */
+/* ---------- tap acknowledgement ----------
+   The control under the finger is marked the moment it is pressed, so the tap
+   is visibly acknowledged in the same frame instead of ~600ms later when the
+   new screen arrives. This is the whole cure for "I thought I missed it".
+
+   pointerdown (not click) because it fires BEFORE activation, so marking the
+   control cannot suppress the action the user is performing. The mark is
+   deliberately inert: no `disabled`, which would swallow the in-flight click.
+
+   The mark's lifetime is the PRESS, not the navigation. Removing it on
+   navigation (which is what this used to do) meant every control that does not
+   navigate — quiz answers, settings toggles, modal buttons, toast dismiss —
+   stayed dimmed and skewed for the rest of the screen's life. */
+const CONTROL_SELECTOR = "button, .sticker-btn, .lib-btn, .entry-row";
+/* long enough that a 60ms tap is still seen, short enough never to stick */
+const PRESS_HOLD_MS = 200;
+
+let pressed: HTMLElement | null = null;
+let pressedAt = 0;
+let releaseTimer: number | null = null;
 let lastPointerTarget: Element | null = null;
+
+function controlFor(target: EventTarget | null): HTMLElement | null {
+  const c = (target as Element | null)?.closest?.(CONTROL_SELECTOR) as HTMLElement | null;
+  return c && !c.classList.contains("hidden") ? c : null;
+}
+
+function press(c: HTMLElement) {
+  if (releaseTimer !== null) {
+    window.clearTimeout(releaseTimer);
+    releaseTimer = null;
+  }
+  pressed?.classList.remove("is-busy");
+  pressed = c;
+  pressedAt = performance.now();
+  c.classList.add("is-busy"); // same frame — the original cure, untouched
+}
+
+function endPress() {
+  if (!pressed) return;
+  const el = pressed;
+  pressed = null;
+  const wait = Math.max(0, PRESS_HOLD_MS - (performance.now() - pressedAt));
+  if (wait === 0) {
+    el.classList.remove("is-busy");
+    return;
+  }
+  releaseTimer = window.setTimeout(() => {
+    releaseTimer = null;
+    el.classList.remove("is-busy");
+  }, wait);
+}
+
 document.addEventListener(
   "pointerdown",
   (e) => {
-    const el = e.target as Element | null;
-    lastPointerTarget = el;
-    const control = el?.closest?.("button, .sticker-btn, .lib-btn, .entry-row") as HTMLElement | null;
-    if (control && !control.classList.contains("hidden")) control.classList.add("is-busy");
+    lastPointerTarget = e.target as Element | null;
+    const c = controlFor(e.target);
+    if (c) press(c);
   },
   { capture: true, passive: true },
 );
+window.addEventListener("pointerup", endPress, { capture: true, passive: true });
+window.addEventListener("pointercancel", endPress, { capture: true, passive: true });
 
+/** A tap the router absorbed still has to look like it landed. The `??` must
+ *  apply to the closest() RESULT: `document.activeElement` is <body> when
+ *  nothing is focused, so it is never null and never falls through — which is
+ *  why the fallback below was unreachable. */
 function acknowledgeClick() {
-  const el = (document.activeElement as Element | null) ?? lastPointerTarget;
-  const control = el?.closest?.("button, .sticker-btn, .lib-btn, .entry-row") as HTMLElement | null;
-  control?.classList.add("is-busy");
+  const c = controlFor(document.activeElement) ?? controlFor(lastPointerTarget);
+  if (!c) return;
+  press(c);
+  endPress(); // press + immediate release: floors at PRESS_HOLD_MS
 }
 
+/** Drop any in-flight navigation bookkeeping. Boot calls this so the first
+ *  route is never refused; nothing is mounted yet, so there is nothing to tear
+ *  down. The watchdog aborts its own navigation first, so this only clears. */
 export function resetNavigationLock() {
-  navigating = false;
-  lockRoute = null;
-  if (navLockWatchdog !== null) {
-    window.clearTimeout(navLockWatchdog);
-    navLockWatchdog = null;
-  }
-  document.querySelectorAll(".is-busy").forEach((el) => el.classList.remove("is-busy"));
+  clearWatchdog();
+  active = null;
 }
 
-export async function go(route: Route, opts: { instant?: boolean } = {}) {
-  if (navigating && !opts.instant && route.name === lockRoute) {
-    /* Repeat tap on the control the user already hit: acknowledge it so the
-       click is never silently dropped, and ignore the duplicate. */
-    acknowledgeClick();
-    return;
-  }
-  navigating = true;
-  lockRoute = route.name;
-  armNavWatchdog();
-  current = route;
-  location.hash = route.name;
-  document.body.dataset.screen = route.name === "title" ? "home" : route.name;
-  /* The loader fills the wipe window (~600-800ms) with a named progress card
-     instead of dead air. A skipped transition (reduced motion / instant) never
-     shows it, and the 140ms delay means fast routes stay flicker-free. */
-  if (!opts.instant) showLoader(route.name);
-  await ensureScreen(route.name);
-  if (!opts.instant) await slashWipe(veil, "in");
+/** The ONLY writer of shared screen state — `current`, `dataset.screen`, the
+ *  stage's children, `cleanup`, and the route scope. It is reachable only
+ *  through isCurrent(), so a superseded navigation can never run it. */
+async function commit(nav: Nav): Promise<void> {
   try {
     cleanup?.();
   } catch (err) {
@@ -231,37 +300,95 @@ export async function go(route: Route, opts: { instant?: boolean } = {}) {
     alive: () => !cancelled && routeScope().alive(),
     onCancel: (fn) => routeScope().onCancel(fn),
   };
+
+  /* The mounted truth. go() writes the hash eagerly (Back must work during a
+     transition), so this follows the commit instead — which is what guarantees
+     that at rest, with nothing in flight, URL and screen always agree. */
+  current = nav.route;
+
   try {
-    const mount = mounts[route.name];
-    if (mount) {
-      cleanup = mount(stage, scope);
-    }
+    const mount = mounts[nav.route.name];
+    if (mount) cleanup = mount(stage, scope);
     ransomizeAll([".screen-title"]);
   } catch (err) {
-    console.error(`[p5q] screen "${route.name}" failed to mount:`, err);
+    console.error(`[p5q] screen "${nav.route.name}" failed to mount:`, err);
     toast(t("Something broke on that screen — back to the menu"), "error");
-    if (route.name !== "title") {
-      try {
-        clear(stage);
-        current = { name: "title" };
-        location.hash = "title";
-        document.body.dataset.screen = "home";
-        await ensureScreen("title");
-        cleanup = mounts.title(stage, scope);
-        ransomizeAll([".screen-title"]);
-      } catch (err2) {
-        console.error("[p5q] title fallback failed:", err2);
-      }
+    if (nav.route.name === "title") return;
+    /* Fall back directly rather than by calling go(): a recursive go() would
+       abort `nav` mid-flight. Re-point nav at the title route first, so the
+       hashchange this fires is recognised as our own write, not a new trip. */
+    try {
+      clear(stage);
+      nav.route = { name: "title" };
+      current = nav.route;
+      document.body.dataset.screen = "home";
+      location.hash = "title";
+      await ensureScreen("title");
+      if (mounts.title) cleanup = mounts.title(stage, scope);
+      ransomizeAll([".screen-title"]);
+    } catch (err2) {
+      console.error("[p5q] title fallback failed:", err2);
+    }
+  }
+}
+
+export async function go(route: Route, opts: { instant?: boolean } = {}) {
+  /* Repeat tap on the control the user already hit: acknowledge it so the click
+     is never silently dropped, and ignore the duplicate. This sits BEFORE the
+     abort below, so spam stays absorbed instead of restarting the transition. */
+  if (active && !opts.instant && active.route.name === route.name) {
+    acknowledgeClick();
+    return;
+  }
+
+  /* Newest wins, synchronously, before any await. The previous navigation is
+     dead from this line on: it can neither commit nor retire OUR loader. */
+  if (active) abortNav(active);
+
+  const nav: Nav = { gen: ++navGen, route, instant: !!opts.instant, loader: null, aborted: false };
+  active = nav;
+  armNavWatchdog(nav);
+
+  /* The URL is the navigation's public record and the Back button must keep
+     working during a transition, so it is written eagerly. Nothing else is —
+     except `data-screen`, which only CSS reads (the ambient slash retracting on
+     sub-screens). That is a transition-INTENT signal, so it must fire when the
+     navigation starts, not when it finishes: committing it with the mount made
+     every data-screen-keyed animation begin ~800ms late, after the transition
+     it was supposed to accompany. The newest navigation writes it last and the
+     newest commits, so at rest it still names the mounted route. */
+  if (location.hash.slice(1) !== route.name) location.hash = route.name;
+  document.body.dataset.screen = route.name === "title" ? "home" : route.name;
+
+  /* The loader fills the wipe window (~600-800ms) with a named progress card
+     instead of dead air. A skipped transition (reduced motion / instant) never
+     shows it, and the 140ms delay means fast routes stay flicker-free. */
+  if (!opts.instant) nav.loader = showLoader(route.name);
+
+  await ensureScreen(route.name);
+  if (!isCurrent(nav)) return; // superseded during the chunk import
+
+  if (!opts.instant) await slashWipe(veil, "in");
+  if (!isCurrent(nav)) return; // superseded during the wipe
+
+  try {
+    await commit(nav);
+    if (!isCurrent(nav)) return;
+    /* The loader rides the veil's own fade, so retiring it here cannot leave a
+       dead tail after the new screen is already up. */
+    if (!opts.instant) {
+      await slashWipe(veil, "out", { fadeOut: nav.loader?.el ? [nav.loader.el] : [] });
     }
   } finally {
-    /* The new screen is mounted, so navigation is available again immediately.
-       Holding the lock through the wipe-out dropped legitimate navigations made
-       in that window (the hash had already changed, leaving URL and screen out
-       of sync). Repeat taps on the SAME route are still absorbed by the route
-       check below, which is what spam protection actually needs. */
-    resetNavigationLock();
-    hideLoader();
-    if (!opts.instant) await slashWipe(veil, "out");
+    /* Only the owner releases: a stale navigation must never retire the loader
+       or clear the slot belonging to the one that superseded it. */
+    const loader = nav.loader;
+    nav.loader = null;
+    if (active === nav) {
+      active = null;
+      clearWatchdog();
+    }
+    loader?.retire();
   }
 }
 
@@ -276,10 +403,6 @@ document.addEventListener("visibilitychange", () => {
     }
   }, 2500);
 });
-
-export function currentRoute(): Route {
-  return current;
-}
 
 /* ---------- class badge (persistent classroom indicator) ---------- */
 import { cloud } from "../core/api";
@@ -344,5 +467,12 @@ export function hashToRoute(h: string): Route | null {
 
 window.addEventListener("hashchange", () => {
   const r = hashToRoute(location.hash);
-  if (r && r.name !== current.name) void go(r);
+  if (!r) return;
+  /* Compare against the newest REQUESTED route, not the mounted one. The hash is
+     written eagerly but `current` only follows the commit, so mid-transition the
+     two legitimately disagree — comparing against `current` would swallow a Back
+     press made during a transition, and the pending navigation would then
+     re-write the hash and win. */
+  if (r.name === (active?.route.name ?? current.name)) return;
+  void go(r);
 });
