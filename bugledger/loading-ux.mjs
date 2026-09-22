@@ -286,6 +286,57 @@ const browser = await puppeteer.launch({ executablePath: CHROME, headless: true,
   await page.close();
 }
 
+/* (g) D4 — an absorbed repeat tap must light up the control that was PRESSED.
+   Safari does not focus a button on click, so document.activeElement can name a
+   control the user never touched; preferring it over the pointer target marks
+   the wrong control. Chrome focuses on mousedown, so the two normally agree —
+   moving focus mid-press is what forces them to disagree, which is what makes
+   this reproducible off Safari at all. */
+{
+  const page = await browser.newPage();
+  await page.setViewport({ width: 1280, height: 900 });
+  await page.goto(`${BASE}/#load`, { waitUntil: "networkidle0" });
+  await sleep(1200);
+  const quiz = {
+    title: "Ack Check",
+    settings: { shuffle: false, timeLimit: null },
+    sections: [{ name: "S", questions: [{ type: "multiple", question: "Q?", answers: [{ text: "a", correct: true }, { text: "b" }] }] }],
+  };
+  await page.evaluate(() => document.querySelectorAll(".load-actions .sticker-btn")[1].click());
+  await sleep(400);
+  await page.click(".paste-area");
+  await page.type(".paste-area", JSON.stringify(quiz));
+
+  const box = await page.evaluate(() => {
+    const b = document.querySelector(".paste-actions .paste-load").getBoundingClientRect();
+    return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+  });
+
+  /* first press starts the navigation to #quiz; focus is moved off the pressed
+     control while the button is still held */
+  await page.mouse.move(box.x, box.y);
+  await page.mouse.down();
+  await page.evaluate(() => document.querySelector(".paste-repair")?.focus());
+  await page.mouse.up();
+  await sleep(80);
+
+  /* second press on the same route -> go() absorbs it -> acknowledgeClick()
+     runs while activeElement (REPAIR) and the pointer target (LOAD) disagree */
+  await page.mouse.down();
+  await page.evaluate(() => document.querySelector(".paste-repair")?.focus());
+  await page.mouse.up();
+  const r = await page.evaluate(() => ({
+    /* the paste dialog is gone once the quiz mounts, so its presence proves the
+       repeat really did land inside the in-flight transition */
+    inFlight: !!document.querySelector(".paste-load"),
+    pressed: !!document.querySelector(".paste-load")?.classList.contains("is-busy"),
+    other: !!document.querySelector(".paste-repair")?.classList.contains("is-busy"),
+  }));
+  check("repeat tap landed while the navigation was in flight (non-vacuous)", r.inFlight, JSON.stringify(r));
+  check("absorbed repeat marks the pressed control, not the focused one", r.pressed && !r.other, JSON.stringify(r));
+  await page.close();
+}
+
 await browser.close();
 console.log(fails === 0 ? "\nLOADING-UX SUITE PASS" : `\n${fails} FAILURE(S)`);
 process.exit(fails ? 1 : 0);

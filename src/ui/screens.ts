@@ -252,15 +252,33 @@ document.addEventListener(
   },
   { capture: true, passive: true },
 );
+/* A key press means the interaction in flight is no longer the pointer one, so
+   the recorded pointer target must stop counting as "what the user just
+   pressed". This is what makes the choice in acknowledgeClick() deterministic
+   instead of a guess. */
+document.addEventListener("keydown", () => {
+  lastPointerTarget = null;
+}, { capture: true, passive: true });
 window.addEventListener("pointerup", endPress, { capture: true, passive: true });
 window.addEventListener("pointercancel", endPress, { capture: true, passive: true });
 
-/** A tap the router absorbed still has to look like it landed. The `??` must
- *  apply to the closest() RESULT: `document.activeElement` is <body> when
- *  nothing is focused, so it is never null and never falls through — which is
- *  why the fallback below was unreachable. */
+/** A tap the router absorbed still has to look like it landed.
+ *
+ *  The pointer target comes FIRST, and that ordering is the whole point. What
+ *  the user pressed is the thing that should light up, and `lastPointerTarget`
+ *  is exactly that — recorded by the pointerdown that caused this navigation.
+ *  Consulting `document.activeElement` first is wrong, not merely redundant:
+ *  Safari does not focus a button on click, so activeElement is either <body>
+ *  (which never falls through, being truthy — the original bug) or, worse, a
+ *  control the user focused earlier and did not press. Chrome focuses on
+ *  mousedown, so it cannot reproduce that, which is why this needs fixing by
+ *  construction rather than by testing on a real device.
+ *
+ *  The keydown listener above is what keeps the keyboard path working: with a
+ *  null pointer target there is no recent press, so the focused control is
+ *  correctly used instead. */
 function acknowledgeClick() {
-  const c = controlFor(document.activeElement) ?? controlFor(lastPointerTarget);
+  const c = controlFor(lastPointerTarget) ?? controlFor(document.activeElement);
   if (!c) return;
   press(c);
   endPress(); // press + immediate release: floors at PRESS_HOLD_MS
