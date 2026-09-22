@@ -64,6 +64,22 @@ for (let i = 0; i < 20; i++) {
 check("admin panel loads after login", /ADMIN PANEL/.test(text) && /Users/.test(text), text.slice(0, 60));
 
 // every tab must render content (this is the regression that bricked the panel)
+/* Wait for the content to actually render rather than sampling once after a
+   fixed sleep. The old single read after `sleep(800)` counted "the sleep
+   elapsed" as "the tab rendered", so under CPU contention every tab read as a
+   stranded "Loading…" — a false failure shaped exactly like the real bug it is
+   meant to catch. A genuine stall still fails here, but as a timeout with the
+   elapsed time recorded, which is stronger evidence than a single misread. */
+async function waitForContent(timeoutMs = 8000) {
+  const t0 = Date.now();
+  for (;;) {
+    const text = await p.$eval(".admin-content", (e) => e.textContent).catch(() => "");
+    if (text && !text.includes("Loading…")) return { text, ms: Date.now() - t0 };
+    if (Date.now() - t0 >= timeoutMs) return { text, ms: Date.now() - t0, timeout: true };
+    await sleep(100);
+  }
+}
+
 const names = ["Users", "Classes", "Quizzes", "Results", "Sessions", "Audit", "System"];
 let tabsOk = true;
 for (const n of names) {
@@ -72,9 +88,8 @@ for (const n of names) {
   if (i < 0) { tabsOk = false; console.log("missing tab:", n); break; }
   const btns = await p.$$(".admin-tabs .sticker-btn");
   await btns[i].click();
-  await sleep(800);
-  const content = await p.$eval(".admin-content", (e) => e.textContent).catch(() => "");
-  if (!content || content.includes("Loading…")) { tabsOk = false; console.log(`tab ${n} stuck:`, content.slice(0, 50)); break; }
+  const r = await waitForContent();
+  if (r.timeout) { tabsOk = false; console.log(`tab ${n} stuck after ${r.ms}ms:`, (r.text || "").slice(0, 50)); break; }
 }
 check("all admin tabs render content", tabsOk);
 check("class badge hidden on admin panel", await p.$eval("#class-badge", (e) => getComputedStyle(e).display === "none" || e.classList.contains("hidden")).catch(() => true));
