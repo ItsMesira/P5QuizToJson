@@ -129,12 +129,24 @@ export function joinClass(client, code) {
 export async function seedQuizzes(client, classId, titles) {
   const ids = [];
   const statuses = [];
+  let waits = 0;
   for (const title of titles) {
-    const res = await client.post(
+    let res = await client.post(
       `/api/classes/${classId}/quizzes`,
       { title, quiz: validQuiz(title) },
       { ip: randIp() },
     );
+    // live Vercel normalizes the client IP, so seeding >20/min hits the limiter
+    while (res.status === 429 && waits < 2) {
+      console.log(`      seed: 429 rate limit — waiting 61s (batch ${waits + 1}/2)`);
+      await sleep(61_000);
+      waits++;
+      res = await client.post(
+        `/api/classes/${classId}/quizzes`,
+        { title, quiz: validQuiz(title) },
+        { ip: randIp() },
+      );
+    }
     statuses.push(res.status);
     ids.push(res.json?.id ?? null);
   }

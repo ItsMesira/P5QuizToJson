@@ -53,10 +53,17 @@ check("fixture: student joined", !!rs.json?.session?.user?.id);
 
 /* 30 posts would trip the 20/min per-IP quiz limit — rotate x-forwarded-for. */
 let seededOk = true;
+let seedWaits = 0;
 for (let i = 1; i <= 30; i++) {
   owner.xff = randIp();
   const q = quizJson(i);
-  const r = await owner.req("POST", `/api/classes/${cls.id}/quizzes`, { title: q.title, quiz: q });
+  let r = await owner.req("POST", `/api/classes/${cls.id}/quizzes`, { title: q.title, quiz: q });
+  while (r.status === 429 && seedWaits < 2) {
+    console.log(`      seed: 429 rate limit — waiting 61s (batch ${seedWaits + 1}/2)`);
+    await sleep(61_000);
+    seedWaits++;
+    r = await owner.req("POST", `/api/classes/${cls.id}/quizzes`, { title: q.title, quiz: q });
+  }
   if (r.status !== 200) { check(`fixture: seed quiz ${i}`, false, `status ${r.status}`); seededOk = false; break; }
 }
 owner.xff = randIp();

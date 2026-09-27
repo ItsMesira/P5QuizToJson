@@ -17,6 +17,7 @@
 
 import { randomBytes } from "node:crypto";
 import {
+  BASE,
   Client, PASSWORD, check, results, randIp,
   registerUser, createClass, joinClass, seedQuizzes, cleanupAccounts,
 } from "./lib.mjs";
@@ -217,7 +218,12 @@ async function main() {
     `post=${wildPost.status} pct=${wildPct.json?.total} underscore=${wildUnd.json?.total} lone-pct=${wildOnly.json?.total}`,
   );
 
-  /* ---------- POST rate limit (last: it adds 20 throwaway rows) ---------- */
+  /* ---------- POST rate limit ----------
+     Only meaningful locally: live Vercel normalizes the client IP, so the
+     seeding above already consumed the window and spoofing cannot isolate it. */
+  if (!/localhost|127\.0\.0\.1/.test(BASE)) {
+    console.log("SKIP rate-limit probe on live (Vercel normalizes the client IP)");
+  } else {
   const rlIp = randIp();
   const rlStatuses = [];
   for (let i = 0; i < 21; i++) {
@@ -233,6 +239,7 @@ async function main() {
     rlStatuses.slice(0, 20).every((s) => s === 200) && rlStatuses[20] === 429,
     `statuses=[${rlStatuses.join(",")}]`,
   );
+  }
 }
 
 try {
