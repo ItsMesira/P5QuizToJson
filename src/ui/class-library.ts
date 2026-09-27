@@ -198,7 +198,12 @@ registerScreen("class-library", (root, scope) => {
     }
   }
 
+  const busyUntil = new Map<string, number>();
+  const busy = (id: string, kind: "pin" | "del") => (busyUntil.get(`${id}:${kind}`) ?? 0) > Date.now();
+
   async function pinRow(row: QuizListRow, cardNode: HTMLElement, btn: HTMLButtonElement) {
+    if (busy(row.id, "pin")) return;
+    busyUntil.set(`${row.id}:pin`, Date.now() + 500);
     const next = !row.pinned;
     btn.disabled = true;
     const r = await cloud.pinQuiz(cls.id, row.id, next);
@@ -215,6 +220,8 @@ registerScreen("class-library", (root, scope) => {
   }
 
   async function removeRow(row: QuizListRow, cardNode: HTMLElement) {
+    if (busy(row.id, "del")) return;
+    busyUntil.set(`${row.id}:del`, Date.now() + 500);
     const r = await cloud.deleteQuiz(cls.id, row.id);
     if (!scope.alive()) return;
     if (!r.ok) {

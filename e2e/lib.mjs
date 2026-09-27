@@ -6,6 +6,7 @@
 
 import { randomBytes } from "node:crypto";
 import { chromium } from "playwright";
+import { existsSync } from "node:fs";
 
 export const BASE = (process.env.P5Q_BASE ?? "http://localhost:3011").replace(/\/+$/, "");
 export const PASSWORD = "Gauntlet123";
@@ -163,7 +164,13 @@ export async function cleanupAccounts(accounts) {
 }
 
 /* ---------- browser ---------- */
-/* System Chrome (Playwright channel); headless. Never downloads browsers. */
+/* Prefer Chrome for Testing (stable branded Chrome on this host silently dies
+   ~30s into a session); fall back to the installed channel if it is missing. */
+const CFT_DEFAULT =
+  process.env.P5Q_CHROME ??
+  "/Users/blue/.cache/puppeteer/chrome/mac_arm-154.0.8037.57/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing";
 export function browser() {
-  return chromium.launch({ channel: "chrome", headless: true });
+  return existsSync(CFT_DEFAULT)
+    ? chromium.launch({ executablePath: CFT_DEFAULT, headless: true })
+    : chromium.launch({ channel: "chrome", headless: true });
 }

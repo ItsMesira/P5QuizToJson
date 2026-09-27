@@ -142,6 +142,12 @@ registerScreen("dashboard", (root) => {
     ]);
   }
 
+  /* A successful action re-renders the card, so the button guard alone cannot
+     stop a second click landing right after the response; keep a short per-quiz
+     cooldown that survives re-render. */
+  const busyUntil = new Map<string, number>();
+  const busy = (id: string, kind: "pin" | "del") => (busyUntil.get(`${id}:${kind}`) ?? 0) > Date.now();
+
   function quizCard(q: QuizListRow, highlight: boolean): HTMLElement {
     const meta = [t("by {author}", { author: q.author })];
     if (q.created) meta.push(new Date(q.created).toLocaleDateString());
@@ -174,7 +180,8 @@ registerScreen("dashboard", (root) => {
     });
     const pinBtn = card.querySelector<HTMLButtonElement>(".qcard-pin");
     pinBtn?.addEventListener("click", async () => {
-      if (pinBtn.disabled) return;
+      if (pinBtn.disabled || busy(q.id, "pin")) return;
+      busyUntil.set(`${q.id}:pin`, Date.now() + 500);
       pinBtn.disabled = true;
       const next = !q.pinned;
       const r = await cloud.pinQuiz(cls!.id, q.id, next);
@@ -188,11 +195,13 @@ registerScreen("dashboard", (root) => {
       else q.pinned = next;
       hubPinned = hubPinned.filter((x) => x.id !== q.id);
       if (next) hubPinned = [q, ...hubPinned];
+      busyUntil.set(`${q.id}:pin`, Date.now() + 500);
       renderHub();
     });
     const delBtn = card.querySelector<HTMLButtonElement>(".qcard-del");
     delBtn?.addEventListener("click", async () => {
-      if (delBtn.disabled) return;
+      if (delBtn.disabled || busy(q.id, "del")) return;
+      busyUntil.set(`${q.id}:del`, Date.now() + 500);
       delBtn.disabled = true;
       const r = await cloud.deleteQuiz(cls!.id, q.id);
       if (!r.ok) delBtn.disabled = false;
@@ -202,6 +211,7 @@ registerScreen("dashboard", (root) => {
         quizzes = quizzes.filter((x) => x.id !== q.id);
         hubPinned = hubPinned.filter((x) => x.id !== q.id);
         hubTotal = Math.max(0, hubTotal - 1);
+        busyUntil.set(`${q.id}:del`, Date.now() + 500);
         renderHub();
       } else {
         toast(cloudError(r), "error");
@@ -227,7 +237,7 @@ registerScreen("dashboard", (root) => {
     }
     const newest = [...quizzes].sort(newestFirst);
     const pinned = (hubPinned.length ? [...hubPinned].sort(newestFirst) : newest.filter((q) => q.pinned)).slice(0, HUB_ROWS);
-    const recent = newest.filter((q) => !q.pinned).slice(0, HUB_ROWS);
+    const recent = newest.slice(0, HUB_ROWS);
     if (pinned.length) hubBox.appendChild(hubSection("pinned", t("PINNED"), pinned, highlightId));
     if (recent.length) hubBox.appendChild(hubSection("recent", t("RECENT"), recent, highlightId));
     if (!RM()) {

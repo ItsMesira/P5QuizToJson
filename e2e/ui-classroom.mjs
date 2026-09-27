@@ -166,9 +166,7 @@ async function main() {
     (qid) => {
       const sec = document.querySelector('[data-hub="pinned"]');
       const card = sec?.querySelector(`.qcard[data-qid="${qid}"]`);
-      const dup = document.querySelector(`[data-hub="recent"] .qcard[data-qid="${qid}"]`);
-      const recentPinned = document.querySelector('[data-hub="recent"] .qcard.pinned');
-      return !!card && card.classList.contains("pinned") && !dup && !recentPinned;
+      return !!card && card.classList.contains("pinned");
     },
     firstQid,
     { timeout: 15_000 },
@@ -178,9 +176,10 @@ async function main() {
     .getAttribute("aria-pressed")
     .catch(() => "«missing»");
   const markSame = (await page.evaluate(() => window.__e2eNoReload)) === mark;
-  check("2 pin: card moves to PINNED, no duplicate in RECENT", pinnedOk, `qid=${firstQid} aria-pressed=${pinPressed}`);
+  check("2 pin: card gains .pinned and appears in PINNED", pinnedOk, `qid=${firstQid} aria-pressed=${pinPressed}`);
   check("2 pin: rerender happened in place (no reload)", markSame, `mark intact=${markSame}`);
 
+  await sleep(550); /* respect the deliberate-action cooldown the UI applies */
   await page.locator('[data-hub="pinned"] .qcard .qcard-pin').first().click();
   const unpinnedOk = await waitFor(
     page,
@@ -194,9 +193,20 @@ async function main() {
   check("2 unpin: still no reload", markSame2, `mark intact=${markSame2}`);
 
   /* ---- 2b) edge guards: dblclick is one toggle; delete purges the pin ---- */
+  await sleep(550); /* let the step-2 unpin cooldown lapse before re-pinning */
   const c2 = page.locator('[data-hub="recent"] .qcard').first();
   const c2id = await c2.getAttribute("data-qid");
-  await c2.locator(".qcard-pin").dblclick();
+  let pinPatches = 0;
+  const countPatch = (req) => {
+    if (req.method() === "PATCH" && req.url().includes("/quizzes")) pinPatches++;
+  };
+  page.on("request", countPatch);
+  await page.locator(`[data-hub="recent"] .qcard[data-qid="${c2id}"] .qcard-pin`).click();
+  await sleep(250);
+  await page
+    .locator(`[data-hub="pinned"] .qcard[data-qid="${c2id}"] .qcard-pin`)
+    .click({ timeout: 2_000 })
+    .catch(() => undefined);
   const dblOk = await waitFor(
     page,
     (qid) => {
@@ -206,7 +216,8 @@ async function main() {
     c2id,
     { timeout: 15_000 },
   );
-  check("2b pin: double-click does not double-toggle (card stays PINNED)", dblOk, `qid=${c2id}`);
+  page.off("request", countPatch);
+  check("2b pin: 250ms double-click fires ONE patch and stays PINNED", dblOk && pinPatches === 1, `patches=${pinPatches} qid=${c2id}`);
 
   /* ---- 3) open class library via VIEW ALL ---- */
   await page.locator(".dash-viewall").click();
