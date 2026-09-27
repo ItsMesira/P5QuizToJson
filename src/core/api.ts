@@ -35,6 +35,23 @@ export interface CloudSession {
   cls: CloudClass | null;
 }
 
+export interface QuizListOpts {
+  q?: string;
+  sort?: "newest" | "title" | "played";
+  page?: number;
+  limit?: number;
+  pinned?: boolean;
+}
+
+export interface QuizListRow {
+  id: string;
+  title: string;
+  author: string;
+  created: string;
+  pinned: boolean;
+  plays: number;
+}
+
 function csrfToken(): string {
   // last occurrence wins, matching the server's cookie parser
   const hit = [...document.cookie.split("; ")].reverse().find((c) => c.startsWith("p5q_csrf="));
@@ -221,16 +238,34 @@ export const cloud = {
     return r as never;
   },
 
-  async myClasses(): Promise<ApiResult<{ classes?: { id: string; name: string; code: string; role: string; members: number }[] }>> {
+  async myClasses(): Promise<ApiResult<{ classes?: { id: string; name: string; code: string; role: string; members: number }[]; activeId?: string }>> {
     return (await screq("/classes/mine")) as never;
+  },
+
+  async setActiveClass(classId: string): Promise<ApiResult<{ activeId?: string }>> {
+    return (await screq("/classes/mine", { method: "POST", body: { classId } })) as never;
   },
 
   async classInfo(id: string): Promise<ApiResult<{ cls?: { name: string; code: string; owner: boolean; myRole: string }; members?: { username: string; role: string }[] }>> {
     return (await screq(`/classes/${id}`)) as never;
   },
 
-  async listQuizzes(id: string): Promise<ApiResult<{ quizzes?: { id: string; title: string; author: string; created: string }[] }>> {
-    return (await screq(`/classes/${id}/quizzes`)) as never;
+  async listQuizzes(
+    id: string,
+    opts?: QuizListOpts,
+  ): Promise<ApiResult<{ quizzes?: QuizListRow[]; total?: number; page?: number; pages?: number }>> {
+    const params = new URLSearchParams();
+    if (opts?.q) params.set("q", opts.q);
+    if (opts?.sort) params.set("sort", opts.sort);
+    if (opts?.page !== undefined) params.set("page", String(opts.page));
+    if (opts?.limit !== undefined) params.set("limit", String(opts.limit));
+    if (opts?.pinned) params.set("pinned", "1");
+    const qs = params.toString();
+    return (await screq(`/classes/${id}/quizzes${qs ? `?${qs}` : ""}`)) as never;
+  },
+
+  async pinQuiz(id: string, qid: string, pinned: boolean): Promise<ApiResult> {
+    return (await screq(`/classes/${id}/quizzes`, { method: "PATCH", body: { id: qid, pinned } })) as never;
   },
 
   async saveQuiz(id: string, quiz: unknown): Promise<ApiResult> {

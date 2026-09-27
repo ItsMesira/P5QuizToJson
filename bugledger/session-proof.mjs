@@ -8,7 +8,7 @@
 */
 import puppeteer from "puppeteer-core";
 
-const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+const CHROME = process.env.P5Q_CHROME ?? "/Users/blue/.cache/puppeteer/chrome/mac_arm-154.0.8037.57/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing";
 const args = process.argv.slice(2);
 const opt = (n, d) => {
   const i = args.indexOf(n);

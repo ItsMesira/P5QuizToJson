@@ -54,6 +54,7 @@ const ROUTE_LABEL: Record<string, string> = {
   entry: "CHECKING CREDENTIALS",
   dashboard: "ENTERING THE SAFE ROOM",
   admin: "OPENING THE CONTROL ROOM",
+  "class-library": "LIBRARY",
 };
 
 const STATUS_TEXT = "PROCESSING ASSETS…";

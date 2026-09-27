@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 
 const root = dirname(fileURLToPath(import.meta.url));
 const BASE = process.env.P5Q_BASE ?? "http://localhost:3011";
-const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+const CHROME = process.env.P5Q_CHROME ?? "/Users/blue/.cache/puppeteer/chrome/mac_arm-154.0.8037.57/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing";
 const creds = Object.fromEntries(
   readFileSync(join(root, ".admin-bootstrap.txt"), "utf8")
     .split("\n")

@@ -3,7 +3,7 @@
 import puppeteer from "puppeteer-core";
 import { mkdirSync } from "node:fs";
 
-const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+const CHROME = process.env.P5Q_CHROME ?? "/Users/blue/.cache/puppeteer/chrome/mac_arm-154.0.8037.57/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing";
 const BASE = process.argv[2] ?? "http://localhost:3011";
 const OUT = "bugledger/shots";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

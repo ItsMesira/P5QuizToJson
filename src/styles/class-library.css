@@ -1,0 +1,246 @@
+/* ============ P5 QUIZ — CLASS LIBRARY ============ */
+/* Screen layout only: the shared card chrome lives in components.css (.qcard). */
+
+.clib-body {
+  max-width: 1100px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 22px 26px 90px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.clib-sub {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  font-family: var(--font-display);
+  font-size: clamp(20px, 3vw, 30px);
+  letter-spacing: 0.04em;
+  color: var(--paper);
+}
+
+.clib-count {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: var(--gold-hot);
+  padding: 3px 10px;
+  clip-path: var(--clip-sticker);
+  transform: rotate(-1.5deg);
+}
+
+.clib-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.clib-search {
+  flex: 1 1 220px;
+  min-width: 0;
+  font-family: var(--font-ui);
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  color: var(--paper);
+  background: var(--ink);
+  border: 2px solid rgba(246, 244, 240, 0.28);
+  padding: 9px 12px;
+}
+.clib-search::placeholder {
+  color: var(--smoke);
+}
+.clib-search:focus {
+  outline: none;
+  border-color: var(--red);
+}
+
+.clib-sorts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.clib-sort,
+.clib-select-toggle,
+.clib-prev,
+.clib-next {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--paper-dim);
+  background: var(--ink-3);
+  border: 1px solid rgba(246, 244, 240, 0.25);
+  padding: 8px 12px;
+  clip-path: var(--clip-sticker);
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-pop);
+}
+.clib-sort:hover,
+.clib-select-toggle:hover,
+.clib-prev:hover:not(:disabled),
+.clib-next:hover:not(:disabled) {
+  color: var(--paper);
+  border-color: var(--red);
+  transform: translateY(-2px);
+}
+.clib-sort.active {
+  color: var(--paper);
+  background: var(--red);
+  border-color: var(--red);
+  box-shadow: var(--shadow-cut-sm);
+}
+
+.clib-select-toggle {
+  margin-left: auto;
+  color: var(--ink);
+  background: var(--gold);
+  border-color: var(--gold);
+}
+.clib-select-toggle.active {
+  color: var(--paper);
+  background: var(--red);
+  border-color: var(--red);
+}
+
+.clib-bulk {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 10px 14px;
+  background: rgba(230, 0, 18, 0.12);
+  border: 2px dashed var(--red);
+  clip-path: var(--clip-card);
+}
+.clib-bulk.hidden {
+  display: none;
+}
+.clib-bulk-count {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--paper);
+}
+.clib-bulk-del {
+  margin-left: auto;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  color: var(--paper);
+  background: var(--red);
+  border: 1px solid var(--red);
+  padding: 8px 14px;
+  clip-path: var(--clip-sticker);
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-pop);
+}
+.clib-bulk-del:hover:not(:disabled) {
+  background: var(--red-hot);
+  border-color: var(--red-hot);
+  transform: translateY(-2px);
+}
+.clib-bulk-del:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.clib-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
+  align-items: stretch;
+}
+
+.clib-msg {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 46px 16px;
+  text-align: center;
+  font-family: var(--font-ui);
+  font-size: 17px;
+  letter-spacing: 0.12em;
+  color: var(--paper-dim);
+}
+
+.clib-pager {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  color: var(--smoke);
+}
+.clib-showing {
+  margin-right: auto;
+  font-family: var(--font-ui);
+  letter-spacing: 0.12em;
+}
+.clib-pos {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--paper-dim);
+}
+.clib-prev,
+.clib-next {
+  padding: 6px 12px;
+}
+.clib-prev:disabled,
+.clib-next:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+@media (max-width: 720px) {
+  .clib-body {
+    padding: 14px 14px 70px;
+    gap: 12px;
+  }
+  .clib-sub {
+    font-size: 20px;
+  }
+  .clib-count {
+    font-size: 12px;
+    padding: 2px 8px;
+  }
+  .clib-toolbar {
+    align-items: stretch;
+  }
+  .clib-search {
+    flex: 1 1 100%;
+  }
+  .clib-sorts {
+    flex: 1 1 auto;
+  }
+  .clib-select-toggle {
+    margin-left: 0;
+  }
+  .clib-sort,
+  .clib-select-toggle {
+    padding: 7px 10px;
+    font-size: 12px;
+  }
+  .clib-grid {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
+    gap: 10px;
+  }
+  .clib-pager {
+    justify-content: space-between;
+  }
+  .clib-showing {
+    flex-basis: 100%;
+    margin-right: 0;
+  }
+}

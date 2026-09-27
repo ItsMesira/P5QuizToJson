@@ -1,7 +1,7 @@
 /* Regression: broken / oddly-shaped quiz JSON can be repaired straight from the
    LOAD screen REPAIR button and then plays. */
 import puppeteer from "puppeteer-core";
-const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+const CHROME = process.env.P5Q_CHROME ?? "/Users/blue/.cache/puppeteer/chrome/mac_arm-154.0.8037.57/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing";
 const browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ["--mute-audio"] });
 const page = await browser.newPage();
 let failures = 0;

@@ -232,7 +232,7 @@ async function handleParams() {
   if (hashRoute) {
     // account screens need the restored session before they render; everything
     // else paints immediately.
-    if (hashRoute.name === "dashboard" || hashRoute.name === "entry") await sessionReady;
+    if (hashRoute.name === "dashboard" || hashRoute.name === "entry" || hashRoute.name === "class-library") await sessionReady;
     await go(hashRoute, { instant: true });
     return;
   }

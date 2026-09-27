@@ -1,7 +1,7 @@
 /* P5 QUIZ — UI fix verification: menu geometry sweep, entry back/ESC chain,
    veil watchdog, signed-in-without-class dashboard. */
 import puppeteer from "puppeteer-core";
-const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+const CHROME = process.env.P5Q_CHROME ?? "/Users/blue/.cache/puppeteer/chrome/mac_arm-154.0.8037.57/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing";
 const browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ["--mute-audio"] });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let fails = 0;

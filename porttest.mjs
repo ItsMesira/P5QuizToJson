@@ -1,6 +1,6 @@
 /* P5ex port verification: BGM panel, cut-ins, dialogue portraits, Thief Stats. */
 import puppeteer from "puppeteer-core";
-const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+const CHROME = process.env.P5Q_CHROME ?? "/Users/blue/.cache/puppeteer/chrome/mac_arm-154.0.8037.57/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing";
 const browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ["--mute-audio"] });
 const page = await browser.newPage();
 await page.setViewport({ width: 1440, height: 900 });

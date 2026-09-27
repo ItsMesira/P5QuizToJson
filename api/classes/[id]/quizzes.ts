@@ -1,4 +1,5 @@
-/* /api/classes/[id]/quizzes — GET list · POST save (any member) · DELETE (teacher only) */
+/* /api/classes/[id]/quizzes — GET list (q/sort/page/limit) · POST save (any member)
+   · PATCH pin (teacher only) · DELETE (teacher only) */
 import type { ApiRequest, ApiResponse } from "../../_lib/types.js";
 import { sql } from "../../_lib/db.js";
 import { ensureSchema } from "../../_lib/db.js";
@@ -18,11 +19,57 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     if (!mem) return forbidden(res);
 
     if (req.method === "GET") {
-      const rows = await sql`
-        SELECT q.id, q.title, q.author_id, u.username AS author, q.created
+      const first = (v: string | string[] | undefined): string => (Array.isArray(v) ? String(v[0] ?? "") : v === undefined ? "" : String(v));
+      const q = first(req.query?.q).trim().slice(0, 64);
+      const pinnedRaw = first(req.query?.pinned);
+      const pinnedOnly = pinnedRaw === "1" || pinnedRaw === "true";
+      const sortRaw = first(req.query?.sort);
+      const sort = sortRaw === "title" || sortRaw === "played" ? sortRaw : "newest";
+      const pageNum = Math.floor(Number(first(req.query?.page) || "1"));
+      const page = Number.isFinite(pageNum) && pageNum > 0 ? pageNum : 1;
+      const limitNum = Math.floor(Number(first(req.query?.limit) || "24"));
+      const limit = Number.isFinite(limitNum) ? Math.min(60, Math.max(1, limitNum)) : 24;
+      const offset = (page - 1) * limit;
+      const like = `%${q.replace(/[\\%_]/g, "\\$&")}%`;
+
+      const counted = await sql`
+        SELECT count(*)::int AS n
         FROM quizzes q JOIN users u ON u.id = q.author_id
         WHERE q.class_id = ${id.data}
-        ORDER BY q.created DESC LIMIT 100`;
+          AND (${q} = '' OR q.title ILIKE ${like} OR u.username ILIKE ${like})
+          AND (${pinnedOnly} = false OR q.pinned)`;
+      const total = Number(counted.rows[0]?.n ?? 0);
+
+      const rows = sort === "title"
+        ? await sql`
+            SELECT q.id, q.title, u.username AS author, q.created, q.pinned,
+              (SELECT count(*) FROM results r WHERE r.quiz_id = q.id) AS plays
+            FROM quizzes q JOIN users u ON u.id = q.author_id
+            WHERE q.class_id = ${id.data}
+              AND (${q} = '' OR q.title ILIKE ${like} OR u.username ILIKE ${like})
+              AND (${pinnedOnly} = false OR q.pinned)
+            ORDER BY lower(q.title) ASC, q.created DESC
+            LIMIT ${limit} OFFSET ${offset}`
+        : sort === "played"
+          ? await sql`
+              SELECT q.id, q.title, u.username AS author, q.created, q.pinned,
+                (SELECT count(*) FROM results r WHERE r.quiz_id = q.id) AS plays
+              FROM quizzes q JOIN users u ON u.id = q.author_id
+              WHERE q.class_id = ${id.data}
+                AND (${q} = '' OR q.title ILIKE ${like} OR u.username ILIKE ${like})
+              AND (${pinnedOnly} = false OR q.pinned)
+              ORDER BY plays DESC, q.created DESC
+              LIMIT ${limit} OFFSET ${offset}`
+          : await sql`
+              SELECT q.id, q.title, u.username AS author, q.created, q.pinned,
+                (SELECT count(*) FROM results r WHERE r.quiz_id = q.id) AS plays
+              FROM quizzes q JOIN users u ON u.id = q.author_id
+              WHERE q.class_id = ${id.data}
+                AND (${q} = '' OR q.title ILIKE ${like} OR u.username ILIKE ${like})
+              AND (${pinnedOnly} = false OR q.pinned)
+              ORDER BY q.created DESC
+              LIMIT ${limit} OFFSET ${offset}`;
+
       return ok(res, {
         ok: true,
         quizzes: rows.rows.map((r) => ({
@@ -30,8 +77,26 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
           title: String(r.title),
           author: String(r.author),
           created: r.created,
+          pinned: Boolean(r.pinned),
+          plays: Number(r.plays),
         })),
+        total,
+        page,
+        pages: Math.ceil(total / limit),
       });
+    }
+
+    if (req.method === "PATCH") {
+      if (mem.role !== "teacher") return forbidden(res, "Only the teacher can pin quizzes");
+      if (!csrfValid(req.headers as never, req.headers.cookie ?? null)) return unauthorized(res, "Missing CSRF token");
+      const body = await readBody(req as never);
+      const qid = parse(classIdSchema, (body as Record<string, unknown>)?.id);
+      if (!qid.ok) return badRequest(res, qid.error);
+      const pinned = (body as Record<string, unknown>)?.pinned;
+      if (typeof pinned !== "boolean") return badRequest(res, "pinned must be a boolean");
+      const upd = await sql`UPDATE quizzes SET pinned = ${pinned} WHERE id = ${qid.data} AND class_id = ${id.data}`;
+      if (upd.rowCount === 0) return notFound(res, "Quiz not found");
+      return ok(res, { ok: true, id: qid.data, pinned });
     }
 
     if (req.method === "POST") {
@@ -59,7 +124,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       return ok(res);
     }
 
-    return fail(res, 405, "GET/POST/DELETE only");
+    return fail(res, 405, "GET/POST/PATCH/DELETE only");
   } catch (err) {
     console.error("[p5q]", err);
     return serverError(res);

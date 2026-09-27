@@ -3756,3 +3756,131 @@
   gap: 8px;
   margin-bottom: 6px;
 }
+
+/* ============ CLASSROOM CARDS (shared: dashboard hub + class library) ============ */
+.qcard {
+  background: var(--ink);
+  border-left: 4px solid var(--red);
+  clip-path: var(--clip-card);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.qcard.pinned {
+  border-left-color: var(--gold-hot);
+}
+.qcard.selected {
+  outline: 2px solid var(--gold-hot);
+  outline-offset: -2px;
+}
+.qcard-title {
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.03em;
+  overflow-wrap: anywhere;
+}
+.qcard-meta {
+  font-size: 12px;
+  color: var(--smoke);
+  letter-spacing: 0.08em;
+}
+.qcard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+/* ---- dashboard hub (pinned + recent) ---- */
+.dash-hub {
+  gap: 12px;
+}
+.dash-hub-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.dash-hub-title {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.24em;
+  color: var(--gold-hot);
+}
+.dash-viewall {
+  align-self: flex-start;
+}
+
+/* ---- class switcher ---- */
+.dash-switcher {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  margin-left: 10px;
+}
+.dash-switcher-btn {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  color: var(--paper);
+  background: var(--ink-3);
+  border: 1px solid rgba(246, 244, 240, 0.3);
+  padding: 6px 10px;
+  clip-path: var(--clip-sticker);
+  cursor: pointer;
+}
+.dash-switcher-btn:hover {
+  border-color: var(--red);
+}
+.dash-switcher-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 30;
+  min-width: 230px;
+  max-width: min(320px, 80vw);
+  background: var(--ink-2);
+  border: 2px solid var(--paper);
+  clip-path: var(--clip-card);
+  display: flex;
+  flex-direction: column;
+}
+.dash-switcher-menu.hidden {
+  display: none;
+}
+.dash-switcher-item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px dashed rgba(246, 244, 240, 0.12);
+  color: var(--paper);
+  font-family: var(--font-ui);
+  text-align: left;
+  cursor: pointer;
+}
+.dash-switcher-item:last-child {
+  border-bottom: 0;
+}
+.dash-switcher-item:hover {
+  background: rgba(230, 0, 18, 0.18);
+}
+.dash-switcher-item.active {
+  color: var(--gold-hot);
+}
+.dash-switcher-name {
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  overflow-wrap: anywhere;
+}
+.dash-switcher-code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--smoke);
+}

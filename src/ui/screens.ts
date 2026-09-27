@@ -48,7 +48,8 @@ export type Route =
   | { name: "prompts" }
   | { name: "entry" }
   | { name: "dashboard" }
-  | { name: "admin" };
+  | { name: "admin" }
+  | { name: "class-library" };
 
 /* Mount functions receive a scope describing the screen's lifetime. Cleanup is
    called BEFORE the scope is cancelled, so teardown may still use the DOM; the
@@ -76,6 +77,7 @@ const loaders: Record<Route["name"], () => Promise<unknown>> = {
   entry: () => import("./entry"),
   dashboard: () => import("./dashboard"),
   admin: () => import("./admin"),
+  "class-library": () => import("./class-library"),
 };
 
 /* A route chunk can 404 when a tab outlives a deploy: its hashed filename is
@@ -486,6 +488,7 @@ export function hashToRoute(h: string): Route | null {
     entry: { name: "entry" },
     dashboard: { name: "dashboard" },
     admin: { name: "admin" },
+    "class-library": { name: "class-library" },
   };
   const key = h.replace(/^#\/?/, "") as keyof typeof map;
   return map[key] ?? null;

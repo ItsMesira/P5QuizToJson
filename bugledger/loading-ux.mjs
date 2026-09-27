@@ -2,7 +2,7 @@
    legitimate back-to-back navigation, (c) spam clicking is absorbed. */
 import puppeteer from "puppeteer-core";
 
-const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+const CHROME = process.env.P5Q_CHROME ?? "/Users/blue/.cache/puppeteer/chrome/mac_arm-154.0.8037.57/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing";
 /* run-suite.mjs passes the base as P5Q_BASE, not argv — without this the suite
    silently tested the default target instead of the one it was told to. */
 const BASE = process.argv[2] ?? process.env.P5Q_BASE ?? "http://localhost:3011";

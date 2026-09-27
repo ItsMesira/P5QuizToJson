@@ -4,7 +4,7 @@
    (60fps desktop / 30fps mobile) actually hold. */
 import puppeteer from "puppeteer-core";
 
-const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+const CHROME = process.env.P5Q_CHROME ?? "/Users/blue/.cache/puppeteer/chrome/mac_arm-154.0.8037.57/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing";
 const BASE = "http://localhost:5183";
 const IPHONE_UA =
   "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
@@ -104,7 +104,7 @@ for (const dev of DEVICES) {
 }
 
 /* ---------- 2. every screen: no horizontal overflow on a phone & an iPad ---------- */
-const SCREENS = ["title", "load", "library", "settings", "profiles", "leaderboard", "prompts", "entry", "dashboard"];
+const SCREENS = ["title", "load", "library", "settings", "profiles", "leaderboard", "prompts", "entry", "dashboard", "class-library"];
 for (const dev of [
   { name: "phone 390x844", w: 390, h: 844, ua: IPHONE_UA, dpr: 3 },
   { name: "phone landscape 844x390", w: 844, h: 390, ua: IPHONE_UA, dpr: 3 },

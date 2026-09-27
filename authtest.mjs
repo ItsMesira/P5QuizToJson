@@ -3,7 +3,7 @@
    plus a real DATABASE_URL. Skips gracefully when the API is unreachable. */
 import puppeteer from "puppeteer-core";
 
-const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+const CHROME = process.env.P5Q_CHROME ?? "/Users/blue/.cache/puppeteer/chrome/mac_arm-154.0.8037.57/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing";
 const BASE = process.env.P5Q_BASE ?? "http://localhost:3000";
 
 let r;
@@ -149,13 +149,13 @@ check("student joined via code", await tryRegister(s1, "student"));
 check("student sees the class name", await s1.$eval(".dash-classname", (e) => e.textContent.includes("Test Class 101")).catch(() => false));
 
 // class shelf: student sees the teacher's quiz (wait for the fetch to land)
-await waitForNot(s1, ".dash-quizzes", "Loading…", 15000);
-const shelfTitles = await s1.$$eval(".dash-quiz-title", (els) => els.map((e) => e.textContent));
+await waitForNot(s1, ".dash-hub", "Loading…", 15000);
+const shelfTitles = await s1.$$eval(".qcard-title", (els) => els.map((e) => e.textContent));
 check("class shelf shows teacher quiz", shelfTitles.includes(`Cloud Quiz ${suffix}`), JSON.stringify(shelfTitles));
 
 // student plays class quiz + submits result
-await waitFor(s1, ".dash-quiz-play");
-const playBtn = await s1.$(".dash-quiz-play");
+await waitFor(s1, ".qcard-play");
+const playBtn = await s1.$(".qcard-play");
 check("class shelf has a playable quiz", !!playBtn);
 if (playBtn) await playBtn.click();
 await waitFor(s1, ".q-count");

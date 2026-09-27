@@ -5,10 +5,34 @@
    Usage: node bugledger/run-suite.mjs [--out bugledger/suite-results.json] [--only a,b]
 */
 import { spawn } from "node:child_process";
+import { existsSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import { writeFileSync, mkdirSync, statSync } from "node:fs";
 import { dirname } from "node:path";
 
 const ROOT = new URL("..", import.meta.url).pathname;
+
+/* Branded Google Chrome 154 breaks puppeteer-core same-document navigations
+   ("Attempted to use detached Frame"); Chrome for Testing is immune. Prefer the
+   puppeteer-managed CfT build, and let P5Q_CHROME override it explicitly. */
+function findChromeForTesting() {
+  const base = join(process.env.HOME ?? "", ".cache", "puppeteer", "chrome");
+  try {
+    for (const dir of readdirSync(base).sort().reverse()) {
+      const inner = readdirSync(join(base, dir)).find((x) => x.startsWith("chrome-mac"));
+      if (!inner) continue;
+      const bin = join(base, dir, inner, "Google Chrome for Testing.app", "Contents", "MacOS", "Google Chrome for Testing");
+      if (existsSync(bin)) return bin;
+    }
+  } catch {
+    /* no CfT installed */
+  }
+  return null;
+}
+if (!process.env.P5Q_CHROME) {
+  const cft = findChromeForTesting();
+  if (cft) process.env.P5Q_CHROME = cft;
+}
 const args = process.argv.slice(2);
 const opt = (n, d = "") => {
   const i = args.indexOf(n);

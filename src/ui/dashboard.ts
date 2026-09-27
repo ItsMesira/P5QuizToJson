@@ -1,23 +1,19 @@
-/* ============ P5 QUIZ — CLASS DASHBOARD (members, quiz shelf, class leaderboard) ============ */
+/* ============ P5 QUIZ — CLASS DASHBOARD (members, quiz hub, class leaderboard) ============ */
 import gsap from "gsap";
 import { registerScreen, go, startQuiz } from "./screens";
 import { h, toast } from "./dom";
 import { audio } from "../core/audio";
 import { fx } from "../fx/particles";
 import { RM } from "../fx/transitions";
-import { cloud, cloudError } from "../core/api";
+import { cloud, cloudError, type QuizListRow } from "../core/api";
 import { validateQuiz } from "../core/validator";
 import { saveQuiz, savedQuizzes } from "../core/store";
 import { t } from "../core/i18n";
 
-interface ShelfQuiz {
-  id: string;
-  title: string;
-  author: string;
-  created: string;
-}
+const HUB_LIMIT = 60;
+const HUB_ROWS = 6;
 
-const PER_PAGE = 12;
+const newestFirst = (a: QuizListRow, b: QuizListRow) => String(b.created ?? "").localeCompare(String(a.created ?? ""));
 
 registerScreen("dashboard", (root) => {
   const session = cloud.session;
@@ -27,12 +23,14 @@ registerScreen("dashboard", (root) => {
   }
 
   const cls = session.cls;
+  const isTeacher = cls?.role === "teacher";
 
-  let shelf: ShelfQuiz[] = [];
-  let shelfLoaded = false;
-  let shelfQ = "";
-  let shelfSort: "newest" | "title" = "newest";
-  let shelfPage = 1;
+  let quizzes: QuizListRow[] = [];
+  let hubTotal = 0;
+  let hubPinned: QuizListRow[] = [];
+  let hubLoaded = false;
+  let hubError: string | null = null;
+  let hubGen = 0;
 
   const el = h("div", { class: "screen dashboard-screen" }, [
     h("header", { class: "load-head" }, [
@@ -63,15 +61,8 @@ registerScreen("dashboard", (root) => {
             ]),
             h("section", { class: "dash-col dash-col-shelf" }, [
               h("h3", { class: "dash-head" }, [t("— CLASS QUIZ SHELF —")]),
-              h("div", { class: "dash-shelf-tools" }, [
-                h("input", { class: "dash-search", type: "search", placeholder: t("Search quizzes…"), "aria-label": t("Search quizzes"), spellcheck: "false" }, []),
-                h("select", { class: "dash-sort", "aria-label": t("Sort quizzes") }, [
-                  h("option", { value: "newest" }, [t("NEWEST")]),
-                  h("option", { value: "title" }, [t("A–Z")]),
-                ]),
-              ]),
-              h("div", { class: "dash-quiz-list" }, [h("p", { class: "profile-empty" }, [t("Loading…")])]),
-              h("div", { class: "dash-pager" }, []),
+              h("div", { class: "dash-quiz-list dash-hub" }, [h("p", { class: "profile-empty" }, [t("Loading…")])]),
+              h("button", { class: "lib-btn dash-viewall" }, [t("VIEW ALL →")]),
               h("button", { class: "sticker-btn accent dash-add" }, [t("＋ ADD A QUIZ")]),
             ]),
             h("section", { class: "dash-col" }, [
@@ -137,76 +128,36 @@ registerScreen("dashboard", (root) => {
     void go({ name: "entry" });
   });
 
-  /* ---- shelf ----
-     These four exist only when the user HAS a class: the shelf column is built
-     conditionally. They used to be non-null asserted, so a signed-in user with
-     no class got a thrown dashboard mount ("Cannot read properties of null") and
-     the router replaced the screen with the title menu. */
-  const listBox = el.querySelector<HTMLElement>(".dash-quiz-list");
-  const pagerBox = el.querySelector<HTMLElement>(".dash-pager");
-  const searchInput = el.querySelector<HTMLInputElement>(".dash-search");
-  const sortSelect = el.querySelector<HTMLSelectElement>(".dash-sort");
+  /* ---- quiz hub (pinned + recent). The shelf column only exists when the user
+     HAS a class, so these lookups can be null; never non-null assert them. ---- */
+  const hubBox = el.querySelector<HTMLElement>(".dash-hub");
+  const viewAllBtn = el.querySelector<HTMLButtonElement>(".dash-viewall");
 
-  function filtered(): ShelfQuiz[] {
-    const q = shelfQ.trim().toLowerCase();
-    const out = q ? shelf.filter((x) => x.title.toLowerCase().includes(q) || x.author.toLowerCase().includes(q)) : [...shelf];
-    out.sort((a, b) =>
-      shelfSort === "title" ? a.title.localeCompare(b.title) : String(b.created ?? "").localeCompare(String(a.created ?? "")),
-    );
-    return out;
+  viewAllBtn?.addEventListener("click", () => void go({ name: "class-library" }));
+
+  function hubSection(kind: "pinned" | "recent", title: string, rows: QuizListRow[], highlightId?: string): HTMLElement {
+    return h("section", { class: "dash-hub-section", "data-hub": kind }, [
+      h("div", { class: "dash-hub-title" }, [title]),
+      ...rows.map((q) => quizCard(q, highlightId === q.id)),
+    ]);
   }
 
-  function renderShelf(highlightId?: string) {
-    if (!shelfLoaded || !listBox || !pagerBox) return;
-    const list = filtered();
-    const pages = Math.max(1, Math.ceil(list.length / PER_PAGE));
-    shelfPage = Math.min(Math.max(1, shelfPage), pages);
-    const start = (shelfPage - 1) * PER_PAGE;
-    const slice = list.slice(start, start + PER_PAGE);
-    if (!listBox) return;
-    listBox.textContent = "";
-    if (!list.length) {
-      listBox.appendChild(
-        h("p", { class: "profile-empty" }, [
-          shelf.length ? t("No quizzes match “{q}”", { q: shelfQ.trim() }) : t("No quizzes yet — ADD one below."),
-        ]),
-      );
-    }
-    slice.forEach((q) => listBox.appendChild(quizRow(q, highlightId === q.id)));
-
-    pagerBox.textContent = "";
-    if (list.length > PER_PAGE) {
-      const prev = h("button", { class: "lib-btn dash-page-prev" }, ["◀"]) as HTMLButtonElement;
-      const next = h("button", { class: "lib-btn dash-page-next" }, ["▶"]) as HTMLButtonElement;
-      prev.disabled = shelfPage <= 1;
-      next.disabled = shelfPage >= pages;
-      prev.addEventListener("click", () => {
-        shelfPage--;
-        renderShelf();
-      });
-      next.addEventListener("click", () => {
-        shelfPage++;
-        renderShelf();
-      });
-      pagerBox.append(
-        h("span", { class: "dash-pager-count" }, [t("Showing {a}–{b} of {n}", { a: start + 1, b: start + slice.length, n: list.length })]),
-        prev,
-        h("span", { class: "dash-pager-pos" }, [`${shelfPage}/${pages}`]),
-        next,
-      );
-    }
-  }
-
-  function quizRow(q: ShelfQuiz, highlight: boolean): HTMLElement {
-    const row = h("div", { class: `dash-quiz${highlight ? " highlight" : ""}`, "data-qid": q.id }, [
-      h("div", { class: "dash-quiz-title" }, [q.title]),
-      h("div", { class: "dash-quiz-meta" }, [t("by {author}", { author: q.author })]),
-      h("div", { class: "dash-quiz-actions" }, [
-        h("button", { class: "lib-btn play dash-quiz-play" }, [t("▶ PLAY")]),
-        cls!.role === "teacher" ? h("button", { class: "lib-btn danger dash-quiz-del" }, ["✕"]) : null,
+  function quizCard(q: QuizListRow, highlight: boolean): HTMLElement {
+    const meta = [t("by {author}", { author: q.author })];
+    if (q.created) meta.push(new Date(q.created).toLocaleDateString());
+    if (q.plays > 0) meta.push(`▶ ${q.plays}`);
+    const card = h("div", { class: `qcard${q.pinned ? " pinned" : ""}`, "data-qid": q.id }, [
+      h("div", { class: "qcard-title" }, [q.title]),
+      h("div", { class: "qcard-meta" }, [meta.join(" · ")]),
+      h("div", { class: "qcard-actions" }, [
+        h("button", { class: "lib-btn play qcard-play" }, [t("▶ PLAY")]),
+        isTeacher
+          ? h("button", { class: "lib-btn qcard-pin", "aria-pressed": q.pinned ? "true" : "false" }, [q.pinned ? t("PINNED") : t("📌 PIN")])
+          : null,
+        isTeacher ? h("button", { class: "lib-btn danger qcard-del", "aria-label": t("Delete quiz") }, ["✕"]) : null,
       ]),
     ]);
-    row.querySelector(".dash-quiz-play")!.addEventListener("click", async () => {
+    card.querySelector(".qcard-play")!.addEventListener("click", async () => {
       audio.sfx("select");
       const r = await cloud.fetchQuiz(cls!.id, q.id);
       if (r.ok && r.data.quiz) {
@@ -221,31 +172,138 @@ registerScreen("dashboard", (root) => {
         toast(cloudError(r), "error");
       }
     });
-    row.querySelector(".dash-quiz-del")?.addEventListener("click", async () => {
+    const pinBtn = card.querySelector<HTMLButtonElement>(".qcard-pin");
+    pinBtn?.addEventListener("click", async () => {
+      if (pinBtn.disabled) return;
+      pinBtn.disabled = true;
+      const next = !q.pinned;
+      const r = await cloud.pinQuiz(cls!.id, q.id, next);
+      if (!r.ok) {
+        pinBtn.disabled = false;
+        toast(cloudError(r), "error");
+        return;
+      }
+      const row = quizzes.find((x) => x.id === q.id);
+      if (row) row.pinned = next;
+      else q.pinned = next;
+      hubPinned = hubPinned.filter((x) => x.id !== q.id);
+      if (next) hubPinned = [q, ...hubPinned];
+      renderHub();
+    });
+    const delBtn = card.querySelector<HTMLButtonElement>(".qcard-del");
+    delBtn?.addEventListener("click", async () => {
+      if (delBtn.disabled) return;
+      delBtn.disabled = true;
       const r = await cloud.deleteQuiz(cls!.id, q.id);
+      if (!r.ok) delBtn.disabled = false;
       if (r.ok) {
         audio.sfx("paper");
         toast(t("Quiz removed from the class"), "info");
-        shelf = shelf.filter((x) => x.id !== q.id);
-        renderShelf();
+        quizzes = quizzes.filter((x) => x.id !== q.id);
+        hubPinned = hubPinned.filter((x) => x.id !== q.id);
+        hubTotal = Math.max(0, hubTotal - 1);
+        renderHub();
       } else {
         toast(cloudError(r), "error");
       }
     });
-    if (highlight && !RM()) gsap.fromTo(row, { scale: 0.96, backgroundColor: "rgba(230,0,18,0.35)" }, { scale: 1, backgroundColor: "rgba(0,0,0,0)", duration: 0.9, ease: "power2.out" });
-    return row;
+    if (highlight && !RM()) {
+      gsap.fromTo(card, { scale: 0.96, backgroundColor: "rgba(230,0,18,0.35)" }, { scale: 1, backgroundColor: "rgba(0,0,0,0)", duration: 0.9, ease: "power2.out" });
+    }
+    return card;
   }
 
-  searchInput?.addEventListener("input", () => {
-    shelfQ = searchInput.value;
-    shelfPage = 1;
-    renderShelf();
-  });
-  sortSelect?.addEventListener("change", () => {
-    shelfSort = sortSelect.value === "title" ? "title" : "newest";
-    shelfPage = 1;
-    renderShelf();
-  });
+  function renderHub(highlightId?: string) {
+    if (!hubBox || !hubLoaded) return;
+    hubBox.textContent = "";
+    if (viewAllBtn) viewAllBtn.textContent = t("VIEW ALL ({n}) →", { n: hubTotal });
+    if (hubError) {
+      hubBox.appendChild(h("p", { class: "profile-empty" }, [hubError]));
+      return;
+    }
+    if (hubTotal === 0) {
+      hubBox.appendChild(h("p", { class: "profile-empty" }, [t("No quizzes yet — ADD one below.")]));
+      return;
+    }
+    const newest = [...quizzes].sort(newestFirst);
+    const pinned = (hubPinned.length ? [...hubPinned].sort(newestFirst) : newest.filter((q) => q.pinned)).slice(0, HUB_ROWS);
+    const recent = newest.filter((q) => !q.pinned).slice(0, HUB_ROWS);
+    if (pinned.length) hubBox.appendChild(hubSection("pinned", t("PINNED"), pinned, highlightId));
+    if (recent.length) hubBox.appendChild(hubSection("recent", t("RECENT"), recent, highlightId));
+    if (!RM()) {
+      gsap.fromTo(hubBox.querySelectorAll(".qcard"), { y: 24, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.04, duration: 0.3, ease: "back.out(1.5)" });
+    }
+  }
+
+  async function fetchHub(highlightId?: string): Promise<void> {
+    if (!cls) return;
+    const gen = ++hubGen;
+    const [r, pr] = await Promise.all([
+      cloud.listQuizzes(cls.id, { limit: HUB_LIMIT }),
+      cloud.listQuizzes(cls.id, { pinned: true, limit: HUB_ROWS }),
+    ]);
+    if (gen !== hubGen || r.cancelled) return;
+    if (r.ok && r.data.quizzes) {
+      quizzes = r.data.quizzes;
+      hubPinned = pr.ok && pr.data.quizzes ? pr.data.quizzes.filter((x) => x.pinned) : quizzes.filter((x) => x.pinned);
+      hubTotal = typeof r.data.total === "number" ? r.data.total : quizzes.length;
+      hubError = null;
+      hubLoaded = true;
+      renderHub(highlightId);
+      return;
+    }
+    if (!hubLoaded) {
+      hubLoaded = true;
+      hubError = r.data.error ? cloudError(r) : t("Couldn't load quizzes");
+      renderHub();
+    } else {
+      toast(cloudError(r), "error");
+    }
+  }
+
+  /* ---- class switcher (hero) ---- */
+  async function loadSwitcher() {
+    if (!cls) return;
+    const r = await cloud.myClasses();
+    if (r.cancelled || !r.ok || !r.data.classes || r.data.classes.length < 2) return;
+    const hero = el.querySelector<HTMLElement>(".dash-hero");
+    const anchor = el.querySelector<HTMLElement>(".dash-classname");
+    if (!hero || !anchor) return;
+    const classes = r.data.classes;
+    const activeId = r.data.activeId ?? cls.id;
+    const current = classes.find((c) => c.id === activeId);
+    const btn = h("button", { class: "dash-switcher-btn", type: "button", "aria-haspopup": "true", "aria-expanded": "false" }, [
+      `⇄ ${current?.name ?? cls.name} ▾`,
+    ]);
+    const menu = h("div", { class: "dash-switcher-menu hidden" }, []);
+    classes.forEach((c) => {
+      const item = h("button", { class: `dash-switcher-item${c.id === activeId ? " active" : ""}`, type: "button", "data-id": c.id }, [
+        h("span", { class: "dash-switcher-name" }, [c.name]),
+        h("span", { class: "dash-switcher-code" }, [c.code]),
+      ]);
+      item.addEventListener("click", async () => {
+        audio.sfx("select");
+        const res = await cloud.setActiveClass(c.id);
+        if (!res.ok) {
+          toast(cloudError(res), "error");
+          return;
+        }
+        const meR = await cloud.me();
+        if (!meR.ok) {
+          toast(cloudError(meR), "error");
+          return;
+        }
+        void go({ name: "dashboard" });
+      });
+      menu.appendChild(item);
+    });
+    btn.addEventListener("mouseenter", () => audio.sfx("hover"));
+    btn.addEventListener("click", () => {
+      menu.classList.toggle("hidden");
+      btn.setAttribute("aria-expanded", String(!menu.classList.contains("hidden")));
+    });
+    hero.insertBefore(h("div", { class: "dash-switcher" }, [btn, menu]), anchor.nextSibling);
+  }
 
   /* ---- add-quiz dialog ---- */
   const modal = el.querySelector<HTMLElement>(".dash-add-modal")!;
@@ -294,22 +352,22 @@ registerScreen("dashboard", (root) => {
     }
     saveQuiz(v.quiz, `class:${cls.name}`);
     audio.sfx("correct");
-    const row: ShelfQuiz = {
+    const row: QuizListRow = {
       id: String(r.data.id ?? ""),
       title: v.quiz.title,
       author: session!.user.username,
       created: new Date().toISOString(),
+      pinned: false,
+      plays: 0,
     };
-    shelf = [row, ...shelf.filter((x) => x.id !== row.id)];
-    shelfQ = "";
-    shelfSort = "newest";
-    shelfPage = 1;
-    if (searchInput) searchInput.value = "";
-    if (sortSelect) sortSelect.value = "newest";
-    shelfLoaded = true;
-    renderShelf(row.id);
+    quizzes = [row, ...quizzes.filter((x) => x.id !== row.id)];
+    hubTotal += 1;
+    hubLoaded = true;
+    hubError = null;
+    renderHub(row.id);
     toast(t("“{title}” added to {name}", { title: v.quiz.title, name: cls.name }), "info");
     closeAdd();
+    void fetchHub(row.id);
     return true;
   }
 
@@ -425,9 +483,9 @@ registerScreen("dashboard", (root) => {
       box.appendChild(h("p", { class: "profile-empty" }, [msg]));
     };
     try {
-      const [infoR, quizzesR, resultsR] = await Promise.allSettled([
+      const [infoR, , resultsR] = await Promise.allSettled([
         cloud.classInfo(c.id),
-        cloud.listQuizzes(c.id),
+        fetchHub(),
         cloud.classResults(c.id),
       ]);
 
@@ -445,24 +503,6 @@ registerScreen("dashboard", (root) => {
         });
       } else {
         fail(membersBox, info?.data?.error ? cloudError(info) : t("Couldn't load members"));
-      }
-
-      const quizzes = quizzesR.status === "fulfilled" ? quizzesR.value : null;
-      if (quizzes && quizzes.ok && quizzes.data.quizzes) {
-        shelf = quizzes.data.quizzes.map((q) => ({
-          id: q.id,
-          title: q.title,
-          author: q.author,
-          created: String(q.created ?? ""),
-        }));
-        shelfLoaded = true;
-        renderShelf();
-        if (shelf.length && !RM()) {
-          gsap.fromTo(".dash-quiz", { y: 24, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.04, duration: 0.3, ease: "back.out(1.5)" });
-        }
-      } else {
-        shelfLoaded = true;
-        if (listBox) fail(listBox, quizzes?.data?.error ? cloudError(quizzes) : t("Couldn't load quizzes"));
       }
 
       const results = resultsR.status === "fulfilled" ? resultsR.value : null;
@@ -490,21 +530,24 @@ registerScreen("dashboard", (root) => {
       for (const box of [membersBox, boardBox]) {
         fail(box, t("Couldn't load — check your connection and try again."));
       }
-      shelfLoaded = true;
-      if (listBox) fail(listBox, t("Couldn't load — check your connection and try again."));
+      hubLoaded = true;
+      hubError = t("Couldn't load — check your connection and try again.");
+      renderHub();
     } finally {
       loading = false;
     }
   }
 
   root.appendChild(el);
-  if (cls) void loadData();
+  if (cls) {
+    void loadData();
+    void loadSwitcher();
+  }
   if (!RM()) {
     gsap.fromTo(".load-head", { y: -40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: "power3.out" });
     gsap.fromTo(".dash-hero", { scale: 0.9, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.4, ease: "back.out(1.4)" });
     gsap.fromTo(".dash-col", { y: 30, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.08, duration: 0.35, ease: "back.out(1.5)", delay: 0.1 });
   }
-  void fx;
   return () => {
     document.removeEventListener("keydown", onKey);
   };

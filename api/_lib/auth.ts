@@ -255,11 +255,15 @@ export function csrfValid(reqHeaders: Record<string, string | undefined>, cookie
 export async function sessionInfo(token: string | undefined): Promise<SessionInfo | null> {
   const user = await getUserByToken(token);
   if (!user) return null;
+  // Prefer users.active_class_id when it points at a class the user is still a
+  // member of; otherwise fall back to the most recently joined class.
   const cls = await sql`
     SELECT c.id, c.name, c.code, m.role
-    FROM members m JOIN classes c ON c.id = m.class_id
+    FROM members m
+    JOIN classes c ON c.id = m.class_id
+    JOIN users u ON u.id = m.user_id
     WHERE m.user_id = ${user.id}
-    ORDER BY m.joined DESC
+    ORDER BY (u.active_class_id = m.class_id) DESC NULLS LAST, m.joined DESC
     LIMIT 1`;
   const c = cls.rows[0];
   return {

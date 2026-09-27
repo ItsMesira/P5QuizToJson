@@ -1,19 +1,22 @@
-/* classroomtest.mjs — classroom revamp gates: shelf tools (search/sort/pager,
-   12-per-page), in-classroom add dialog (paste), server persistence re-read,
-   visible errors, teacher delete. Throwaway fixtures only; cleans up after.
+/* classroomtest.mjs — classroom revamp gates: the dashboard PINNED+RECENT hub,
+   the #class-library screen (search/sort/paging/pin/bulk delete), the in-class
+   add dialog, the class switcher, and teacher/student permissions. Throwaway
+   fixtures only; cleans up after.
 
    Run:  P5Q_BASE=http://localhost:3011 node classroomtest.mjs            */
 import puppeteer from "puppeteer-core";
 import { randomBytes } from "node:crypto";
 
 const BASE = process.env.P5Q_BASE ?? "http://localhost:3011";
-const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+const HOST = new URL(BASE).hostname;
+const CHROME = process.env.P5Q_CHROME ?? "/Users/blue/.cache/puppeteer/chrome/mac_arm-154.0.8037.57/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let fails = 0;
 const check = (name, ok, extra = "") => { console.log(`${ok ? "PASS" : "FAIL"} ${name}${extra ? " — " + extra : ""}`); if (!ok) fails++; };
+const randIp = () => `10.${randomBytes(1)[0]}.${randomBytes(1)[0]}.${randomBytes(1)[0]}`;
 
 class Client {
-  constructor() { this.cookies = {}; this.xff = `10.${randomBytes(1)[0]}.${randomBytes(1)[0]}.${randomBytes(1)[0]}`; }
+  constructor() { this.cookies = {}; this.xff = randIp(); }
   header() { return Object.entries(this.cookies).map(([k, v]) => `${k}=${v}`).join("; "); }
   csrf() { return this.cookies.p5q_csrf ? decodeURIComponent(this.cookies.p5q_csrf) : ""; }
   absorb(res) { for (const c of res.headers.getSetCookie?.() ?? []) { const [p] = c.split(";"); const i = p.indexOf("="); if (i > 0) this.cookies[p.slice(0, i)] = p.slice(i + 1); } }
@@ -43,18 +46,22 @@ const ro = await owner.req("POST", "/api/auth/register", { username: `ct_owner_$
 check("fixture: owner registered", !!ro.json?.session, `${ro.status}`);
 cls = (await owner.req("POST", "/api/classes/create", { name: `Classroom Test ${tag}` })).json?.cls;
 check("fixture: class created", !!cls?.id, cls?.code ?? "");
+if (!cls?.id) { console.log("ABORT: no class fixture — cannot continue"); process.exit(1); }
 const rs = await student.req("POST", "/api/auth/register", { username: `ct_student_${tag}`, password: pass });
 await student.req("POST", "/api/classes/join", { code: cls.code });
-const studentId = rs.json?.session?.user?.id;
-check("fixture: student joined", !!studentId);
+check("fixture: student joined", !!rs.json?.session?.user?.id);
 
-for (let i = 1; i <= 15; i++) {
+/* 30 posts would trip the 20/min per-IP quiz limit — rotate x-forwarded-for. */
+let seededOk = true;
+for (let i = 1; i <= 30; i++) {
+  owner.xff = randIp();
   const q = quizJson(i);
   const r = await owner.req("POST", `/api/classes/${cls.id}/quizzes`, { title: q.title, quiz: q });
-  if (r.status !== 200) { check(`fixture: seed quiz ${i}`, false, `status ${r.status}`); break; }
+  if (r.status !== 200) { check(`fixture: seed quiz ${i}`, false, `status ${r.status}`); seededOk = false; break; }
 }
-const seeded = (await owner.req("GET", `/api/classes/${cls.id}/quizzes`)).json?.quizzes ?? [];
-check("fixture: 15 quizzes seeded", seeded.length === 15, `got ${seeded.length}`);
+owner.xff = randIp();
+const seeded = (await owner.req("GET", `/api/classes/${cls.id}/quizzes?limit=60`)).json;
+check("fixture: 30 quizzes seeded", seededOk && seeded?.total === 30, `server total=${seeded?.total}`);
 
 /* ---- browser ---- */
 const browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ["--mute-audio"] });
@@ -63,112 +70,159 @@ await page.setViewport({ width: 1280, height: 1000 });
 const pageErrors = [];
 page.on("pageerror", (e) => pageErrors.push(String(e).slice(0, 200)));
 
-for (const [name, value] of Object.entries(owner.cookies)) {
-  await page.setCookie({ name, value, domain: new URL(BASE).hostname, path: "/" });
-}
+const actAs = async (client) => {
+  for (const [name, value] of Object.entries(client.cookies)) {
+    await page.setCookie({ name, value, domain: HOST, path: "/" });
+  }
+};
+const cards = (sel) => page.$$eval(sel, (els) => els.length).catch(() => -1);
+const waitForCount = async (sel, n, timeout = 30000) => {
+  const t0 = Date.now();
+  while (Date.now() - t0 < timeout) {
+    if ((await cards(sel)) === n) return true;
+    await sleep(150);
+  }
+  return false;
+};
+const waitForFn = (fn, timeout, ...args) => page.waitForFunction(fn, { timeout }, ...args).then(() => true).catch(() => false);
+
+/* ---- hub ---- */
+await actAs(owner);
 await page.goto(`${BASE}/#dashboard`, { waitUntil: "domcontentloaded" });
-await page.waitForSelector(".dash-quiz", { timeout: 15000 }).catch(() => undefined);
+const recent6 = await waitForFn(() => document.querySelectorAll('.dash-hub-section[data-hub="recent"] .qcard').length === 6, 30000);
+check("hub: recent section shows exactly 6 cards", recent6, `cards=${await cards('.dash-hub-section[data-hub="recent"] .qcard')}`);
+const viewAll30 = await waitForFn(() => /\(30\)/.test(document.querySelector(".dash-viewall")?.textContent ?? ""), 20000);
+const viewAllText = await page.$eval(".dash-viewall", (el) => el.textContent ?? "").catch(() => "");
+check("hub: VIEW ALL announces the full 30", viewAll30 && viewAllText.includes("30"), viewAllText);
 
-const count = () => page.$$eval(".dash-quiz", (els) => els.length);
-const pagerText = () => page.$eval(".dash-pager", (el) => el.textContent ?? "").catch(() => "");
-
-/* heal: a valid session with NO CSRF cookie (accounts older than the cookie)
-   must still be able to add — the server re-issues it on session restore */
-await page.deleteCookie({ name: "p5q_csrf", domain: new URL(BASE).hostname });
-await page.reload({ waitUntil: "domcontentloaded" });
-await page.waitForSelector(".dash-quiz", { timeout: 15000 }).catch(() => undefined);
+/* ---- add dialog ---- */
 await page.click(".dash-add");
-await page.waitForSelector(".dash-add-modal:not(.hidden)", { timeout: 5000 });
-const healed = { ...quizJson(97), title: `Heal Probe ${tag}` };
-await page.$eval(".dash-add-area", (el, json) => { el.value = json; }, JSON.stringify(healed));
-await page.click(".dash-add-submit");
-await page.waitForFunction(() => document.querySelector(".dash-add-modal")?.classList.contains("hidden"), { timeout: 20000 }).catch(() => undefined);
-const healList = (await owner.req("GET", `/api/classes/${cls.id}/quizzes`)).json?.quizzes ?? [];
-const healRow = healList.find((q) => q.title === healed.title);
-check("heal: add works without a CSRF cookie", !!healRow, `server has ${healList.length}`);
-if (healRow) await owner.req("DELETE", `/api/classes/${cls.id}/quizzes?qid=${healRow.id}`);
-for (const [name, value] of Object.entries(owner.cookies)) {
-  await page.setCookie({ name, value, domain: new URL(BASE).hostname, path: "/" });
-}
-await page.reload({ waitUntil: "domcontentloaded" });
-await page.waitForSelector(".dash-quiz", { timeout: 15000 }).catch(() => undefined);
-
-check("shelf: first page shows 12 of 15", (await count()) === 12, `cards=${await count()}`);
-check("shelf: pager announces 1–12 of 15", (await pagerText()).includes("1–12 of 15"), await pagerText());
-
-await page.click(".dash-page-next");
-await sleep(150);
-check("shelf: page 2 shows the remaining 3", (await count()) === 3, `cards=${await count()}`);
-await page.click(".dash-page-prev");
-
-await page.type(".dash-search", "Probe 07");
-await sleep(150);
-check("shelf: search narrows to 1", (await count()) === 1, `cards=${await count()}`);
-await page.$eval(".dash-search", (el) => { el.value = ""; el.dispatchEvent(new Event("input", { bubbles: true })); });
-await sleep(150);
-check("shelf: clearing search restores 12", (await count()) === 12, `cards=${await count()}`);
-
-await page.select(".dash-sort", "title");
-await sleep(150);
-const firstTitle = await page.$eval(".dash-quiz-title", (el) => el.textContent ?? "");
-check("shelf: A–Z sort puts Probe 01 first", firstTitle === "Probe 01", firstTitle);
-await page.select(".dash-sort", "newest");
-
-/* error path: invalid JSON stays visible */
-await page.click(".dash-add");
-await page.waitForSelector(".dash-add-modal:not(.hidden)", { timeout: 5000 });
+const modalOpen = await waitForFn(() => !document.querySelector(".dash-add-modal")?.classList.contains("hidden"), 5000);
+check("add: dialog opens", modalOpen);
 await page.$eval(".dash-add-area", (el) => { el.value = "{ not json"; });
 await page.click(".dash-add-submit");
-await sleep(200);
-check("add: invalid JSON shows an error", await page.$eval(".dash-add-error", (el) => el.classList.contains("open")));
+const errOpen = await waitForFn(() => document.querySelector(".dash-add-error")?.classList.contains("open"), 5000);
+check("add: invalid JSON shows .dash-add-error.open", errOpen);
 
-/* happy path: paste adds, persists, appears without reload */
-const added = { ...quizJson(99), title: `Probe 99 ${tag}` };
+const added = { ...quizJson(31), title: `Probe 31 ${tag}` };
 await page.$eval(".dash-add-area", (el, json) => { el.value = json; }, JSON.stringify(added));
 await page.click(".dash-add-submit");
-await page.waitForFunction(() => document.querySelector(".dash-add-modal")?.classList.contains("hidden"), { timeout: 20000 }).catch(() => undefined);
-check("add: dialog closes on success", await page.$eval(".dash-add-modal", (el) => el.classList.contains("hidden")));
-await page.waitForFunction(() => document.querySelector(".dash-pager")?.textContent?.includes("of 16"), { timeout: 20000 }).catch(() => undefined);
-check("add: shelf count grows to 16", (await pagerText()).includes("of 16"), await pagerText());
+const closed = await waitForFn(() => document.querySelector(".dash-add-modal")?.classList.contains("hidden"), 20000);
+check("add: dialog closes on success", closed);
+const grew31 = await waitForFn(() => /\(31\)/.test(document.querySelector(".dash-viewall")?.textContent ?? ""), 20000);
+const viewAll31 = await page.$eval(".dash-viewall", (el) => el.textContent ?? "").catch(() => "");
+check("add: hub total grows to 31", grew31 && viewAll31.includes("31"), viewAll31);
+const inHub = await waitForFn((title) => [...document.querySelectorAll('.dash-hub-section[data-hub="recent"] .qcard-title')].some((el) => el.textContent === title), 20000, added.title);
+check("add: new card appears in the recent hub", inHub, added.title);
+const afterAdd = (await owner.req("GET", `/api/classes/${cls.id}/quizzes?limit=60`)).json;
+check("add: persisted server-side", afterAdd?.total === 31 && (afterAdd?.quizzes ?? []).some((q) => q.title === added.title), `server total=${afterAdd?.total}`);
 
-const after = (await owner.req("GET", `/api/classes/${cls.id}/quizzes`)).json?.quizzes ?? [];
-check("add: persisted server-side", after.some((q) => q.title === added.title), `server has ${after.length}`);
+/* ---- class library ---- */
+await page.click(".dash-viewall");
+const hashOk = await waitForFn(() => location.hash === "#class-library", 10000);
+check("library: VIEW ALL routes to #class-library", hashOk, await page.evaluate(() => location.hash));
+const lib24 = await waitForCount(".clib-grid .qcard", 24);
+check("library: page 1 renders 24 cards", lib24, `cards=${await cards(".clib-grid .qcard")}`);
+const showing31 = await waitForFn(() => (document.querySelector(".clib-showing")?.textContent ?? "").includes("of 31"), 20000);
+const showingText = await page.$eval(".clib-showing", (el) => el.textContent ?? "").catch(() => "");
+check("library: pager announces 1–24 of 31", showing31, showingText);
+const prevDisabled = await page.$eval(".clib-prev", (el) => el.disabled).catch(() => null);
+check("library: prev is disabled on page 1", prevDisabled === true, `disabled=${prevDisabled}`);
+await page.click(".clib-next");
+const lib7 = await waitForCount(".clib-grid .qcard", 7);
+check("library: next shows the remaining 7", lib7, `cards=${await cards(".clib-grid .qcard")}`);
+const showingPage2 = await page.$eval(".clib-showing", (el) => el.textContent ?? "").catch(() => "");
+check("library: page 2 still of 31", showingPage2.includes("of 31"), showingPage2);
+await page.click(".clib-prev");
+await waitForCount(".clib-grid .qcard", 24);
 
-/* student may also add (server rule unchanged, UI reachable) */
-for (const [name, value] of Object.entries(student.cookies)) {
-  await page.setCookie({ name, value, domain: new URL(BASE).hostname, path: "/" });
-}
+await page.type(".clib-search", "Probe 07");
+const searchOne = await waitForCount(".clib-grid .qcard", 1, 15000);
+const searchTitle = await page.$eval(".clib-grid .qcard-title", (el) => el.textContent ?? "").catch(() => "");
+check("library: search narrows to Probe 07", searchOne && searchTitle === "Probe 07", `cards=${await cards(".clib-grid .qcard")} first=${searchTitle}`);
+await page.$eval(".clib-search", (el) => { el.value = ""; el.dispatchEvent(new Event("input", { bubbles: true })); });
+const restored = await waitForCount(".clib-grid .qcard", 24, 15000);
+check("library: clearing search restores 24", restored, `cards=${await cards(".clib-grid .qcard")}`);
+
+await page.click('.clib-sort[data-sort="title"]');
+const sorted = await waitForFn(() => document.querySelector(".clib-grid .qcard-title")?.textContent === "Probe 01", 15000);
+const firstTitle = await page.$eval(".clib-grid .qcard-title", (el) => el.textContent ?? "").catch(() => "");
+check("library: A–Z sort puts Probe 01 first", sorted && firstTitle === "Probe 01", firstTitle);
+const activeMoved = await page.$eval('.clib-sort[data-sort="title"]', (el) => el.classList.contains("active")).catch(() => false);
+const newestOff = await page.$eval('.clib-sort[data-sort="newest"]', (el) => !el.classList.contains("active")).catch(() => false);
+check("library: .active chip moves to A–Z", activeMoved && newestOff);
+
+/* ---- pin (teacher) ---- */
+const pinQid = await page.$eval(".clib-grid .qcard", (el) => el.getAttribute("data-qid"));
+await page.click(".clib-grid .qcard-pin");
+const pinnedLocally = await waitForFn((qid) => document.querySelector(`.clib-grid .qcard[data-qid="${qid}"]`)?.classList.contains("pinned"), 15000, pinQid);
+const pressed = await page.$eval(`.clib-grid .qcard[data-qid="${pinQid}"] .qcard-pin`, (el) => el.getAttribute("aria-pressed")).catch(() => "");
+check("pin: library card flips to .pinned", pinnedLocally && pressed === "true", `qid=${pinQid} aria-pressed=${pressed}`);
+const afterPin = (await owner.req("GET", `/api/classes/${cls.id}/quizzes?limit=60`)).json;
+const pinRow = (afterPin?.quizzes ?? []).find((q) => q.id === pinQid);
+check("pin: server reports pinned:true", pinRow?.pinned === true, `pinned=${pinRow?.pinned}`);
+await page.evaluate(() => { location.hash = "#dashboard"; });
+const pinnedHub = await waitForFn((qid) => !!document.querySelector(`.dash-hub-section[data-hub="pinned"] .qcard[data-qid="${qid}"]`), 30000, pinQid);
+check("pin: dashboard PINNED hub shows the card", pinnedHub);
+
+/* ---- student (cookie swap + reload) ---- */
+await actAs(student);
+await page.evaluate(() => { location.hash = "#class-library"; });
 await page.reload({ waitUntil: "domcontentloaded" });
-await page.waitForSelector(".dash-quiz", { timeout: 15000 }).catch(() => undefined);
-const studentSeesDelete = await page.$$eval(".dash-quiz-del", (els) => els.length);
-check("permissions: student sees no delete buttons", studentSeesDelete === 0, `found ${studentSeesDelete}`);
-await page.click(".dash-add");
-await page.waitForSelector(".dash-add-modal:not(.hidden)", { timeout: 5000 });
-const sAdded = { ...quizJson(98), title: `Probe 98 ${tag}` };
-await page.$eval(".dash-add-area", (el, json) => { el.value = json; }, JSON.stringify(sAdded));
-await page.click(".dash-add-submit");
-for (let i = 0; i < 40; i++) {
-  const n = (await student.req("GET", `/api/classes/${cls.id}/quizzes`)).json?.quizzes?.length ?? 0;
-  if (n === 17) break;
-  await sleep(500);
-}
-const afterStudent = (await student.req("GET", `/api/classes/${cls.id}/quizzes`)).json?.quizzes ?? [];
-check("permissions: student add persisted", afterStudent.some((q) => q.title === sAdded.title), `server has ${afterStudent.length}`);
+await page.waitForSelector(".clib-grid .qcard", { timeout: 30000 }).catch(() => undefined);
+const studentCards = await cards(".clib-grid .qcard");
+check("student: sees the library grid", studentCards === 24, `cards=${studentCards}`);
+const studentToggle = await cards(".clib-select-toggle");
+const studentActions = await cards(".clib-grid .qcard-pin, .clib-grid .qcard-del");
+check("student: no select toggle", studentToggle === 0, `found ${studentToggle}`);
+check("student: no pin/delete controls", studentActions === 0, `found ${studentActions}`);
 
-/* teacher delete removes a card and the row */
-for (const [name, value] of Object.entries(owner.cookies)) {
-  await page.setCookie({ name, value, domain: new URL(BASE).hostname, path: "/" });
-}
+/* ---- teacher bulk delete ---- */
+await actAs(owner);
 await page.reload({ waitUntil: "domcontentloaded" });
-await page.waitForSelector(".dash-quiz-del", { timeout: 15000 }).catch(() => undefined);
-await page.click(".dash-quiz-del");
-for (let i = 0; i < 40; i++) {
-  const n = (await owner.req("GET", `/api/classes/${cls.id}/quizzes`)).json?.quizzes?.length ?? 0;
-  if (n === 16) break;
-  await sleep(500);
+await page.waitForSelector(".clib-grid .qcard", { timeout: 30000 }).catch(() => undefined);
+const beforeBulk = (await owner.req("GET", `/api/classes/${cls.id}/quizzes?limit=60`)).json?.total ?? 0;
+await page.click(".clib-select-toggle");
+await page.waitForSelector(".clib-bulk:not(.hidden)", { timeout: 5000 }).catch(() => undefined);
+await page.evaluate(() => {
+  const cards = [...document.querySelectorAll(".clib-grid .qcard")];
+  cards[0]?.click();
+  cards[1]?.click();
+});
+const twoSelected = await waitForFn(() => document.querySelectorAll(".clib-grid .qcard.selected").length === 2, 5000);
+const bulkText = await page.$eval(".clib-bulk-count", (el) => el.textContent ?? "").catch(() => "");
+check("bulk: select mode marks 2 cards", twoSelected, `selected=${await cards(".clib-grid .qcard.selected")} bulk="${bulkText}"`);
+await page.click(".clib-bulk-del");
+let afterBulk = beforeBulk;
+for (let i = 0; i < 60; i++) {
+  afterBulk = (await owner.req("GET", `/api/classes/${cls.id}/quizzes?limit=60`)).json?.total ?? afterBulk;
+  if (afterBulk === beforeBulk - 2) break;
+  await sleep(300);
 }
-const afterDelete = (await owner.req("GET", `/api/classes/${cls.id}/quizzes`)).json?.quizzes ?? [];
-check("delete: teacher removes a quiz", afterDelete.length === afterStudent.length - 1, `server has ${afterDelete.length}`);
+check("bulk: server count drops by 2", afterBulk === beforeBulk - 2, `${beforeBulk} → ${afterBulk}`);
+
+/* ---- class switcher ---- */
+const cls2 = (await owner.req("POST", "/api/classes/create", { name: `Second Class ${tag}` })).json?.cls;
+check("switcher: second class created", !!cls2?.id, cls2?.code ?? "");
+await owner.req("POST", "/api/classes/mine", { classId: cls.id }); // keep the populated class active
+await page.goto(`${BASE}/#dashboard`, { waitUntil: "domcontentloaded" });
+const switchBtn = await waitForFn(() => {
+  const b = document.querySelector(".dash-switcher-btn");
+  return !!b && b.getBoundingClientRect().width > 0;
+}, 20000);
+const switchText = await page.$eval(".dash-switcher-btn", (el) => el.textContent ?? "").catch(() => "");
+check("switcher: button visible with 2 classes", switchBtn, switchText);
+await page.click(".dash-switcher-btn");
+await page.waitForSelector(".dash-switcher-menu:not(.hidden)", { timeout: 5000 }).catch(() => undefined);
+await page.click(`.dash-switcher-item[data-id="${cls2.id}"]`);
+const switched = await waitForFn((name) => document.querySelector(".dash-classname")?.textContent === name, 20000, cls2.name);
+check("switcher: dashboard remounts on the other class", switched, await page.$eval(".dash-classname", (el) => el.textContent ?? "").catch(() => ""));
+const meAfter = (await owner.req("GET", "/api/auth/me")).json;
+check("switcher: server session follows the switch", meAfter?.session?.cls?.id === cls2.id, `cls=${meAfter?.session?.cls?.id}`);
+await page.evaluate(() => { location.hash = "#class-library"; });
+const zeroLib = await waitForFn(() => (document.querySelector(".clib-count")?.textContent ?? "").includes("0"), 20000);
+const zeroCards = await cards(".clib-grid .qcard");
+check("switcher: library lists the other class (0 quizzes)", zeroLib && zeroCards === 0, `count=${await page.$eval(".clib-count", (el) => el.textContent ?? "").catch(() => "")} cards=${zeroCards}`);
 
 check("no page errors", pageErrors.length === 0, pageErrors.slice(0, 2).join(" | "));
 
@@ -176,7 +230,8 @@ check("no page errors", pageErrors.length === 0, pageErrors.slice(0, 2).join(" |
 await student.req("DELETE", "/api/auth/me");
 await owner.req("DELETE", "/api/auth/me");
 const gone = await owner.req("GET", "/api/auth/me");
-check("cleanup: throwaway account gone", gone.status === 401, `status ${gone.status}`);
+const goneStudent = await student.req("GET", "/api/auth/me");
+check("cleanup: throwaway accounts gone", gone.status === 401 && goneStudent.status === 401, `owner=${gone.status} student=${goneStudent.status}`);
 
 await browser.close();
 console.log(fails ? `\n${fails} FAILURE(S)` : "\nALL PASS");

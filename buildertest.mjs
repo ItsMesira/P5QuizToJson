@@ -5,7 +5,7 @@
    This asserts the builder fits at every width, with a long unbreakable token. */
 import puppeteer from "puppeteer-core";
 
-const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+const CHROME = process.env.P5Q_CHROME ?? "/Users/blue/.cache/puppeteer/chrome/mac_arm-154.0.8037.57/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing";
 const BASE = "http://localhost:5183";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const WIDTHS = [1440, 1180, 1024, 900, 768, 600, 480, 414, 390, 360, 320, 280];

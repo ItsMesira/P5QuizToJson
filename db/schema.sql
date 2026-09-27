@@ -97,3 +97,10 @@ CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions (user_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions (expires);
 CREATE INDEX IF NOT EXISTS idx_admin_audit_created ON admin_audit (created DESC);
 CREATE INDEX IF NOT EXISTS idx_users_admin ON users (is_admin) WHERE is_admin;
+
+-- ---------- quiz library: per-user active class + pinned quizzes ----------
+ALTER TABLE users ADD COLUMN IF NOT EXISTS active_class_id UUID REFERENCES classes(id) ON DELETE SET NULL;
+ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS pinned BOOLEAN NOT NULL DEFAULT false;
+CREATE INDEX IF NOT EXISTS idx_quizzes_class_created ON quizzes (class_id, created DESC);
+CREATE INDEX IF NOT EXISTS idx_quizzes_class_pinned ON quizzes (class_id) WHERE pinned;
+CREATE INDEX IF NOT EXISTS idx_results_quiz ON results (quiz_id);

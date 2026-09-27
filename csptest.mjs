@@ -12,7 +12,7 @@ import puppeteer from "puppeteer-core";
 const root = dirname(fileURLToPath(import.meta.url));
 const dist = join(root, "dist");
 const PORT = 5199;
-const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+const CHROME = process.env.P5Q_CHROME ?? "/Users/blue/.cache/puppeteer/chrome/mac_arm-154.0.8037.57/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing";
 
 const vercel = JSON.parse(readFileSync(join(root, "vercel.json"), "utf8"));
 const allHeaders = vercel.headers.flatMap((h) => h.headers ?? []);
@@ -64,7 +64,7 @@ page.on("console", (m) => {
 page.on("pageerror", (e) => violations.push("pageerror: " + String(e).slice(0, 160)));
 await page.evaluateOnNewDocument(() => localStorage.setItem("p5q.settings", JSON.stringify({ alwaysShuffle: false })));
 
-const routes = ["title", "load", "settings", "prompts", "library", "leaderboard", "profiles", "dashboard", "entry"];
+const routes = ["title", "load", "settings", "prompts", "library", "leaderboard", "profiles", "dashboard", "class-library", "entry"];
 for (const r of routes) {
   await page.goto(`http://localhost:${PORT}/#${r}`, { waitUntil: "networkidle0" });
   await sleep(900);

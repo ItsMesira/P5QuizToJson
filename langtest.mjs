@@ -1,13 +1,13 @@
 /* P5 QUIZ — language system verification: coverage, ransom integrity, layout, persistence. */
 import puppeteer from "puppeteer-core";
-const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+const CHROME = process.env.P5Q_CHROME ?? "/Users/blue/.cache/puppeteer/chrome/mac_arm-154.0.8037.57/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing";
 const browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ["--mute-audio"] });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let fails = 0;
 const check = (n, ok, extra = "") => { console.log(`${ok ? "PASS" : "FAIL"} ${n}${extra ? " — " + extra : ""}`); if (!ok) fails++; };
 
 const LOCALES = ["th", "es", "fr", "de", "ja"];
-const ROUTES = ["title", "entry", "settings", "library", "profiles", "leaderboard", "load", "prompts"];
+const ROUTES = ["title", "entry", "settings", "library", "profiles", "leaderboard", "load", "prompts", "class-library"];
 
 for (const loc of LOCALES) {
   const context = await browser.createBrowserContext();

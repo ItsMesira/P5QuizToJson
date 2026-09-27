@@ -14,7 +14,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = dirname(fileURLToPath(import.meta.url));
-const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+const CHROME = process.env.P5Q_CHROME ?? "/Users/blue/.cache/puppeteer/chrome/mac_arm-154.0.8037.57/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing";
 const BASE = process.env.P5Q_BASE ?? "http://localhost:3011";
 const args = process.argv.slice(2);
 const opt = (n, d = "") => { const i = args.indexOf(n); return i === -1 ? d : args[i + 1]; };
@@ -45,6 +45,7 @@ const SCREENS = [
   { n: "leaderboard", url: "?s=leaderboard#leaderboard" },
   { n: "prompts", url: "?s=prompts#prompts" },
   { n: "entry", url: "?s=entry#entry" },
+  { n: "class-library", url: "?s=class-library#class-library" },
   { n: "quiz", url: "?s=quiz&quiz=/sample-quizzes/math.json" },
 ];
 

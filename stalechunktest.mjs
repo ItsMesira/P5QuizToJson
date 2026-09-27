@@ -5,7 +5,7 @@
    build, and must not enter a reload loop if the chunk is genuinely gone. */
 import puppeteer from "puppeteer-core";
 
-const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+const CHROME = process.env.P5Q_CHROME ?? "/Users/blue/.cache/puppeteer/chrome/mac_arm-154.0.8037.57/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing";
 const BASE = "http://localhost:5183";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let fails = 0;
