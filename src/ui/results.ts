@@ -21,6 +21,29 @@ registerScreen("results", (root, screenScope) => {
   }
   const rank = RANKS.find((r) => r.key === result.rank) ?? RANKS[RANKS.length - 1];
 
+  /* Study local round-trip: only when this tab was opened by Study. The
+     opener validates its configured origin and the nonce it sent; this is the
+     local alternative to the optional API, not a trusted server grade. */
+  if (window.opener && new URLSearchParams(location.search).get("study") === "1") {
+    const nonce = new URLSearchParams(location.search).get("nonce") ?? "";
+    try {
+      window.opener.postMessage(
+        {
+          type: "study-heist-result",
+          nonce,
+          result: {
+            correct: result.correct,
+            total: result.total,
+            perQuestion: result.perQuestion.map(({ qIndex, correct, ms }) => ({ qIndex, correct, ms })),
+          },
+        },
+        "*"
+      );
+    } catch {
+      /* opener gone; the local result simply does not return */
+    }
+  }
+
   /* persist */
   addScore(result);
   const gained = result.correct * 10 + (result.rank === "S" ? 100 : result.rank === "A" ? 60 : 0);
