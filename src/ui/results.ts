@@ -19,18 +19,48 @@ registerScreen("results", (root, screenScope) => {
     void go({ name: "title" }, { instant: true });
     return () => undefined;
   }
+
+  const search = new URLSearchParams(location.search);
+  const studyMode = search.get("study") === "1";
+  const studyNonce = search.get("nonce") ?? "";
+  const studyPlanKey = search.get("pk") ?? "";
+  const studyRevision = Number(search.get("rv") ?? "");
+  const studyReturnBase = search.get("return") ?? "";
+
+  const studyReturnLink = (() => {
+    if (!studyMode || !studyReturnBase || !studyPlanKey || !Number.isFinite(studyRevision)) return "";
+    try {
+      const url = new URL(studyReturnBase);
+      const local = url.protocol === "http:" && (url.hostname === "localhost" || url.hostname === "127.0.0.1");
+      const hosted =
+        url.protocol === "https:" &&
+        (url.hostname === "study.tykunanon.online" || url.hostname === "study-preview.vercel.app");
+      if (!local && !hosted) return "";
+      const payload = {
+        nonce: studyNonce,
+        planKey: studyPlanKey,
+        revision: studyRevision,
+        correct: result.correct,
+        total: result.total,
+        perQuestion: result.perQuestion.map(({ qIndex, correct, ms }) => ({ qIndex, correct, ms })),
+      };
+      url.searchParams.set("studyResult", btoa(JSON.stringify(payload)));
+      return url.toString();
+    } catch {
+      return "";
+    }
+  })();
   const rank = RANKS.find((r) => r.key === result.rank) ?? RANKS[RANKS.length - 1];
 
   /* Study local round-trip: only when this tab was opened by Study. The
      opener validates its configured origin and the nonce it sent; this is the
      local alternative to the optional API, not a trusted server grade. */
-  if (window.opener && new URLSearchParams(location.search).get("study") === "1") {
-    const nonce = new URLSearchParams(location.search).get("nonce") ?? "";
+  if (window.opener && studyMode) {
     try {
       window.opener.postMessage(
         {
           type: "study-heist-result",
-          nonce,
+          nonce: studyNonce,
           result: {
             correct: result.correct,
             total: result.total,
@@ -197,7 +227,8 @@ registerScreen("results", (root, screenScope) => {
         h("button", { class: "sticker-btn" }, [t("⧉ COPY RESULT")]),
         h("button", { class: "sticker-btn" }, [t("🏆 LEADERBOARD")]),
         h("button", { class: "sticker-btn" }, [t("⌂ HOME")]),
-      ]),
+        studyReturnLink ? h("button", { class: "sticker-btn accent" }, [t("BACK TO STUDY")]) : null,
+      ].filter(Boolean)),
     ]),
   ]);
 
@@ -335,6 +366,12 @@ registerScreen("results", (root, screenScope) => {
     audio.sfx("select");
     void go({ name: "title" });
   });
+  if (studyReturnLink) {
+    btns[btns.length - 1].addEventListener("click", () => {
+      audio.sfx("select");
+      window.location.href = studyReturnLink;
+    });
+  }
 
   /* ---------- share card (canvas) ---------- */
 

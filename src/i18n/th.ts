@@ -355,6 +355,7 @@ const th: Record<string, string> = {
   "⇄ COMBINE INTO BUILDER": "⇄ รวมเข้าตัวสร้าง",
   "⇄ JOIN / MAKE A CLASS": "⇄ เข้า / สร้างห้องเรียน",
   "⇄ SWITCH CLASS": "⇄ เปลี่ยนห้อง",
+  "BACK TO STUDY": 'กลับไปที่ STUDY',
   "⌂ HOME": "⌂ หน้าแรก",
   "■ {name}": "■ {name}",
   "▶ PLAY": "▶ เล่น",

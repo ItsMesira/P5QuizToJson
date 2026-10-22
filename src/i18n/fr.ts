@@ -355,6 +355,7 @@ const fr: Record<string, string> = {
   "⇄ COMBINE INTO BUILDER": "⇄ COMBINER DANS LE BUILDER",
   "⇄ JOIN / MAKE A CLASS": "⇄ REJOINDRE / CRÉER",
   "⇄ SWITCH CLASS": "⇄ CHANGER DE CLASSE",
+  "BACK TO STUDY": 'RETOUR À STUDY',
   "⌂ HOME": "⌂ ACCUEIL",
   "■ {name}": "■ {name}",
   "▶ PLAY": "▶ JOUER",

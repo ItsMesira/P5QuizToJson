@@ -355,6 +355,7 @@ const ja: Record<string, string> = {
   "⇄ COMBINE INTO BUILDER": "⇄ ビルダーに統合",
   "⇄ JOIN / MAKE A CLASS": "⇄ 参加 / クラス作成",
   "⇄ SWITCH CLASS": "⇄ クラス変更",
+  "BACK TO STUDY": 'STUDYに戻る',
   "⌂ HOME": "⌂ ホーム",
   "■ {name}": "■ {name}",
   "▶ PLAY": "▶ プレイ",
