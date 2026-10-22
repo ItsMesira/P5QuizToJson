@@ -15,3 +15,5 @@ dist
 bugledger/shots/
 bugledger/suite-results*.json
 bugledger/*.md
+.vercel
+.env*
