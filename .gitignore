@@ -16,4 +16,5 @@ bugledger/shots/
 bugledger/suite-results*.json
 bugledger/*.md
 .vercel
+mcp/.build/
 .env*

@@ -530,6 +530,19 @@ const th: Record<string, string> = {
   "Repaired — no changes needed": "ซ่อมแล้ว — ไม่ต้องแก้อะไร",
   "Repair failed — {n} problem(s) remain": "ซ่อมไม่สำเร็จ — ยังเหลือ {n} ปัญหา",
   "EXPLANATION": "คำอธิบาย",
+  "✦ FROM MCP": "✦ จาก MCP",
+  "CLAIM AI QUIZ": "รับควิซจาก AI",
+  "Paste the 9-character code your AI author returned.": "วางรหัส 9 ตัวอักษรที่ AI ส่งกลับมา",
+  "AI claim code": "รหัสรับควิซจาก AI",
+  "CLAIM": "รับ",
+  "CLAIMING…": "กำลังรับ…",
+  "That quiz needs repair — fix the issues below.": "ควิซนี้ต้องซ่อม — แก้ปัญหาด้านล่าง",
+  "Claimed “{title}”": "รับ “{title}” แล้ว",
+  "Enter the 9-character code.": "ใส่รหัส 9 ตัวอักษร",
+  "That code expired or was already used.": "รหัสหมดอายุหรือถูกใช้แล้ว",
+  "Can't reach the local MCP inbox. Start `npm run mcp`.": "เชื่อมต่อ MCP ในเครื่องไม่ได้ เริ่มด้วย `npm run mcp`",
+  "MCP inbox returned {status}.": "MCP ตอบกลับ {status}",
+  "The inbox returned no quiz.": "MCP ไม่ได้ส่งควิซกลับมา",
 };
 
 export default th;

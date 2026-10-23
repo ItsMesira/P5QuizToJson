@@ -10,6 +10,7 @@ import { repairQuiz } from "../core/repair";
 import { saveQuiz, loadProgress, savedQuizzes } from "../core/store";
 import { cloud, cloudError } from "../core/api";
 import { fetchRemoteQuiz } from "../core/share";
+import { claimQuiz, InboxError } from "../core/inbox";
 import type { Quiz } from "../core/types";
 import { t } from "../core/i18n";
 
@@ -151,6 +152,7 @@ registerScreen("load", (root) => {
         h("button", { class: "sticker-btn" }, [t("📋 PASTE JSON")]),
         h("button", { class: "sticker-btn" }, [t("🔗 FROM URL")]),
         h("button", { class: "sticker-btn" }, [t("🔧 REPAIR JSON")]),
+        h("button", { class: "sticker-btn" }, [t("✦ FROM MCP")]),
       ]),
       h("div", { class: "load-samples" }, [
         h("h3", { class: "samples-title" }, [
@@ -184,6 +186,27 @@ registerScreen("load", (root) => {
         h("div", { class: "paste-actions" }, [
           h("button", { class: "sticker-btn accent url-go" }, [t("FETCH")]),
           h("button", { class: "sticker-btn url-cancel" }, [t("CANCEL")]),
+        ]),
+      ]),
+    ]),
+    h("div", { class: "load-paste load-mcp hidden" }, [
+      h("div", { class: "load-paste-card" }, [
+        h("div", { class: "load-paste-head" }, [
+          h("h3", {}, [t("CLAIM AI QUIZ")]),
+          h("button", { class: "pm-close mcp-cancel-x", "aria-label": t("Close") }, ["✕"]),
+        ]),
+        h("p", { class: "mcp-hint" }, [t("Paste the 9-character code your AI author returned.")]),
+        h("input", {
+          class: "mcp-code",
+          placeholder: "ABC-123-XYZ",
+          spellcheck: "false",
+          autocomplete: "off",
+          "aria-label": t("AI claim code"),
+        }, []),
+        h("div", { class: "mcp-status", role: "status" }, []),
+        h("div", { class: "paste-actions" }, [
+          h("button", { class: "sticker-btn accent mcp-go" }, [t("CLAIM")]),
+          h("button", { class: "sticker-btn mcp-cancel" }, [t("CANCEL")]),
         ]),
       ]),
     ]),
@@ -243,6 +266,15 @@ registerScreen("load", (root) => {
         gsap.fromTo(urlBox, { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.3, ease: "back.out(1.5)" });
         el.querySelector<HTMLInputElement>(".url-input")!.focus();
       }
+      if (i === 4) {
+        const mcpBox = el.querySelector<HTMLElement>(".load-mcp")!;
+        mcpBox.classList.remove("hidden");
+        const code = mcpBox.querySelector<HTMLInputElement>(".mcp-code")!;
+        code.value = "";
+        mcpBox.querySelector<HTMLElement>(".mcp-status")!.textContent = "";
+        gsap.fromTo(mcpBox, { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.3, ease: "back.out(1.5)" });
+        code.focus();
+      }
     });
   });
   pasteBox.querySelectorAll<HTMLButtonElement>("button").forEach((b) => {
@@ -287,9 +319,58 @@ registerScreen("load", (root) => {
     if (e.key === "Enter") (urlBox.querySelector<HTMLButtonElement>(".url-go")!).click();
   });
 
+  /* ---- local MCP authoring inbox ---- */
+  const mcpBox = el.querySelector<HTMLElement>(".load-mcp")!;
+  const mcpCode = mcpBox.querySelector<HTMLInputElement>(".mcp-code")!;
+  const mcpStatus = mcpBox.querySelector<HTMLElement>(".mcp-status")!;
+  const setMcpStatus = (message: string, kind: "info" | "error" = "info") => {
+    mcpStatus.textContent = message;
+    mcpStatus.classList.toggle("error", kind === "error");
+  };
+  const closeMcp = () => mcpBox.classList.add("hidden");
+  mcpBox.querySelector(".mcp-cancel")!.addEventListener("click", closeMcp);
+  mcpBox.querySelector(".mcp-cancel-x")!.addEventListener("click", closeMcp);
+  mcpCode.addEventListener("input", () => {
+    if (mcpStatus.textContent) setMcpStatus("");
+  });
+  const claim = async () => {
+    setMcpStatus(t("CLAIMING…"));
+    try {
+      const result = await claimQuiz(mcpCode.value);
+      const quiz = await attempt(result.quiz, result.source);
+      if (!quiz) {
+        setMcpStatus(t("That quiz needs repair — fix the issues below."), "error");
+        return;
+      }
+      closeMcp();
+      void startQuiz({ ...quiz, source: result.source });
+    } catch (err) {
+      audio.sfx("wrong");
+      fx.shake(10);
+      if (err instanceof InboxError) {
+        if (err.code === "invalid_code") setMcpStatus(t("Enter the 9-character code."), "error");
+        else if (err.code === "expired") setMcpStatus(t("That code expired or was already used."), "error");
+        else if (err.code === "unreachable")
+          setMcpStatus(t("Can't reach the local MCP inbox. Start `npm run mcp`."), "error");
+        else if (err.code === "http")
+          setMcpStatus(t("MCP inbox returned {status}.", { status: err.status ?? "?" }), "error");
+        else setMcpStatus(t("The inbox returned no quiz."), "error");
+      } else {
+        setMcpStatus(t("MCP inbox returned {status}.", { status: "?" }), "error");
+      }
+    }
+  };
+  mcpBox.querySelector(".mcp-go")!.addEventListener("click", () => void claim());
+  mcpCode.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      void claim();
+    }
+  });
+
   // global paste
   const onPaste = async (e: ClipboardEvent) => {
-    if (pasteBox.classList.contains("hidden") && urlBox.classList.contains("hidden")) {
+    if (pasteBox.classList.contains("hidden") && urlBox.classList.contains("hidden") && mcpBox.classList.contains("hidden")) {
       const text = (e.clipboardData?.getData("text") ?? "").trim();
       if (/^\s*[\[{]/.test(text) || text.startsWith("```")) {
         e.preventDefault();

@@ -530,6 +530,19 @@ const ja: Record<string, string> = {
   "Repaired — no changes needed": "修復済み — 変更は不要です",
   "Repair failed — {n} problem(s) remain": "修復に失敗 — {n}件の問題が残っています",
   "EXPLANATION": "解説",
+  "✦ FROM MCP": "✦ MCP から",
+  "CLAIM AI QUIZ": "AI クイズを受け取る",
+  "Paste the 9-character code your AI author returned.": "AI が返した 9 文字のコードを貼り付けてください。",
+  "AI claim code": "AI 受け取りコード",
+  "CLAIM": "受け取る",
+  "CLAIMING…": "受け取り中…",
+  "That quiz needs repair — fix the issues below.": "このクイズは修復が必要です — 下の問題を直してください。",
+  "Claimed “{title}”": "「{title}」を受け取りました",
+  "Enter the 9-character code.": "9 文字のコードを入力してください。",
+  "That code expired or was already used.": "このコードは期限切れか使用済みです。",
+  "Can't reach the local MCP inbox. Start `npm run mcp`.": "ローカル MCP 受信箱に接続できません。`npm run mcp` を起動してください。",
+  "MCP inbox returned {status}.": "MCP 受信箱が {status} を返しました。",
+  "The inbox returned no quiz.": "受信箱からクイズが返されませんでした。",
 };
 
 export default ja;

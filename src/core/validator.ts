@@ -136,7 +136,10 @@ function normalizeQuestion(raw: unknown, path: string): { q?: Question; errors: 
     if (good.length < 2) errors.push({ path: `${path}.pairs`, message: t("Match needs 2+ pairs.") });
     q.pairs = good;
   } else if (type === "numeric") {
-    const v = answerField(raw);
+    /* A repaired quiz represents numeric answers as correctText (the shape the
+       quiz screen grades against). Accept that shape on re-validation too, so
+       repairQuiz() is idempotent instead of rejecting its own output. */
+    const v = answerField(raw) ?? (typeof raw.correctText === "string" ? raw.correctText : null);
     const nums = v ? v.replace(",", ".").match(/-?\d+(?:\.\d+)?/g) : null;
     if (v && nums && nums.length) {
       q.correctText = nums[nums.length - 1];

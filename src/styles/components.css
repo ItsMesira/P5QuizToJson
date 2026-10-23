@@ -1260,7 +1260,8 @@
   margin-top: 8px;
 }
 .load-paste,
-.load-url {
+.load-url,
+.load-mcp {
   position: fixed;
   inset: 0;
   z-index: 55;
@@ -1317,6 +1318,36 @@
   border-bottom: 3px solid var(--red);
   padding: 10px 14px;
   outline: none;
+}
+.mcp-hint {
+  color: var(--smoke);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.mcp-code {
+  font-family: var(--font-mono);
+  font-size: clamp(20px, 3vw, 28px);
+  letter-spacing: 0.18em;
+  text-align: center;
+  text-transform: uppercase;
+  color: var(--paper);
+  background: var(--ink);
+  border: 2px solid var(--ink-3);
+  padding: 14px 12px;
+  outline: none;
+}
+.mcp-code:focus {
+  border-color: var(--red);
+}
+.mcp-status {
+  min-height: 1.2em;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--smoke);
+}
+.mcp-status.error {
+  color: var(--red-hot);
 }
 .paste-actions {
   display: flex;

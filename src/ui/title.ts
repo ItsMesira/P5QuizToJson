@@ -1,13 +1,10 @@
 /* ============ P5 QUIZ — TITLE (P5 Best menu remake) ============ */
-import gsap from "gsap";
 import { registerScreen, go, applyGlobalSettings, app } from "./screens";
 import { h } from "./dom";
 import { audio } from "../core/audio";
 import { fx } from "../fx/particles";
-import { RM } from "../fx/transitions";
 import { ransomize } from "../fx/ransom";
 import { loadProgress } from "../core/store";
-import { scopedTimeout } from "../core/runtime";
 import { cloud } from "../core/api";
 import { t } from "../core/i18n";
 
@@ -29,7 +26,7 @@ const ITEMS: MenuEntry[] = [
   { label: "PROFILES",       route: "profiles",  size: "clamp(27px,3.8vw,49px)", icon: "🃏", tilt: 0.6, target: () => void go({ name: "profiles" }) },
 ];
 
-registerScreen("title", (root, scope) => {
+registerScreen("title", (root) => {
   applyGlobalSettings();
 
   let active = -1;
@@ -182,21 +179,9 @@ registerScreen("title", (root, scope) => {
   };
   window.addEventListener("keydown", onKey);
 
-  /* ---------- entrance choreography (P5 Best timings) ---------- */
-  if (!RM()) {
-    gsap.fromTo("#hud-top .hud-tag", { y: -30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, stagger: 0.08, ease: "power3.out" });
-    gsap.fromTo("#intro-eyebrow", { x: -30, opacity: 0 }, { x: 0, opacity: 1, duration: 0.4, delay: 0.2, ease: "power2.out" });
-    gsap.fromTo(".name-ransom .ch", { y: 40, opacity: 0, rotate: -10 }, { y: 0, opacity: 1, rotate: 0, duration: 0.5, stagger: 0.03, delay: 0.3, ease: "back.out(1.4)" });
-    gsap.fromTo("#tagline", { x: -40, opacity: 0, rotate: 4 }, { x: 0, opacity: 1, rotate: -1, duration: 0.45, delay: 0.6, ease: "power3.out" });
-    gsap.fromTo("#hud-bottom", { opacity: 0 }, { opacity: 1, duration: 0.5, delay: 1.0 });
-    // menu items slide in from left (P5 Best menuIn)
-    itemEls.forEach((item, i) => {
-      gsap.fromTo(item, { x: -60, opacity: 0 }, { x: 0, opacity: 0.62, duration: 0.55, delay: 0.65 + i * 0.1, ease: "back.out(1.2)", onComplete: () => gsap.set(item, { clearProps: "transform" }) });
-    });
-    scopedTimeout(() => activate(0, true), 1400, scope);
-  } else {
-    activate(0, true);
-  }
+  /* The title is static on mount: no delayed entrance, no staggered letters,
+     no 1.4s wait before the first menu item becomes selectable. */
+  activate(0, true);
 
   return () => {
     window.removeEventListener("keydown", onKey);

@@ -530,6 +530,19 @@ const es: Record<string, string> = {
   "Repaired — no changes needed": "Reparado — sin cambios necesarios",
   "Repair failed — {n} problem(s) remain": "Falló la reparación — quedan {n} problema(s)",
   "EXPLANATION": "EXPLICACIÓN",
+  "✦ FROM MCP": "✦ DESDE MCP",
+  "CLAIM AI QUIZ": "RECLAMAR QUIZ DE IA",
+  "Paste the 9-character code your AI author returned.": "Pega el código de 9 caracteres que devolvió tu autor de IA.",
+  "AI claim code": "Código de reclamo de IA",
+  "CLAIM": "RECLAMAR",
+  "CLAIMING…": "RECLAMANDO…",
+  "That quiz needs repair — fix the issues below.": "Ese quiz necesita reparación — corrige los problemas de abajo.",
+  "Claimed “{title}”": "Reclamado “{title}”",
+  "Enter the 9-character code.": "Introduce el código de 9 caracteres.",
+  "That code expired or was already used.": "Ese código caducó o ya se usó.",
+  "Can't reach the local MCP inbox. Start `npm run mcp`.": "No se puede conectar al buzón MCP local. Inicia `npm run mcp`.",
+  "MCP inbox returned {status}.": "El buzón MCP respondió {status}.",
+  "The inbox returned no quiz.": "El buzón no devolvió ningún quiz.",
 };
 
 export default es;

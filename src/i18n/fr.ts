@@ -530,6 +530,19 @@ const fr: Record<string, string> = {
   "Repaired — no changes needed": "Réparé — aucune modification nécessaire",
   "Repair failed — {n} problem(s) remain": "Échec de la réparation — {n} problème(s) restant(s)",
   "EXPLANATION": "EXPLICATION",
+  "✦ FROM MCP": "✦ DEPUIS MCP",
+  "CLAIM AI QUIZ": "RÉCLAMER LE QUIZ IA",
+  "Paste the 9-character code your AI author returned.": "Collez le code à 9 caractères renvoyé par votre auteur IA.",
+  "AI claim code": "Code de réclamation IA",
+  "CLAIM": "RÉCLAMER",
+  "CLAIMING…": "RÉCLAMATION…",
+  "That quiz needs repair — fix the issues below.": "Ce quiz doit être réparé — corrigez les problèmes ci-dessous.",
+  "Claimed “{title}”": "« {title} » réclamé",
+  "Enter the 9-character code.": "Saisissez le code à 9 caractères.",
+  "That code expired or was already used.": "Ce code a expiré ou a déjà été utilisé.",
+  "Can't reach the local MCP inbox. Start `npm run mcp`.": "Impossible de joindre la boîte MCP locale. Lancez `npm run mcp`.",
+  "MCP inbox returned {status}.": "La boîte MCP a répondu {status}.",
+  "The inbox returned no quiz.": "La boîte n'a renvoyé aucun quiz.",
 };
 
 export default fr;

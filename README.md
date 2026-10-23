@@ -2,9 +2,11 @@
 
 A **Persona 5-styled quiz game** that runs entirely in your browser. No backend, no
 account, no tracking. You drop in a `quiz.json` (drag & drop, paste, file picker,
-share link, or one of the built-in samples) and play it through a full P5 experience:
-ransom-note menus, stripe-wipe transitions, All-Out Attack results, ranks S–F,
-streaks, lifelines, synthesized + authentic BGM, and confetti for the worthy.
+share link, one of the built-in samples, or an AI-authored quiz claimed from the
+local MCP inbox) and play it through a full P5 experience: ransom-note menus,
+instant route changes with no boot/loading interstitial, All-Out Attack results,
+ranks S–F, streaks, lifelines, synthesized + authentic BGM, and confetti for the
+worthy.
 
 > **Personal use only.** This project ships game-inspired music and artwork for
 > your own device. Do not redistribute or host publicly — see [Assets & rights](#assets--rights).
@@ -28,6 +30,26 @@ Production build (static files, hostable anywhere):
 npm run build      # outputs dist/
 npm run preview    # serve dist/ locally
 ```
+
+---
+
+## Local MCP quiz author
+
+`p5-quiz-author` is a local MCP server for agents. It shares the game's real
+schema, validator and repairer, so generated quizzes cannot drift from what the
+app accepts.
+
+```bash
+npm run mcp        # builds mcp/.build/core.mjs, starts stdio + inbox :3848
+```
+
+Then in the app: **LOAD A QUIZ → ✦ FROM MCP**, paste the single-use code, and
+**CLAIM**. The inbox is memory-only, single-use, ten-minute TTL, and binds
+`127.0.0.1` only. It never runs in production and port 3848 must not be exposed.
+
+Tools: `get_quiz_rules`, `build_quiz_prompt`, `validate_quiz`, `save_quiz`.
+Full setup, optional `P5Q_MCP_TOKEN`/scopes, client config and security notes:
+[`mcp/README.md`](mcp/README.md). Test it with `npm run mcptest`.
 
 ---
 
@@ -341,6 +363,7 @@ src/
   ui/       title, entry, dashboard, load, library, quiz, results, prompts,
             settings, profiles, leaderboard, screens (router)
   styles/   tokens, themes (palette overrides), p5 (ambient/cursor), components, screens
+mcp/        p5-quiz-author: stdio server, loopback inbox, bundled core
 public/
   audio/    background.mp3, select.mp3
   art/      cut-in portraits, card art
@@ -364,6 +387,7 @@ running on `:5183`:
 | Script | Covers |
 |---|---|
 | `node smoke.mjs` | full flow: title → prompts → paste → quiz → results → library/settings/profiles |
+| `node mcptest.mjs` | local MCP: build, tools, token rejection, single-use inbox claim |
 | `node matrixtest.mjs` | all 9 question types, all 5 modes, lifelines, AI-output variations |
 | `node reviewtest.mjs` | shuffled-quiz review alignment (regression for the scoreboard bug) |
 | `node realinput.mjs` | real mouse/keyboard input & hit-testing across screens |
@@ -387,7 +411,8 @@ running on `:5183`:
   synthesized jazz loop replaces the BGM, CSS-drawn masks replace portraits,
   the normal OS cursor returns, and system fonts take over.
 - No telemetry, no network calls (except quiz images/audio you reference in your
-  own JSON, and optional GitHub-raw quiz URLs you fetch yourself).
+  own JSON, optional GitHub-raw quiz URLs you fetch yourself, and the optional
+  loopback MCP inbox at `127.0.0.1:3848` when you claim an AI-authored quiz).
 
 ## Privacy
 

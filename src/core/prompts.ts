@@ -525,3 +525,8 @@ export function mergeFields(a: PromptFields, b: PromptFields): PromptFields {
     audience: b.audience === "adults" && a.audience !== "adults" ? a.audience : b.audience,
   };
 }
+
+/* Stable strings for the local p5-quiz-author MCP server. The server bundles
+   this module so the browser and the authoring tools share one contract. */
+export const QUIZ_SCHEMA_REF = SCHEMA_REF;
+export const QUIZ_HARD_RULES = RULES;

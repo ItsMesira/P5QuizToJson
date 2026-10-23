@@ -4,8 +4,7 @@ import { loadSettings, storeSettings } from "../core/store";
 import { validateQuiz } from "../core/validator";
 import { audio } from "../core/audio";
 import { fx } from "../fx/particles";
-import { slashWipe, abortWipe } from "../fx/transitions";
-import { showLoader, type Loader } from "../fx/loader";
+import { abortWipe } from "../fx/transitions";
 import { ransomizeAll } from "../fx/ransom";
 import { clear, toast } from "./dom";
 import { applyTheme } from "../core/theme";
@@ -143,7 +142,6 @@ interface Nav {
   gen: number;
   route: Route;
   instant: boolean;
-  loader: Loader | null;
   aborted: boolean;
 }
 
@@ -161,12 +159,10 @@ function clearWatchdog() {
 }
 
 /** Cancel a navigation. It will not commit, and it tears down only its OWN
- *  loader and its own in-flight wipe — never those of whatever superseded it. */
+ *  own in-flight wipe — never those of whatever superseded it. */
 function abortNav(n: Nav) {
   if (n.aborted) return;
   n.aborted = true;
-  n.loader?.abort();
-  n.loader = null;
   abortWipe();
   if (active === n) active = null;
 }
@@ -362,61 +358,32 @@ export async function go(route: Route, opts: { instant?: boolean } = {}) {
   }
 
   /* Newest wins, synchronously, before any await. The previous navigation is
-     dead from this line on: it can neither commit nor retire OUR loader. */
+     dead from this line on: it can neither commit nor touch shared state. */
   if (active) abortNav(active);
 
-  const nav: Nav = { gen: ++navGen, route, instant: !!opts.instant, loader: null, aborted: false };
+  const nav: Nav = { gen: ++navGen, route, instant: !!opts.instant, aborted: false };
   active = nav;
   armNavWatchdog(nav);
 
   /* The URL is the navigation's public record and the Back button must keep
-     working during a transition, so it is written eagerly. Nothing else is —
-     except `data-screen`, which only CSS reads (the ambient slash retracting on
-     sub-screens). That is a transition-INTENT signal, so it must fire when the
-     navigation starts, not when it finishes: committing it with the mount made
-     every data-screen-keyed animation begin ~800ms late, after the transition
-     it was supposed to accompany. The newest navigation writes it last and the
-     newest commits, so at rest it still names the mounted route. */
+     working immediately, so it is written eagerly. `data-screen` is a
+     transition-intent signal read by CSS; it has to fire when navigation starts,
+     not when the mount finishes. */
   if (location.hash.slice(1) !== route.name) location.hash = route.name;
   document.body.dataset.screen = route.name === "title" ? "home" : route.name;
 
-  /* The loader fills the wipe window (~600-800ms) with a named progress card
-     instead of dead air. A skipped transition (reduced motion / instant) never
-     shows it, and the 140ms delay means fast routes stay flicker-free.
-
-     Each setLoaderPhase below marks a milestone this function GENUINELY reaches,
-     in order — the deck advances on real progress, never on a timer. Routes with
-     no phase table ignore all of this (the handle clamps to a single card). */
-  if (!opts.instant) nav.loader = showLoader(route.name);
-  nav.loader?.setPhase(0);
-
+  /* No boot splash, no loader card, no full-screen wipe. Navigation is a plain
+     route commit: the only wait is the screen chunk itself. */
   await ensureScreen(route.name);
-  if (!isCurrent(nav)) return; // superseded during the chunk import
-  nav.loader?.setPhase(1); // the screen's chunk is in memory
-
-  if (!opts.instant) await slashWipe(veil, "in");
-  if (!isCurrent(nav)) return; // superseded during the wipe
-  nav.loader?.setPhase(2); // the transition itself is done
+  if (!isCurrent(nav)) return;
 
   try {
     await commit(nav);
-    if (!isCurrent(nav)) return;
-    nav.loader?.setPhase(3); // the screen is mounted
-    /* The loader rides the veil's own fade, so retiring it here cannot leave a
-       dead tail after the new screen is already up. */
-    if (!opts.instant) {
-      await slashWipe(veil, "out", { fadeOut: nav.loader?.el ? [nav.loader.el] : [] });
-    }
   } finally {
-    /* Only the owner releases: a stale navigation must never retire the loader
-       or clear the slot belonging to the one that superseded it. */
-    const loader = nav.loader;
-    nav.loader = null;
     if (active === nav) {
       active = null;
       clearWatchdog();
     }
-    loader?.retire();
   }
 }
 
