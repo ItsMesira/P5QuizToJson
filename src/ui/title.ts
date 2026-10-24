@@ -7,6 +7,7 @@ import { ransomize } from "../fx/ransom";
 import { loadProgress } from "../core/store";
 import { cloud } from "../core/api";
 import { t } from "../core/i18n";
+import { mountStudioHome } from "./studio-home";
 
 interface MenuEntry {
   label: string;
@@ -28,6 +29,13 @@ const ITEMS: MenuEntry[] = [
 
 registerScreen("title", (root) => {
   applyGlobalSettings();
+
+  /* Studio is the unthemed default. The old title remains the themed surface
+     for Crimson and Azure. */
+  if (app.settings.theme === "studio") {
+    mountStudioHome(root);
+    return () => {};
+  }
 
   let active = -1;
   const itemEls: HTMLElement[] = [];

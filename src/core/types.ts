@@ -188,7 +188,7 @@ export const DEFAULT_SETTINGS: Settings = {
   fullscreen: false,
   reducedMotion: false,
   alwaysShuffle: true,
-  theme: "calling-card",
+  theme: "studio",
   customTheme: { accent: "#e60012", ink: "#0c0c0e", paper: "#f6f4f0" },
   lang: "",
 };

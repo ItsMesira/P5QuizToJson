@@ -15,7 +15,7 @@ const check = (n, ok, extra = "") => { console.log(`${ok ? "PASS" : "FAIL"} ${n}
   const sizes = [[320, 568], [375, 667], [414, 896], [768, 1024], [1024, 768], [1280, 720], [1440, 900], [1920, 1080], [1440, 700]];
   for (const [w, h] of sizes) {
     await page.setViewport({ width: w, height: h });
-    await page.goto("http://localhost:5183/#title", { waitUntil: "networkidle0" });
+    await page.goto("http://localhost:5183/?theme=calling-card#title", { waitUntil: "networkidle0" });
     await sleep(1600);
     const issues = await page.evaluate(() => {
       const out = [];
@@ -44,7 +44,7 @@ const check = (n, ok, extra = "") => { console.log(`${ok ? "PASS" : "FAIL"} ${n}
   const errs = [];
   page.on("pageerror", (e) => errs.push(String(e).slice(0, 200)));
   await page.setViewport({ width: 1440, height: 900 });
-  await page.goto("http://localhost:5183/#entry", { waitUntil: "networkidle0" });
+  await page.goto("http://localhost:5183/?theme=calling-card#entry", { waitUntil: "networkidle0" });
   await sleep(1800);
   check("entry root has BACK TO MENU", await page.evaluate(() => !!document.querySelector(".entry-back-menu")));
 
@@ -60,7 +60,7 @@ const check = (n, ok, extra = "") => { console.log(`${ok ? "PASS" : "FAIL"} ${n}
   const routed = await page.evaluate(() => document.querySelector(".screen")?.className ?? "NONE");
   check("ESC from root escapes to title menu", routed.includes("title-screen"), routed);
 
-  await page.goto("http://localhost:5183/#entry", { waitUntil: "networkidle0" });
+  await page.goto("http://localhost:5183/?theme=calling-card#entry", { waitUntil: "networkidle0" });
   await sleep(1700);
   await page.evaluate(() => document.querySelector(".entry-back-menu")?.click());
   await sleep(1900);
@@ -73,7 +73,7 @@ const check = (n, ok, extra = "") => { console.log(`${ok ? "PASS" : "FAIL"} ${n}
 /* ---------- 3. veil watchdog (stalled transition recovery) ---------- */
 {
   const page = await browser.newPage();
-  await page.goto("http://localhost:5183/#title", { waitUntil: "networkidle0" });
+  await page.goto("http://localhost:5183/?theme=calling-card#title", { waitUntil: "networkidle0" });
   await sleep(1600);
   await page.evaluate(() => { document.getElementById("veil").style.opacity = "1"; });
   await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
@@ -103,7 +103,7 @@ const check = (n, ok, extra = "") => { console.log(`${ok ? "PASS" : "FAIL"} ${n}
     }
   });
   await page.setViewport({ width: 1440, height: 900 });
-  await page.goto("http://localhost:5183/#dashboard", { waitUntil: "networkidle0" });
+  await page.goto("http://localhost:5183/?theme=calling-card#dashboard", { waitUntil: "networkidle0" });
   await sleep(2800);
   const state = await page.evaluate(() => ({
     screen: document.querySelector(".screen")?.className ?? "NONE",
@@ -127,7 +127,7 @@ const check = (n, ok, extra = "") => { console.log(`${ok ? "PASS" : "FAIL"} ${n}
   const errs = [];
   page.on("pageerror", (e) => errs.push(String(e).slice(0, 200)));
   await page.setViewport({ width: 1440, height: 900 });
-  await page.goto("http://localhost:5183/#entry", { waitUntil: "networkidle0" });
+  await page.goto("http://localhost:5183/?theme=calling-card#entry", { waitUntil: "networkidle0" });
   await sleep(2100);
 
   const t0 = await page.evaluate(() => getComputedStyle(document.querySelector(".entry-row")).transform);
@@ -178,7 +178,7 @@ const check = (n, ok, extra = "") => { console.log(`${ok ? "PASS" : "FAIL"} ${n}
     } else req.continue();
   });
   await page.setViewport({ width: 1440, height: 900 });
-  await page.goto("http://localhost:5183/#entry", { waitUntil: "networkidle0" });
+  await page.goto("http://localhost:5183/?theme=calling-card#entry", { waitUntil: "networkidle0" });
   await sleep(2100);
   await page.evaluate(() => [...document.querySelectorAll(".entry-row")].find((r) => r.textContent.includes("LOG IN"))?.click());
   await sleep(700);

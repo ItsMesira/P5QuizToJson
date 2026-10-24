@@ -83,3 +83,23 @@
 }
 
 /* custom themes inject inline vars from JS (src/core/theme.ts) */
+
+/* ---------- STUDIO — the unthemed default ---------- */
+[data-theme="studio"] {
+  --red: #ffb829;
+  --red-deep: #9a6800;
+  --red-hot: #ffd76a;
+  --ink: #000000;
+  --ink-2: #0a0a0a;
+  --ink-3: #141414;
+  --paper: #ffffff;
+  --paper-dim: #b8b8b8;
+  --gold: #ffb829;
+  --gold-hot: #ffd76a;
+  --smoke: #9a9a9a;
+  --steel: #555555;
+  --green: #15846e;
+  --blue: #8052ff;
+  --p5-cyan: #8052ff;
+  --halftone: radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.08) 1px, transparent 0);
+}

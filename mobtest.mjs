@@ -64,7 +64,7 @@ const DEVICES = [
 
 for (const dev of DEVICES) {
   const { page, errs } = await openDevice(dev);
-  await page.goto(`${BASE}/#title`, { waitUntil: "load" });
+  await page.goto(`${BASE}/?theme=calling-card#title`, { waitUntil: "load" });
   await sleep(1500);
   const r = await page.evaluate(() => {
     const out = { overflow: false, cut: false, mobile: false, perf: "", issues: [] };
@@ -113,7 +113,7 @@ for (const dev of [
   const { page, errs } = await openDevice(dev);
   const issues = [];
   for (const s of SCREENS) {
-    await page.goto(`${BASE}/#${s}`, { waitUntil: "load" });
+    await page.goto(`${BASE}/?theme=calling-card#${s}`, { waitUntil: "load" });
     await sleep(950);
     const r = await page.evaluate(() => {
       const de = document.documentElement;
@@ -140,7 +140,7 @@ for (const dev of [
 /* ---------- 3. touch targets ---------- */
 {
   const { page, errs } = await openDevice({ w: 390, h: 844, ua: IPHONE_UA, dpr: 3 });
-  await page.goto(`${BASE}/#settings`, { waitUntil: "load" });
+  await page.goto(`${BASE}/?theme=calling-card#settings`, { waitUntil: "load" });
   await sleep(1200);
   const small = await page.evaluate(() => {
     const out = [];
@@ -197,7 +197,7 @@ const describeFps = (s) => `target=${s.target} ratio=${s.ratio.toFixed(2)} (${s.
   const errs = [];
   page.on("pageerror", (e) => errs.push(String(e).slice(0, 160)));
   await page.setViewport({ width: 1280, height: 800, deviceScaleFactor: 1 });
-  await page.goto(`${BASE}/#title`, { waitUntil: "load" });
+  await page.goto(`${BASE}/?theme=calling-card#title`, { waitUntil: "load" });
   await sleep(1400);
   const tier = await page.evaluate(() => ({
     perf: document.documentElement.dataset.perf,
@@ -218,7 +218,7 @@ const describeFps = (s) => `target=${s.target} ratio=${s.ratio.toFixed(2)} (${s.
 {
   // mobile
   const { page, errs } = await openDevice({ w: 390, h: 844, ua: IPHONE_UA, dpr: 3 });
-  await page.goto(`${BASE}/#title`, { waitUntil: "load" });
+  await page.goto(`${BASE}/?theme=calling-card#title`, { waitUntil: "load" });
   await sleep(1400);
   const tier = await page.evaluate(() => ({
     perf: document.documentElement.dataset.perf,
@@ -231,7 +231,7 @@ const describeFps = (s) => `target=${s.target} ratio=${s.ratio.toFixed(2)} (${s.
   // the cap must actually skip callbacks: near 1.0 would mean it is not applied
   check("mobile capped at 30fps (loop skips ~half the display frames)", capped(fps, 30, 0.3, 0.7), describeFps(fps));
   // the only appearance-neutral downgrade: the full-bleed drifts stop on low tier
-  await page.goto(`${BASE}/#load`, { waitUntil: "load" });
+  await page.goto(`${BASE}/?theme=calling-card#load`, { waitUntil: "load" });
   await sleep(1000);
   const css = await page.evaluate(() => ({
     ambient: getComputedStyle(document.querySelector("#bg-stripes"), "::before").animationName,

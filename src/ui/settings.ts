@@ -4,7 +4,7 @@ import { registerScreen, go, app, applyGlobalSettings } from "./screens";
 import { h, toast } from "./dom";
 import { audio } from "../core/audio";
 import { RM } from "../fx/transitions";
-import { THEMES, contrastRatio, isHexColor } from "../core/theme";
+import { PRIMARY_THEMES, contrastRatio, isHexColor } from "../core/theme";
 import { t, LOCALES, detectLocale, ensureLocale } from "../core/i18n";
 
 registerScreen("settings", (root) => {
@@ -92,7 +92,7 @@ registerScreen("settings", (root) => {
       return sw;
     }));
 
-  const themeGrid = h("div", { class: "theme-grid" }, THEMES.map((def) => {
+  const themeGrid = h("div", { class: "theme-grid" }, PRIMARY_THEMES.map((def) => {
     const card = h("button", { class: `theme-card ${s.theme === def.id ? "on" : ""}`, "data-theme-id": def.id }, [
       swatchRow(def.swatches.length ? def.swatches : [s.customTheme.accent, s.customTheme.ink, s.customTheme.paper]),
       h("div", { class: "theme-name" }, [def.name]),
@@ -215,7 +215,7 @@ registerScreen("settings", (root) => {
     Object.assign(app.settings, {
       fx: "maximum", particles: true, shake: true, slowmo: true, crt: false,
       music: true, bgm: "authentic", sfx: true, volume: 0.7, autoAdvance: false, fullscreen: false, reducedMotion: false, alwaysShuffle: true,
-      theme: "calling-card", customTheme: { accent: "#e60012", ink: "#0c0c0e", paper: "#f6f4f0" }, lang: "",
+      theme: "studio", customTheme: { accent: "#e60012", ink: "#0c0c0e", paper: "#f6f4f0" }, lang: "",
     });
     applyGlobalSettings();
     toast(t("Settings reset"), "info");

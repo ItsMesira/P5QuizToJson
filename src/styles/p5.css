@@ -114,6 +114,55 @@ body {
   transform: translate(2px, 2px) scale(0.985) !important;
 }
 
+#ambient::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background-image: var(--theme-art, none);
+  background-position: center;
+  background-size: cover;
+  opacity: calc(var(--theme-art-opacity, 0) * 0.5);
+  filter: saturate(1.04) contrast(1.04);
+  transition: opacity 360ms ease;
+}
+
+body[data-screen="home"] #ambient::before {
+  opacity: calc(var(--theme-art-opacity, 0) * 0.38);
+}
+
+body[data-screen]:not([data-screen="home"]) #ambient::before {
+  opacity: calc(var(--theme-art-opacity, 0) * 0.2);
+}
+
+#ambient::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(12, 12, 14, 0.97) 0%, rgba(12, 12, 14, 0.92) 30%, rgba(12, 12, 14, 0.56) 52%, rgba(12, 12, 14, 0.08) 82%, transparent 100%),
+    linear-gradient(0deg, rgba(12, 12, 14, 0.7) 0%, transparent 34%);
+}
+
+[data-theme="studio"] #ambient::after {
+  display: none;
+}
+
+[data-theme="studio"] #ambient {
+  background: var(--ink);
+}
+
+[data-theme="studio"] #ambient #bg-stripes,
+[data-theme="studio"] #ambient #bg-halftone,
+[data-theme="studio"] #ambient #bg-vignette,
+[data-theme="studio"] #ambient .bg-star,
+[data-theme="studio"] #ambient #bg-slash {
+  display: none;
+}
+
 #ambient {
   position: fixed;
   inset: -6vmax;

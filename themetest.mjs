@@ -18,11 +18,11 @@ const clickTheme = (id) => page.evaluate((i) => document.querySelector(`[data-th
 await page.goto("http://localhost:5183/#settings", { waitUntil: "networkidle0" });
 await sleep(2200);
 
-check("default theme is calling-card", (await themeOf()) === "calling-card", await themeOf());
-check("theme cards render (6 incl. custom)", (await page.$$(".theme-card")).length === 6);
-check("default --red is P5 crimson", (await redOf()) === "#e60012", await redOf());
+check("default theme is studio", (await themeOf()) === "studio", await themeOf());
+check("three appearance cards render", (await page.$$(".theme-card")).length === 3);
+check("default --red is Studio saffron", (await redOf()) === "#ffb829", await redOf());
 
-for (const [id, red] of [["noir", "#c9a227"], ["azure", "#2563eb"], ["chalkboard", "#21a366"], ["vapor", "#c026d3"]]) {
+for (const [id, red] of [["calling-card", "#e60012"], ["azure", "#2563eb"]]) {
   await clickTheme(id);
   await sleep(350);
   const t = await themeOf();
@@ -30,51 +30,37 @@ for (const [id, red] of [["noir", "#c9a227"], ["azure", "#2563eb"], ["chalkboard
   check(`theme ${id} applies`, t === id && r === red, `${t} / ${r}`);
 }
 
-/* custom picker */
-await clickTheme("custom");
-await sleep(400);
-check("custom box revealed", await page.evaluate(() => document.querySelector(".theme-custom")?.classList.contains("show")));
-await page.evaluate(() => {
-  const inputs = [...document.querySelectorAll(".theme-custom input[type=color]")];
-  inputs[0].value = "#00ff88";
-  inputs[0].dispatchEvent(new Event("input", { bubbles: true }));
-});
-await sleep(400);
-const inlineRed = await page.evaluate(() => document.documentElement.style.getPropertyValue("--red").trim());
-check("custom accent applies inline", inlineRed === "#00ff88", inlineRed);
-const contrastText = await page.evaluate(() => document.querySelector(".theme-contrast")?.textContent ?? "");
-check("contrast readout present", /TEXT .* \d+\.\d:1/.test(contrastText), contrastText);
-
-/* high-contrast custom: white text on dark bg should be OK */
-await page.evaluate(() => {
-  const inputs = [...document.querySelectorAll(".theme-custom input[type=color]")];
-  inputs[2].value = "#ffffff";
-  inputs[2].dispatchEvent(new Event("input", { bubbles: true }));
-});
+/* the themed home must carry its art, the unthemed default must not */
+await clickTheme("calling-card");
 await sleep(300);
-check("AA ok shown for white-on-dark", await page.evaluate(() => !!document.querySelector(".theme-contrast .ok")));
+const crimsonArt = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--theme-art").trim());
+check("crimson exposes theme art", crimsonArt.includes("/themes/crimson/" ), crimsonArt);
+await clickTheme("studio");
+await sleep(300);
+const studioArt = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--theme-art").trim());
+check("studio exposes no theme art", studioArt === "none", studioArt);
 
-/* persistence: keep vapor → reload → still vapor */
-await clickTheme("vapor");
+/* persistence: keep azure → reload → still azure */
+await clickTheme("azure");
 await sleep(300);
 await page.reload({ waitUntil: "networkidle0" });
 await sleep(2200);
-check("vapor persists across reload", (await themeOf()) === "vapor", await themeOf());
-check("vapor --red after reload", (await redOf()) === "#c026d3", await redOf());
+check("azure persists across reload", (await themeOf()) === "azure", await themeOf());
+check("azure --red after reload", (await redOf()) === "#2563eb", await redOf());
 
-/* reset defaults restores calling-card */
+/* reset defaults restores studio */
 await page.evaluate(() => document.querySelector(".reset-btn")?.click());
 await sleep(1800);
-check("reset restores calling-card", (await themeOf()) === "calling-card", await themeOf());
+check("reset restores studio", (await themeOf()) === "studio", await themeOf());
 
-/* every screen still boots under a non-default theme */
-await clickTheme("chalkboard");
+/* every screen still boots under a themed surface */
+await clickTheme("calling-card");
 await sleep(300);
 for (const route of ["title", "load", "library", "entry", "settings", "profiles", "leaderboard", "prompts"]) {
   await page.goto(`http://localhost:5183/#${route}`, { waitUntil: "networkidle0" });
   await sleep(1100);
   const screen = await page.evaluate(() => document.querySelector(".screen")?.className ?? "NONE");
-  check(`#${route} renders under chalkboard`, screen !== "NONE" && screen !== "", screen);
+  check(`#${route} renders under calling-card`, screen !== "NONE" && screen !== "", screen);
 }
 
 console.log("JS ERRORS:", errs.length ? errs.slice(0, 6) : "none");

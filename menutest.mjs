@@ -11,7 +11,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let fails = 0;
 const check = (n, ok, extra = "") => { console.log(`${ok ? "PASS" : "FAIL"} ${n}${extra ? " — " + extra : ""}`); if (!ok) fails++; };
 
-await page.goto("http://localhost:5183/#title", { waitUntil: "networkidle0" });
+await page.goto("http://localhost:5183/?theme=calling-card#title", { waitUntil: "networkidle0" });
 await sleep(2200);
 
 // ransom lettering on big name
@@ -89,7 +89,7 @@ check("bg: stripes + halftone + 2 stars + slash", bg.stripes && bg.halftone && b
 check("slash home shape", bg.slashClip.includes("58%"), bg.slashClip);
 
 // slash retracts on sub screen
-await page.goto("http://localhost:5183/#load", { waitUntil: "networkidle0" });
+await page.goto("http://localhost:5183/?theme=calling-card#load", { waitUntil: "networkidle0" });
 await sleep(1400);
 const slashSub = await page.evaluate(() => getComputedStyle(document.querySelector("#bg-slash")).clipPath);
 check("slash retracts on sub-screens", /0px 62%|0 62%|0px 100%/ .test(slashSub), slashSub.slice(0, 60));

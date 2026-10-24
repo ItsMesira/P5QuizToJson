@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import tailwindcss from "@tailwindcss/vite";
 import { fileURLToPath } from "node:url";
+import { realpathSync } from "node:fs";
 
 export default defineConfig({
   base: "./",
@@ -12,6 +13,11 @@ export default defineConfig({
   server: {
     // loopback by default — run `npm run dev -- --host` to expose deliberately
     host: "127.0.0.1",
+    fs: {
+      /* This worktree symlinks node_modules to the existing app. Vite's fs
+         guard otherwise 403s the font files behind the symlink. */
+      allow: [fileURLToPath(new URL(".", import.meta.url)), realpathSync(fileURLToPath(new URL("./node_modules", import.meta.url)))],
+    },
     allowedHosts: [
       "localhost",
       "127.0.0.1",

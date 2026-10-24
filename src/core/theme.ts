@@ -9,13 +9,42 @@ export interface ThemeDef {
 }
 
 export const THEMES: ThemeDef[] = [
-  { id: "calling-card", name: "CALLING CARD", tag: "The classic crimson heist", swatches: ["#e60012", "#0c0c0e", "#f6f4f0"] },
+  { id: "studio", name: "STUDIO", tag: "The quiet default — no costume", swatches: ["#ffb829", "#000000", "#ffffff"] },
+  { id: "calling-card", name: "CRIMSON", tag: "The classic crimson heist", swatches: ["#e60012", "#0c0c0e", "#f6f4f0"] },
   { id: "noir", name: "NOIR", tag: "Black, paper and gold leaf", swatches: ["#c9a227", "#0a0a0b", "#efece4"] },
   { id: "azure", name: "AZURE", tag: "Midnight blue with cyan", swatches: ["#2563eb", "#070b16", "#eef3fc"] },
   { id: "chalkboard", name: "CHALKBOARD", tag: "After-school green", swatches: ["#21a366", "#0a1510", "#f1efe2"] },
   { id: "vapor", name: "VAPOR", tag: "Magenta dusk", swatches: ["#c026d3", "#150a1e", "#f6eeff"] },
   { id: "custom", name: "CUSTOM", tag: "Your colors, your heist", swatches: [] },
 ];
+
+/** The three appearances exposed to the owner. Legacy IDs remain valid for
+ *  saved settings and old share links, but are no longer offered. */
+export const PRIMARY_THEMES: ThemeDef[] = THEMES.filter((t) =>
+  t.id === "studio" || t.id === "calling-card" || t.id === "azure"
+);
+
+export interface ThemeArt {
+  home: string;
+  side: string;
+  quiet: string;
+  detail: string;
+}
+
+const THEME_ART: Record<string, ThemeArt> = {
+  "calling-card": {
+    home: "/themes/crimson/home.jpg",
+    side: "/themes/crimson/about.jpg",
+    quiet: "/themes/crimson/contact.jpg",
+    detail: "/themes/crimson/skills.jpg",
+  },
+  azure: {
+    home: "/themes/azure/home.jpg",
+    side: "/themes/azure/about.jpg",
+    quiet: "/themes/azure/contact.jpg",
+    detail: "/themes/azure/skills.jpg",
+  },
+};
 
 export function themeDef(id: string): ThemeDef {
   return THEMES.find((t) => t.id === id) ?? THEMES[0];
@@ -106,8 +135,13 @@ function safeColor(v: unknown, fallback: string): string {
 /* ---------- apply ---------- */
 export function applyTheme(s: Settings) {
   const root = document.documentElement;
-  const id = isValidTheme(s.theme) ? s.theme : "calling-card";
+  const id = isValidTheme(s.theme) ? s.theme : "studio";
   root.dataset.theme = id;
+  const art = THEME_ART[id];
+  root.style.setProperty("--theme-art", art ? `url("${art.home}")` : "none");
+  root.style.setProperty("--theme-art-side", art ? `url("${art.side}")` : "none");
+  root.style.setProperty("--theme-art-quiet", art ? `url("${art.quiet}")` : "none");
+  root.style.setProperty("--theme-art-opacity", art ? "1" : "0");
   if (id === "custom") {
     for (const [k, v] of Object.entries(customVars(s.customTheme))) {
       root.style.setProperty(k, v);
