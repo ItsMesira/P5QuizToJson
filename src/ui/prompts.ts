@@ -752,12 +752,16 @@ registerScreen("prompts", (root, scope) => {
 
   /* ---------------- keyboard ---------------- */
   const onKey = (e: KeyboardEvent) => {
-    const t = e.target as HTMLElement | null;
-    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
     if (e.key === "Escape") {
-      if (!modal.classList.contains("hidden")) modal.classList.add("hidden");
+      if (!modal.classList.contains("hidden")) {
+        modal.classList.add("hidden");
+        return;
+      }
+      void go({ name: "title" });
       return;
     }
+    const t = e.target as HTMLElement | null;
+    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
     if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
       const order: ("builder" | "presets" | "history")[] = ["builder", "presets", "history"];
       const idx = order.indexOf(tab);

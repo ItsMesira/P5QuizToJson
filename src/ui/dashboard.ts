@@ -437,7 +437,9 @@ registerScreen("dashboard", (root) => {
     if (e.target === modal) closeAdd();
   });
   const onKey = (e: KeyboardEvent) => {
-    if (e.key === "Escape" && !modal.classList.contains("hidden")) closeAdd();
+    if (e.key !== "Escape") return;
+    if (!modal.classList.contains("hidden")) closeAdd();
+    else void go({ name: "title" });
   };
   document.addEventListener("keydown", onKey);
 

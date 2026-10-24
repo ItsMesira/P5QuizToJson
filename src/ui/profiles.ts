@@ -159,6 +159,10 @@ registerScreen("profiles", (root) => {
 
   /* ---------- keyboard (P5 controls) ---------- */
   const onKey = (e: KeyboardEvent) => {
+    if (e.key === "Escape") {
+      void go({ name: "title" });
+      return;
+    }
     const t = e.target as HTMLElement | null;
     if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
     const list = profiles();

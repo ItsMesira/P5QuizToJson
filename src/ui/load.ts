@@ -368,6 +368,22 @@ registerScreen("load", (root) => {
     }
   });
 
+  // Esc closes the top overlay first, then leaves the screen.
+  const onKey = (e: KeyboardEvent) => {
+    if (e.key !== "Escape") return;
+    const pasteOpen = !pasteBox.classList.contains("hidden");
+    const urlOpen = !urlBox.classList.contains("hidden");
+    const mcpOpen = !mcpBox.classList.contains("hidden");
+    if (pasteOpen) { pasteBox.classList.add("hidden"); e.preventDefault(); return; }
+    if (urlOpen) { urlBox.classList.add("hidden"); e.preventDefault(); return; }
+    if (mcpOpen) { mcpBox.classList.add("hidden"); e.preventDefault(); return; }
+    const target = e.target as HTMLElement | null;
+    if (target?.closest("input, textarea, select")) return;
+    e.preventDefault();
+    void go({ name: cloud.session?.cls ? "dashboard" : "title" });
+  };
+  window.addEventListener("keydown", onKey);
+
   // global paste
   const onPaste = async (e: ClipboardEvent) => {
     if (pasteBox.classList.contains("hidden") && urlBox.classList.contains("hidden") && mcpBox.classList.contains("hidden")) {
@@ -441,5 +457,6 @@ registerScreen("load", (root) => {
 
   return () => {
     window.removeEventListener("paste", onPaste);
+    window.removeEventListener("keydown", onKey);
   };
 });

@@ -210,7 +210,7 @@
 }
 
 .studio-menu {
-  align-self: end;
+  align-self: center;
   min-width: 0;
   border-top: 1px solid rgba(255, 255, 255, 0.3);
   background: rgba(10, 10, 10, 0.78);

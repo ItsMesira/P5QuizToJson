@@ -193,8 +193,6 @@ registerScreen("title", (root) => {
      no 1.4s wait before the first menu item becomes selectable. */
   activate(0, true);
 
-  activate(0, true);
-
   if (!RM()) {
     const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
     tl.from("#hud-top", { y: -18, opacity: 0, duration: 0.38 })

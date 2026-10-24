@@ -387,6 +387,30 @@ export async function go(route: Route, opts: { instant?: boolean } = {}) {
   }
 }
 
+/* Esc is the universal "back" key. Screens with their own Esc semantics
+   (quiz pause, entry stages, prompt/dash modals, load overlays) opt out and
+   handle it locally; everything else returns to the menu (or the class
+   dashboard for the class shelf). */
+const LOCAL_ESCAPE = new Set([
+  "title",
+  "quiz",
+  "entry",
+  "prompts",
+  "dashboard",
+  "profiles",
+  "load",
+]);
+
+window.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape" || e.defaultPrevented) return;
+  const target = e.target as HTMLElement | null;
+  if (target?.closest("input, textarea, select, [contenteditable='true']")) return;
+  if (document.querySelector("dialog[open], .modal:not(.hidden), .load-paste:not(.hidden), .load-url:not(.hidden), .load-mcp:not(.hidden), .dash-add-modal:not(.hidden)")) return;
+  if (LOCAL_ESCAPE.has(current.name)) return;
+  e.preventDefault();
+  void go({ name: current.name === "class-library" ? "dashboard" : "title" });
+});
+
 /* failsafe: if the black veil is still up seconds after the tab wakes up,
    force it away so a stalled transition can never strand a black screen */
 document.addEventListener("visibilitychange", () => {
