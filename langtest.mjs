@@ -43,7 +43,7 @@ for (const loc of LOCALES) {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   for (const [loc, h] of [["th", 960], ["th", 900], ["th", 870], ["th", 850], ["th", 820], ["th", 801], ["ja", 900], ["ja", 820]]) {
     await page.setViewport({ width: 1440, height: h });
-    await page.goto(`http://localhost:5183/?lang=${loc}#title`, { waitUntil: "networkidle0" });
+    await page.goto(`http://localhost:5183/?lang=${loc}&theme=calling-card#title`, { waitUntil: "networkidle0" });
     await sleep(1500);
     const r = await page.evaluate(() => {
       const menu = document.querySelector("#menu")?.getBoundingClientRect();
@@ -59,7 +59,7 @@ for (const loc of LOCALES) {
   }
   /* very short viewports may scroll instead — assert the content is reachable, HUD never hides it forever */
   await page.setViewport({ width: 844, height: 390 });
-  await page.goto("http://localhost:5183/?lang=th#title", { waitUntil: "networkidle0" });
+  await page.goto("http://localhost:5183/?lang=th&theme=calling-card#title", { waitUntil: "networkidle0" });
   await sleep(1500);
   const shortOk = await page.evaluate(() => {
     const scroller = document.querySelector(".title-screen");
@@ -136,7 +136,7 @@ for (const loc of LOCALES) {
 {
   const page = await browser.newPage();
   await page.setViewport({ width: 1440, height: 900 });
-  await page.goto("http://localhost:5183/?lang=th#title", { waitUntil: "networkidle0" });
+  await page.goto("http://localhost:5183/?lang=th&theme=calling-card#title", { waitUntil: "networkidle0" });
   await sleep(2100);
   const ransom = await page.evaluate(() => {
     const first = document.querySelector("#menu .menu-ransom");
@@ -158,7 +158,7 @@ for (const loc of LOCALES) {
 /* ---------- layout under long strings (German is longest) ---------- */
 {
   const page = await browser.newPage();
-  await page.goto("http://localhost:5183/?lang=de#title", { waitUntil: "networkidle0" });
+  await page.goto("http://localhost:5183/?lang=de&theme=calling-card#title", { waitUntil: "networkidle0" });
   for (const [w, h] of [[1440, 900], [1280, 720], [390, 844]]) {
     await page.setViewport({ width: w, height: h });
     await page.reload({ waitUntil: "networkidle0" });

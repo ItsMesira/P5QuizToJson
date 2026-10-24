@@ -6,6 +6,7 @@ import { audio } from "../core/audio";
 import { RM } from "../fx/transitions";
 import { PRIMARY_THEMES, contrastRatio, isHexColor } from "../core/theme";
 import { t, LOCALES, detectLocale, ensureLocale } from "../core/i18n";
+import { mcpSettings } from "./mcp-settings";
 
 registerScreen("settings", (root) => {
   const s = app.settings;
@@ -161,6 +162,8 @@ registerScreen("settings", (root) => {
       h("h3", { class: "rs-title" }, [t("— THEME —")]),
       themeGrid,
       customBox,
+      h("h3", { class: "rs-title" }, [t("— MCP ACCESS —")]),
+      mcpSettings(),
       h("h3", { class: "rs-title" }, [t("— STYLE —")]),
       fxRow,
       toggle(t("CRT SCANLINES"), () => s.crt, (v) => (s.crt = v), t("Old-school monitor texture")),
