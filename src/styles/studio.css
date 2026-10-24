@@ -416,3 +416,10 @@
     transition: none;
   }
 }
+
+/* A short crossfade when a theme is chosen; falls back to a hard swap. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 260ms;
+  animation-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1);
+}

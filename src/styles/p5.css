@@ -390,3 +390,19 @@ body.crt::after {
   background-image: url("/cursors/link.png");
   margin: -6px 0 0 -6px;
 }
+
+/* Studio is deliberately quiet: no P5 sprite cursor, no particles. */
+[data-theme="studio"] #cursor {
+  display: none !important;
+}
+
+@media (pointer: fine) {
+  [data-theme="studio"] body.cursor-on,
+  [data-theme="studio"] body.cursor-on * {
+    cursor: auto !important;
+  }
+}
+
+[data-theme="studio"] #fx-canvas {
+  display: none;
+}

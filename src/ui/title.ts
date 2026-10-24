@@ -8,6 +8,8 @@ import { loadProgress } from "../core/store";
 import { cloud } from "../core/api";
 import { t } from "../core/i18n";
 import { mountStudioHome } from "./studio-home";
+import gsap from "gsap";
+import { RM } from "../fx/transitions";
 
 interface MenuEntry {
   label: string;
@@ -190,6 +192,18 @@ registerScreen("title", (root) => {
   /* The title is static on mount: no delayed entrance, no staggered letters,
      no 1.4s wait before the first menu item becomes selectable. */
   activate(0, true);
+
+  activate(0, true);
+
+  if (!RM()) {
+    const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
+    tl.from("#hud-top", { y: -18, opacity: 0, duration: 0.38 })
+      .from("#intro-eyebrow", { x: -20, opacity: 0, duration: 0.34 }, "-=0.12")
+      .from("#big-name .ch", { y: 34, opacity: 0, rotate: -7, duration: 0.45, stagger: 0.018 }, "-=0.16")
+      .from("#tagline", { x: -24, opacity: 0, rotate: 2, duration: 0.34 }, "-=0.18")
+      .from("#menu .menu-item", { x: -24, opacity: 0, duration: 0.4, stagger: 0.045 }, "-=0.18")
+      .from("#hud-bottom, .bgm-panel", { opacity: 0, duration: 0.32 }, "-=0.1");
+  }
 
   return () => {
     window.removeEventListener("keydown", onKey);

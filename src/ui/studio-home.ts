@@ -8,6 +8,8 @@ import { h } from "./dom";
 import { audio } from "../core/audio";
 import { cloud } from "../core/api";
 import { t } from "../core/i18n";
+import gsap from "gsap";
+import { RM } from "../fx/transitions";
 import type { Route } from "./screens";
 
 interface StudioRoute {
@@ -133,4 +135,22 @@ export function mountStudioHome(root: HTMLElement): void {
   ]);
 
   root.appendChild(el);
+
+  if (!RM()) {
+    gsap.from(el.querySelectorAll(".studio-copy > *"), {
+      y: 18,
+      opacity: 0,
+      duration: 0.5,
+      stagger: 0.06,
+      ease: "power3.out",
+    });
+    gsap.from(el.querySelectorAll(".studio-top, .studio-menu-head, .studio-row, .studio-bottom"), {
+      y: 12,
+      opacity: 0,
+      duration: 0.42,
+      stagger: 0.045,
+      delay: 0.08,
+      ease: "power3.out",
+    });
+  }
 }

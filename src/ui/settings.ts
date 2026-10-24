@@ -92,6 +92,28 @@ registerScreen("settings", (root) => {
       return sw;
     }));
 
+  const swapTheme = (next: string) => {
+    const apply = () => {
+      s.theme = next;
+      audio.sfx("select");
+      applyGlobalSettings();
+      refreshThemeCards();
+      updateContrast();
+    };
+    const doc = document as Document & {
+      startViewTransition?: (callback: () => void) => { finished: Promise<void> };
+    };
+    if (!RM() && doc.startViewTransition) {
+      try {
+        doc.startViewTransition(apply);
+      } catch {
+        apply();
+      }
+    } else {
+      apply();
+    }
+  };
+
   const themeGrid = h("div", { class: "theme-grid" }, PRIMARY_THEMES.map((def) => {
     const card = h("button", { class: `theme-card ${s.theme === def.id ? "on" : ""}`, "data-theme-id": def.id }, [
       swatchRow(def.swatches.length ? def.swatches : [s.customTheme.accent, s.customTheme.ink, s.customTheme.paper]),
@@ -99,13 +121,7 @@ registerScreen("settings", (root) => {
       h("div", { class: "theme-tag" }, [t(def.tag)]),
     ]);
     card.addEventListener("mouseenter", () => audio.sfx("hover"));
-    card.addEventListener("click", () => {
-      s.theme = def.id;
-      audio.sfx("select");
-      applyGlobalSettings();
-      refreshThemeCards();
-      updateContrast();
-    });
+    card.addEventListener("click", () => swapTheme(def.id));
     return card;
   }));
 
